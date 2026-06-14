@@ -93,6 +93,20 @@ func TestBuildAttributesAppliesLegacyConflictRenames(t *testing.T) {
 			},
 		},
 		{
+			name: "service_name overwrites existing name before legacy name conflict",
+			tags: map[string]string{
+				"target_name":  "svc",
+				"target_type":  "rac_database",
+				"name":         "configured-name",
+				"service_name": "app-service",
+			},
+			expected: Attributes{
+				"target_name": "svc",
+				"target_type": "rac_database",
+				"name_":       "app-service",
+			},
+		},
+		{
 			name: "Username_machine derives user and pod",
 			tags: map[string]string{
 				"target_name":      "audit",
@@ -143,6 +157,39 @@ func TestBuildAttributesAppliesLegacyConflictRenames(t *testing.T) {
 				t.Fatalf("attributes = %#v, want %#v", attrs, tt.expected)
 			}
 		})
+	}
+}
+
+func TestBuildAttributesLetsMetricKeysOverrideTargetTagsBeforeLegacyConflicts(t *testing.T) {
+	target := config.TargetConfig{
+		ID:       "target-1",
+		Name:     "db1",
+		TypeName: "oracle_database",
+		Tags: map[string]string{
+			"target_name": "db1",
+			"target_type": "oracle_database",
+			"instance":    "configured-instance",
+			"MountPoint":  "configured-mount",
+		},
+	}
+	metadata := collect.GroupMetadata{
+		Keys: []string{"instance", "MountPoint"},
+	}
+	item := map[string]any{
+		"instance":   "collected-instance",
+		"MountPoint": "/u01",
+	}
+
+	attrs := BuildAttributes(target, metadata, item)
+
+	want := Attributes{
+		"target_name": "db1",
+		"target_type": "oracle_database",
+		"_instance":   "collected-instance",
+		"MountPoint":  "/u01",
+	}
+	if !reflect.DeepEqual(attrs, want) {
+		t.Fatalf("attributes = %#v, want %#v", attrs, want)
 	}
 }
 

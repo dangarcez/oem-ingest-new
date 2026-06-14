@@ -1052,3 +1052,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: implementada normalização de atributos em `internal/transform`, unindo tags do target com keys do item e reproduzindo os conflitos legados de `build_tags`/`_buildAttributes`, preservando tags externas.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.4 - Normalização de atributos
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para a ordem legada de colisões entre tags, keys, `service_name`, `name` e `instance`.
