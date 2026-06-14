@@ -45,6 +45,16 @@ def target_or_404(target_id: str):
    return target
 
 
+def incident_or_404(incident_id: str):
+   if incident.get("id") == incident_id:
+      return incident
+
+   found = find_target(incidents.get("items", []), "id", incident_id)
+   if found is None:
+      raise HTTPException(status_code=404, detail="Incident not found")
+   return found
+
+
 def load_target_fixture(target: dict, suffix: str):
    name_path = CACHE_BY_NAME_DIR / f"{target['name']}_{suffix}"
    type_path = CACHE_BY_TYPE_DIR / f"{target['typeName']}_{suffix}"
@@ -94,7 +104,7 @@ def read_root():
 
 @app.get("/em/api/incidents/{incident_id}")
 def read_root(incident_id : str):    
-    return incident
+    return incident_or_404(incident_id)
 
 
 

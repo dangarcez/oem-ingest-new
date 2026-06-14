@@ -240,6 +240,41 @@ func TestCheckKnownIncidentsRemovesClosedIncident(t *testing.T) {
 	}
 }
 
+func TestPollOnceExportsIncidentAgainAfterClosedRemoval(t *testing.T) {
+	incident := oem.Incident{ID: "INC-1", Message: "reopened incident", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
+	client := &fakeIncidentClient{
+		pages: []oem.Page[oem.Incident]{
+			{Items: []oem.Incident{incident}},
+			{Items: []oem.Incident{incident}},
+		},
+		incidents: map[string]oem.Incident{
+			"INC-1": {ID: "INC-1", Status: "Closed"},
+		},
+	}
+	sink := &recordingLogSink{}
+	poller, err := New(Options{Client: client, Logs: sink})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce() error = %v", err)
+	}
+	if _, err := poller.CheckKnownIncidentsOnce(context.Background()); err != nil {
+		t.Fatalf("CheckKnownIncidentsOnce() error = %v", err)
+	}
+
+	result, err := poller.PollOnce(context.Background())
+	if err != nil {
+		t.Fatalf("second PollOnce() error = %v", err)
+	}
+	if result.New != 1 || result.Duplicates != 0 {
+		t.Fatalf("second PollOnce() result = %#v, want incident exported again after removal", result)
+	}
+	if got := len(sink.recordsSnapshot()); got != 2 {
+		t.Fatalf("records len = %d, want incident exported twice across closed removal", got)
+	}
+}
+
 func TestCheckKnownIncidentsRemovesIncidentOnAPIError(t *testing.T) {
 	incident := oem.Incident{ID: "INC-1", Message: "incident with detail error", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
 	client := &fakeIncidentClient{

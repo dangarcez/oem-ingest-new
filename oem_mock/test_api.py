@@ -138,11 +138,25 @@ class OEMMockAPITest(unittest.TestCase):
         self.assertEqual(incident.status, 200)
         self.assertEqual(json.loads(incident.body)["id"], incident_id)
 
+        second_incident_id = json.loads(incidents.body)["items"][1]["id"]
+        second_incident = request(self.base_url, "GET", f"/em/api/incidents/{second_incident_id}")
+        self.assertEqual(second_incident.status, 200)
+        self.assertEqual(json.loads(second_incident.body)["id"], second_incident_id)
+
     def test_unknown_target_returns_404(self):
         response = request(
             self.base_url,
             "GET",
             "/em/api/targets/missing-target/metricGroups",
+        )
+
+        self.assertEqual(response.status, 404)
+
+    def test_unknown_incident_returns_404(self):
+        response = request(
+            self.base_url,
+            "GET",
+            "/em/api/incidents/missing-incident",
         )
 
         self.assertEqual(response.status, 404)

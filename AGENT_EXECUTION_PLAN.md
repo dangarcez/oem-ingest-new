@@ -1172,3 +1172,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: poller de incidentes agora verifica periodicamente detalhes de incidentes conhecidos e remove da deduplicação em memória quando o detalhe falha ou retorna `status == Closed`, usando um único loop para evitar jobs/goroutines por incidente.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 6.2 - Monitoramento de fechamento de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `./oem_mock/.venv/bin/python -m unittest oem_mock/test_api.py`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o mock para `GET /em/api/incidents/{id}` retornar o incidente solicitado ou 404, evitando falso fechamento de todos os IDs pelo fixture estático; adicionada cobertura para reexportar um incidente depois de removido da deduplicação por fechamento.
