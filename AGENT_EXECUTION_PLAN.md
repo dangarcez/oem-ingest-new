@@ -968,3 +968,9 @@ Entradas:
   Status: concluída
   Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: mock FastAPI agora responde `/em/api`, carrega fixtures por caminho absoluto do modulo e aceita payloads binarios em `/v1/metrics` e `/v1/logs`; adicionada documentacao local do mock.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 1.2 - Adaptar mock para testes locais
+  Status: concluída
+  Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no mock; adicionada cobertura para `properties`, `latestData?limit=200`, detalhe de incidente e 404 de target ausente.

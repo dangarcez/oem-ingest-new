@@ -106,7 +106,13 @@ class OEMMockAPITest(unittest.TestCase):
         self.assertIn("items", json.loads(incidents.body))
 
         target_id = "007FCBCC1AECBAE3831390E244127549"
+
+        properties = request(self.base_url, "GET", f"/em/api/targets/{target_id}/properties")
+        self.assertEqual(properties.status, 200)
+        self.assertIn("items", json.loads(properties.body))
+
         groups = request(self.base_url, "GET", f"/em/api/targets/{target_id}/metricGroups")
+        self.assertEqual(groups.status, 200)
         group_items = json.loads(groups.body)["items"]
         self.assertGreater(len(group_items), 0)
 
@@ -116,6 +122,30 @@ class OEMMockAPITest(unittest.TestCase):
             f"/em/api/targets/{target_id}/metricGroups/CCCData_ORACLE_obs_delayed",
         )
         self.assertEqual(json.loads(group.body)["name"], "CCCData_ORACLE_obs_delayed")
+
+        latest = request(
+            self.base_url,
+            "GET",
+            f"/em/api/targets/{target_id}/metricGroups/Response/latestData?limit=200",
+        )
+        latest_body = json.loads(latest.body)
+        self.assertEqual(latest.status, 200)
+        self.assertEqual(latest_body["metricGroupName"], "Response")
+        self.assertGreater(len(latest_body["items"]), 0)
+
+        incident_id = json.loads(incidents.body)["items"][0]["id"]
+        incident = request(self.base_url, "GET", f"/em/api/incidents/{incident_id}")
+        self.assertEqual(incident.status, 200)
+        self.assertEqual(json.loads(incident.body)["id"], incident_id)
+
+    def test_unknown_target_returns_404(self):
+        response = request(
+            self.base_url,
+            "GET",
+            "/em/api/targets/missing-target/metricGroups",
+        )
+
+        self.assertEqual(response.status, 404)
 
 
 class Response:
