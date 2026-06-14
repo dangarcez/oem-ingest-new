@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"oem-ingest-new/internal/oem"
 )
@@ -113,6 +114,93 @@ func TestMetadataCacheAllowsBodylessMetricsWithEmptyKeys(t *testing.T) {
 	}
 }
 
+func TestMetadataCacheDoesNotMixBodylessAndRegularMetadata(t *testing.T) {
+	client := &fakeMetricGroupClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Response": {
+				Keys: []oem.MetricKey{{Name: "InstanceName"}},
+			},
+		},
+	}
+	cache := NewMetadataCache(client, MetadataCacheOptions{})
+
+	bodyless, err := cache.Get(context.Background(), MetadataRequest{
+		TargetID:        "target-1",
+		MetricGroupName: "Response",
+		Bodyless:        true,
+	})
+	if err != nil {
+		t.Fatalf("bodyless Get returned error: %v", err)
+	}
+	regular, err := cache.Get(context.Background(), MetadataRequest{
+		TargetID:        "target-1",
+		MetricGroupName: "Response",
+	})
+	if err != nil {
+		t.Fatalf("regular Get returned error: %v", err)
+	}
+	bodylessAgain, err := cache.Get(context.Background(), MetadataRequest{
+		TargetID:        "target-1",
+		MetricGroupName: "Response",
+		Bodyless:        true,
+	})
+	if err != nil {
+		t.Fatalf("second bodyless Get returned error: %v", err)
+	}
+
+	if len(bodyless.Keys) != 0 || len(bodylessAgain.Keys) != 0 || !bodylessAgain.Bodyless {
+		t.Fatalf("bodyless metadata should stay empty, got first=%#v second=%#v", bodyless, bodylessAgain)
+	}
+	if got, want := strings.Join(regular.Keys, ","), "InstanceName"; got != want {
+		t.Fatalf("regular keys = %q, want %q", got, want)
+	}
+	if client.callsFor("target-1", "Response") != 1 {
+		t.Fatalf("regular metadata calls = %d, want 1", client.callsFor("target-1", "Response"))
+	}
+}
+
+func TestMetadataCacheCoalescesConcurrentMetricGroupMetadata(t *testing.T) {
+	client := &fakeMetricGroupClient{
+		delay: 50 * time.Millisecond,
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {
+				Keys: []oem.MetricKey{{Name: "cpu"}},
+			},
+		},
+	}
+	cache := NewMetadataCache(client, MetadataCacheOptions{})
+	req := MetadataRequest{TargetID: "target-1", MetricGroupName: "Load"}
+
+	const goroutines = 16
+	start := make(chan struct{})
+	errs := make(chan error, goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			<-start
+			metadata, err := cache.Get(context.Background(), req)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if got, want := strings.Join(metadata.Keys, ","), "cpu"; got != want {
+				errs <- fmt.Errorf("keys = %q, want %q", got, want)
+				return
+			}
+			errs <- nil
+		}()
+	}
+	close(start)
+
+	for i := 0; i < goroutines; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent Get #%d returned error: %v", i+1, err)
+		}
+	}
+	if client.callsFor("target-1", "Load") != 1 {
+		t.Fatalf("concurrent metadata calls = %d, want 1", client.callsFor("target-1", "Load"))
+	}
+}
+
 func TestMetadataCacheWarnsAndCachesNotFoundAsUnavailable(t *testing.T) {
 	client := &fakeMetricGroupClient{
 		errors: map[string]error{
@@ -175,6 +263,7 @@ func TestMetadataCacheReturnsTransientMetadataErrorsWithoutCaching(t *testing.T)
 
 type fakeMetricGroupClient struct {
 	mu     sync.Mutex
+	delay  time.Duration
 	groups map[string]oem.MetricGroup
 	errors map[string]error
 	calls  map[string]int
@@ -182,16 +271,25 @@ type fakeMetricGroupClient struct {
 
 func (f *fakeMetricGroupClient) MetricGroup(_ context.Context, targetID, groupName string) (oem.MetricGroup, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if f.calls == nil {
 		f.calls = make(map[string]int)
 	}
 	key := cacheTestKey(targetID, groupName)
 	f.calls[key]++
 	if f.errors != nil && f.errors[key] != nil {
-		return oem.MetricGroup{}, f.errors[key]
+		err := f.errors[key]
+		f.mu.Unlock()
+		if f.delay > 0 {
+			time.Sleep(f.delay)
+		}
+		return oem.MetricGroup{}, err
 	}
 	group, ok := f.groups[key]
+	delay := f.delay
+	f.mu.Unlock()
+	if delay > 0 {
+		time.Sleep(delay)
+	}
 	if !ok {
 		return oem.MetricGroup{}, fmt.Errorf("unexpected MetricGroup call for %s/%s", targetID, groupName)
 	}

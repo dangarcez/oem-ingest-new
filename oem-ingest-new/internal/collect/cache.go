@@ -87,8 +87,9 @@ type MetadataCache struct {
 	client MetricGroupClient
 	logger Logger
 
-	mu      sync.RWMutex
-	entries map[metadataKey]metadataEntry
+	mu       sync.RWMutex
+	entries  map[metadataKey]metadataEntry
+	inflight map[metadataKey]*metadataCall
 }
 
 // MetadataCacheOptions configures MetadataCache.
@@ -106,13 +107,21 @@ type metadataEntry struct {
 	err      error
 }
 
+type metadataCall struct {
+	done      chan struct{}
+	entry     metadataEntry
+	err       error
+	cacheable bool
+}
+
 // NewMetadataCache creates an in-memory metadata cache. The client is required
 // for regular OEM metric groups; bodyless requests can be resolved without it.
 func NewMetadataCache(client MetricGroupClient, opts MetadataCacheOptions) *MetadataCache {
 	return &MetadataCache{
-		client:  client,
-		logger:  opts.Logger,
-		entries: make(map[metadataKey]metadataEntry),
+		client:   client,
+		logger:   opts.Logger,
+		entries:  make(map[metadataKey]metadataEntry),
+		inflight: make(map[metadataKey]*metadataCall),
 	}
 }
 
@@ -124,37 +133,52 @@ func (c *MetadataCache) Get(ctx context.Context, req MetadataRequest) (GroupMeta
 		return GroupMetadata{}, err
 	}
 
+	// Bodyless/custom metadata can reuse a real OEM group name, such as
+	// Response. Keep it out of the OEM metadata cache so empty custom keys do
+	// not hide real group keys, and real group keys do not leak into bodyless
+	// custom processing.
+	if normalized.Bodyless {
+		return bodylessMetadata(normalized), nil
+	}
+
 	if entry, ok := c.lookup(key); ok {
 		return entry.result()
 	}
 
-	var entry metadataEntry
-	if normalized.Bodyless {
-		entry = metadataEntry{metadata: GroupMetadata{
-			TargetID:        normalized.TargetID,
-			MetricGroupName: normalized.MetricGroupName,
-			Bodyless:        true,
-			MetricByName:    map[string]oem.MetricDefinition{},
-		}}
-	} else {
-		if c.client == nil {
-			return GroupMetadata{}, errors.New("collect: MetricGroupClient obrigatorio para metadata OEM")
-		}
-		group, err := c.client.MetricGroup(ctx, normalized.TargetID, normalized.MetricGroupName)
-		if err != nil {
-			if isHTTPStatus(err, http.StatusNotFound) {
-				entry = metadataEntry{err: unavailableError(normalized, err)}
-				c.warnUnavailable(ctx, normalized)
-			} else {
-				return GroupMetadata{}, err
-			}
-		} else {
-			entry = metadataEntry{metadata: groupMetadata(normalized, group)}
-		}
+	if call, ok := c.startOrJoin(key); ok {
+		return c.waitForCall(ctx, call)
 	}
-
-	entry = c.store(key, entry)
+	entry, cacheable, err := c.load(ctx, normalized)
+	entry = c.finishCall(key, entry, cacheable, err)
+	if !cacheable {
+		return GroupMetadata{}, err
+	}
 	return entry.result()
+}
+
+func bodylessMetadata(req MetadataRequest) GroupMetadata {
+	return GroupMetadata{
+		TargetID:        req.TargetID,
+		MetricGroupName: req.MetricGroupName,
+		Bodyless:        true,
+		MetricByName:    map[string]oem.MetricDefinition{},
+	}
+}
+
+func (c *MetadataCache) load(ctx context.Context, req MetadataRequest) (metadataEntry, bool, error) {
+	if c.client == nil {
+		return metadataEntry{}, false, errors.New("collect: MetricGroupClient obrigatorio para metadata OEM")
+	}
+	group, err := c.client.MetricGroup(ctx, req.TargetID, req.MetricGroupName)
+	if err != nil {
+		if isHTTPStatus(err, http.StatusNotFound) {
+			entry := metadataEntry{err: unavailableError(req, err)}
+			c.warnUnavailable(ctx, req)
+			return entry, true, nil
+		}
+		return metadataEntry{}, false, err
+	}
+	return metadataEntry{metadata: groupMetadata(req, group)}, true, nil
 }
 
 func (c *MetadataCache) lookup(key metadataKey) (metadataEntry, bool) {
@@ -164,13 +188,64 @@ func (c *MetadataCache) lookup(key metadataKey) (metadataEntry, bool) {
 	return entry.clone(), ok
 }
 
-func (c *MetadataCache) store(key metadataKey, entry metadataEntry) metadataEntry {
+func (c *MetadataCache) startOrJoin(key metadataKey) (*metadataCall, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if existing, ok := c.entries[key]; ok {
-		return existing.clone()
+	if c.entries == nil {
+		c.entries = make(map[metadataKey]metadataEntry)
 	}
-	c.entries[key] = entry.clone()
+	if c.inflight == nil {
+		c.inflight = make(map[metadataKey]*metadataCall)
+	}
+	if entry, ok := c.entries[key]; ok {
+		call := &metadataCall{
+			done:      make(chan struct{}),
+			entry:     entry.clone(),
+			cacheable: true,
+		}
+		close(call.done)
+		return call, true
+	}
+	if call, ok := c.inflight[key]; ok {
+		return call, true
+	}
+	call := &metadataCall{done: make(chan struct{})}
+	c.inflight[key] = call
+	return call, false
+}
+
+func (c *MetadataCache) waitForCall(ctx context.Context, call *metadataCall) (GroupMetadata, error) {
+	select {
+	case <-ctx.Done():
+		return GroupMetadata{}, ctx.Err()
+	case <-call.done:
+		if !call.cacheable {
+			return GroupMetadata{}, call.err
+		}
+		return call.entry.result()
+	}
+}
+
+func (c *MetadataCache) finishCall(key metadataKey, entry metadataEntry, cacheable bool, err error) metadataEntry {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[metadataKey]metadataEntry)
+	}
+	if cacheable {
+		if existing, ok := c.entries[key]; ok {
+			entry = existing.clone()
+		} else {
+			c.entries[key] = entry.clone()
+		}
+	}
+	if call := c.inflight[key]; call != nil {
+		call.entry = entry.clone()
+		call.err = err
+		call.cacheable = cacheable
+		delete(c.inflight, key)
+		close(call.done)
+	}
 	return entry.clone()
 }
 

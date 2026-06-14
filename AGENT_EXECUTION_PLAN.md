@@ -1028,3 +1028,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: cache de metadados implementado em `internal/collect`, reutilizando keys por `targetId + metricGroupName`, preservando definições de métricas para transformação futura, permitindo grupos bodyless/custom sem keys e tratando 404 como grupo indisponível para o job.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.2 - Cache em memória de keys de metric group
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida coalescência de chamadas concorrentes de metadata para evitar múltiplos requests ao OEM no mesmo target/grupo; metadata bodyless/custom agora fica fora do cache OEM regular para não apagar keys reais nem herdar keys indevidas quando usa o mesmo grupo legado, como `Response`.
