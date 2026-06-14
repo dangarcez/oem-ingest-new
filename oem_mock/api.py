@@ -95,7 +95,9 @@ def read_root():
 
 @app.get("/em/api/incidents")
 @app.get("/em/api/incidents/")
-def read_root():
+def read_root(page: str = ""):
+    if page:
+        return {"count": 0, "links": {"self": {"href": f"/em/api/incidents?page={page}"}}, "items": []}
     return incidents
 
 

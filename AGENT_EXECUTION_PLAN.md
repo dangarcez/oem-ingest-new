@@ -1202,3 +1202,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: investigado o boot anterior com `journalctl`, que mostrou pressão de memória sustentada antes do reinício sem registro de OOM killer; runtime passou a iniciar polling de incidentes junto com a coleta/exportação, Compose ganhou limites de memória e README documenta smoke curto com `timeout`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker compose up --build -d --remove-orphans`, `docker compose logs --no-color --tail=240`, `docker compose ps`, `docker compose down -v --remove-orphans`
+  Notas: workspace estava limpo antes da revisão; smoke real do Compose revelou loop de paginação em incidentes com `links.next` repetido e encerramento do container por codigo 137; cliente OEM agora detecta paginacao ciclica, o mock trata a pagina seguinte de incidentes como terminal e o Compose confirmou GETs OEM, POSTs OTLP de metricas/logs e containers ativos.

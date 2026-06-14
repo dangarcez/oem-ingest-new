@@ -229,6 +229,31 @@ func TestListTargetsFollowsQueryOnlyNextLink(t *testing.T) {
 	}
 }
 
+func TestListTargetsRejectsCyclicNextLink(t *testing.T) {
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		calls.Add(1)
+		writeJSON(t, w, Page[Target]{
+			Links: Links{"next": {Href: "/em/api/targets?page=loop"}},
+			Items: []Target{{ID: "target-loop"}},
+		})
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	_, err := client.ListTargets(context.Background())
+	if err == nil {
+		t.Fatal("expected cyclic pagination error")
+	}
+	if !strings.Contains(err.Error(), "paginacao OEM ciclica") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("calls = %d, want 2", calls.Load())
+	}
+}
+
 func TestLatestDataFollowsNextLinksAndKeepsJSONNumbers(t *testing.T) {
 	var calls atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

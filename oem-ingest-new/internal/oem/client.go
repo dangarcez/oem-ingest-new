@@ -241,7 +241,11 @@ func newHTTPClient(opts Options) *http.Client {
 func getPaged[T any](ctx context.Context, c *Client, firstPath string) (Page[T], error) {
 	var merged Page[T]
 	nextPath := firstPath
+	seenPages := make(map[string]struct{})
 	for nextPath != "" {
+		if err := rememberPage(seenPages, c, nextPath); err != nil {
+			return Page[T]{}, err
+		}
 		var page Page[T]
 		if err := c.getJSON(ctx, nextPath, &page); err != nil {
 			return Page[T]{}, err
@@ -263,7 +267,11 @@ func getPaged[T any](ctx context.Context, c *Client, firstPath string) (Page[T],
 func getPagedLatestData(ctx context.Context, c *Client, firstPath string) (LatestData, error) {
 	var merged LatestData
 	nextPath := firstPath
+	seenPages := make(map[string]struct{})
 	for nextPath != "" {
+		if err := rememberPage(seenPages, c, nextPath); err != nil {
+			return LatestData{}, err
+		}
 		var page LatestData
 		if err := c.getJSON(ctx, nextPath, &page); err != nil {
 			return LatestData{}, err
@@ -280,6 +288,18 @@ func getPagedLatestData(ctx context.Context, c *Client, firstPath string) (Lates
 	}
 	merged.Count = len(merged.Items)
 	return merged, nil
+}
+
+func rememberPage(seen map[string]struct{}, c *Client, path string) error {
+	pageURL, err := c.resolveURL(path)
+	if err != nil {
+		return err
+	}
+	if _, ok := seen[pageURL]; ok {
+		return fmt.Errorf("paginacao OEM ciclica detectada em %s", pageURL)
+	}
+	seen[pageURL] = struct{}{}
+	return nil
 }
 
 func (c *Client) getJSON(ctx context.Context, path string, out any) error {

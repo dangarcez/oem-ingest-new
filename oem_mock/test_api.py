@@ -105,6 +105,12 @@ class OEMMockAPITest(unittest.TestCase):
         self.assertEqual(incidents.status, 200)
         self.assertIn("items", json.loads(incidents.body))
 
+        incident_next = request(self.base_url, "GET", "/em/api/incidents?page=NTA%3D")
+        incident_next_body = json.loads(incident_next.body)
+        self.assertEqual(incident_next.status, 200)
+        self.assertEqual(incident_next_body["items"], [])
+        self.assertNotIn("next", incident_next_body["links"])
+
         target_id = "007FCBCC1AECBAE3831390E244127549"
 
         properties = request(self.base_url, "GET", f"/em/api/targets/{target_id}/properties")
