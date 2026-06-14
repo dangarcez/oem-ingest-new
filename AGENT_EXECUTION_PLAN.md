@@ -222,7 +222,7 @@ Manter pequeno e documentado:
 
 #### Tarefa 0.1 - Criar scaffold Go
 
-Status: Pendente
+Status: Concluída
 
 Dependências: nenhuma.
 
@@ -914,3 +914,9 @@ Entradas:
   Status: concluída
   Verificações: `git init`, criação de `.gitignore`, atualização do fluxo Git no plano
   Notas: repositório local inicializado para permitir branches, diffs e commits por tarefa.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.1 - Criar scaffold Go
+  Status: concluída
+  Verificações: `GOCACHE=/tmp/oem-go-build-cache go test ./...`, `GOCACHE=/tmp/oem-go-build-cache go vet ./...`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest --help`
+  Notas: scaffold Go criado em `oem-ingest-new`; a criação da branch `task/0.1-scaffold-go` e o commit foram tentados, mas o ambiente bloqueou escrita em `.git`.
