@@ -1,2 +1,2 @@
-// Package incidents will poll OEM incidents and convert them into logs.
+// Package incidents polls OEM incidents and converts new incidents into logs.
 package incidents

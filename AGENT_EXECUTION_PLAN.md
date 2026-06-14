@@ -632,7 +632,7 @@ Critérios de aceite:
 
 #### Tarefa 6.1 - Polling de incidentes
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1, 5.2.
 
@@ -1154,3 +1154,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test -race ./internal/exporter ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/oem/otel/customexport.py` e `old_code/oem/otel/exportadorlogs.py`; não foram encontrados bugs objetivos de produção ou regressões de compatibilidade na 5.3; adicionada cobertura de regressão para observabilidade de falha do exportador de logs sem expor body/atributos do log.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 6.1 - Polling de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementado poller de incidentes em `internal/incidents`, consultando `old_code/oem/tools/oemalert.py` e `old_code/oem/otel/exportadorlogs.py`; novos incidentes são deduplicados por ID, convertidos em logs com `message` no body, atributos preservados e timestamp corrigido em -3h por compatibilidade legada.
