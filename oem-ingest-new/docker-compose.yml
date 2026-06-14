@@ -1,0 +1,48 @@
+services:
+  oem-mock:
+    image: python:3.12-slim
+    working_dir: /mock
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ../oem_mock:/mock:ro
+    command:
+      - sh
+      - -c
+      - python -m pip install --no-cache-dir -r requirements.txt && uvicorn api:app --host 0.0.0.0 --port 8008
+    ports:
+      - "8008:8008"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8008/em/api', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  oem-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint:
+      - /app/oem-ingest
+    command: []
+    depends_on:
+      oem-mock:
+        condition: service_healthy
+    environment:
+      OEM_CONFIG_TARGETS: /app/configs/configTargets.yaml
+      OEM_CONFIG_METRICS: /app/configs/configMetrics.yaml
+      OEM_VALIDATE_CONFIG: "false"
+      OEM_VALIDATED_CONFIG_OUTPUT: /tmp/configTargets.validated.yaml
+      OEM_USER: mock
+      OEM_PASSWORD: mock
+      OEM_HTTP_MAX_RETRIES: "1"
+      OEM_EXPORT_INTERVAL_SECONDS: "10"
+      OTEL_EXPORT_URL: http://oem-mock:8008
+    volumes:
+      - ./configs/docker-compose/configTargets.yaml:/app/configs/configTargets.yaml:ro
+      - ./configs/docker-compose/configMetrics.yaml:/app/configs/configMetrics.yaml:ro

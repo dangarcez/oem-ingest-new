@@ -84,7 +84,11 @@ go run ./cmd/oem-ingest --version
 ```
 
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
-scaffold foi inicializado. Chamadas externas so sao feitas nesta fase quando
+scaffold foi inicializado quando `OTEL_EXPORT_URL` nao esta definido. Quando
+`OTEL_EXPORT_URL` esta definido, a aplicacao carrega os arquivos de
+configuracao, valida a conexao com o OEM, executa uma rodada inicial de coleta e
+mantem os jobs periodicos ativos ate receber SIGINT ou SIGTERM. Chamadas de
+validacao de configuracao continuam sendo feitas somente quando
 `OEM_VALIDATE_CONFIG=true`.
 
 ## Docker
@@ -122,3 +126,17 @@ somente leitura, defina essa variavel para um caminho gravavel, por exemplo
 Para usar `OEM_TOKEN`, monte tambem o arquivo usado como base de hash e aponte
 `OEM_AUTH_TOKEN_HASH_FILE` para o caminho dentro do container, por exemplo
 `/app/auth/xisou.py`.
+
+## Docker Compose local
+
+O `docker-compose.yml` sobe apenas o coletor Go e o `oem_mock` FastAPI. O mock
+tambem aceita os POSTs fake de OTLP em `/v1/metrics` e `/v1/logs`, sem exigir um
+OpenTelemetry Collector real:
+
+```sh
+docker compose up --build
+```
+
+As configuracoes usadas pelo Compose ficam em `configs/docker-compose/` e
+apontam o app para `http://oem-mock:8008`. Para encerrar, use `Ctrl+C`; o app
+recebe SIGTERM/SIGINT e tenta exportar o buffer pendente antes de sair.

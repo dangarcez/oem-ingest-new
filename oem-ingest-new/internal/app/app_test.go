@@ -3,10 +3,15 @@ package app
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"oem-ingest-new/internal/config"
 	"oem-ingest-new/internal/oem"
@@ -22,6 +27,113 @@ func TestRunDoesNotRequireExternalServices(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "scaffold inicializado") {
 		t.Fatalf("expected scaffold message, got %q", output.String())
+	}
+}
+
+func TestRunCollectsAndExportsWhenOTELExportURLConfigured(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: t1
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+  - freq: 5
+    metric_group_name: TextGroup
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var metricsPosts atomic.Int32
+	var logsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			fmt.Fprint(w, `{"name":"mock","version":"test"}`)
+		case "/em/api/targets/t1/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/t1/metricGroups/Load/latestData":
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/em/api/targets/t1/metricGroups/TextGroup":
+			fmt.Fprint(w, `{"name":"TextGroup","keys":[{"name":"component"}],"metrics":[{"name":"state","dataType":"STRING"}]}`)
+		case "/em/api/targets/t1/metricGroups/TextGroup/latestData":
+			fmt.Fprint(w, `{"items":[{"component":"listener","state":"OPEN"}]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			fmt.Fprint(w, `{"accepted":true}`)
+		case "/v1/logs":
+			logsPosts.Add(1)
+			fmt.Fprint(w, `{"accepted":true}`)
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		if cancel != nil && metricsPosts.Load() > 0 && logsPosts.Load() > 0 {
+			cancel()
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	cancel = stop
+	defer stop()
+
+	var output bytes.Buffer
+	err = Run(ctx, Options{
+		Output: &output,
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":          targetsPath,
+			"OEM_CONFIG_METRICS":          metricsPath,
+			"OEM_USER":                    "user",
+			"OEM_PASSWORD":                "secret",
+			"OTEL_EXPORT_URL":             server.URL,
+			"OEM_EXPORT_INTERVAL_SECONDS": "1",
+		}),
+		Logger: &appRecordingLogger{},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected at least one OTLP metrics POST")
+	}
+	if logsPosts.Load() == 0 {
+		t.Fatal("expected at least one OTLP logs POST")
+	}
+	if !strings.Contains(output.String(), "coleta iniciada com 2 jobs") {
+		t.Fatalf("expected collection startup message, got %q", output.String())
 	}
 }
 
@@ -201,6 +313,10 @@ func (r *appRecordingLogger) WarnContext(_ context.Context, msg string, _ ...any
 
 func (r *appRecordingLogger) InfoContext(_ context.Context, msg string, _ ...any) {
 	r.infos = append(r.infos, msg)
+}
+
+func (r *appRecordingLogger) ErrorContext(_ context.Context, msg string, _ ...any) {
+	r.warnings = append(r.warnings, msg)
 }
 
 func writeTargetsFile(t *testing.T, targetID string) string {

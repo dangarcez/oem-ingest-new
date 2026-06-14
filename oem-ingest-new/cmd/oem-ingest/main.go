@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"oem-ingest-new/internal/app"
 )
@@ -15,7 +17,10 @@ import (
 var version = "dev"
 
 func main() {
-	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -29,7 +34,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags.Usage = func() {
 		fmt.Fprintln(stderr, "Uso: oem-ingest [opcoes]")
 		fmt.Fprintln(stderr)
-		fmt.Fprintln(stderr, "Coletor OEM em Go. Este scaffold ainda nao inicia coleta real.")
+		fmt.Fprintln(stderr, "Coletor OEM em Go. Defina OTEL_EXPORT_URL para iniciar coleta e exportacao.")
 		fmt.Fprintln(stderr)
 		fmt.Fprintln(stderr, "Opcoes:")
 		flags.PrintDefaults()

@@ -686,7 +686,7 @@ Critérios de aceite:
 
 #### Tarefa 7.2 - Docker Compose com app e mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.2, 7.1.
 
@@ -1190,3 +1190,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:review .` indisponível por Docker Desktop sem integração WSL, `podman build -t oem-ingest:review .`, `podman run --rm oem-ingest:review --help`, `podman run --rm oem-ingest:review --version`
   Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no Dockerfile; documentado o cuidado com `OEM_VALIDATED_CONFIG_OUTPUT` quando `/app/configs` for montado somente leitura.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`, parse YAML de `docker-compose.yml` e configs do Compose, `go run ./cmd/oem-ingest --help`, `podman build -t oem-ingest-compose:dev .`, `podman run --rm oem-ingest-compose:dev --help`; `docker compose` indisponível neste WSL; smoke local com `oem_mock` confirmou GETs OEM e POSTs em `/v1/metrics` e `/v1/logs`, encerrado por timeout.
+  Notas: criado `docker-compose.yml` com app Go e mock FastAPI, configs locais em `configs/docker-compose/`, e wiring mínimo do runtime para coletar/exportar quando `OTEL_EXPORT_URL` estiver definido.
