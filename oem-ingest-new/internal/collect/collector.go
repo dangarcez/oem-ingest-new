@@ -252,6 +252,20 @@ func (m *ResponseMonitor) Last(targetID string) (time.Time, bool) {
 	return at, ok
 }
 
+// Active reports whether targetID had a useful collection strictly inside the
+// configured tolerance window. The strict comparison preserves the legacy
+// Python collector behavior for oem_monitor_response.
+func (m *ResponseMonitor) Active(targetID string, now time.Time, tolerance time.Duration) bool {
+	if m == nil || targetID == "" || tolerance <= 0 {
+		return false
+	}
+	at, ok := m.Last(targetID)
+	if !ok {
+		return false
+	}
+	return now.Sub(at) < tolerance
+}
+
 // Snapshot returns a copy of all target response timestamps.
 func (m *ResponseMonitor) Snapshot() map[string]time.Time {
 	if m == nil {

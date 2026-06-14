@@ -486,7 +486,7 @@ Critérios de aceite:
 
 #### Tarefa 4.1 - `oem_monitor_response`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.3, 3.5.
 
@@ -1070,3 +1070,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida coerção de booleanos em métricas numéricas para preservar compatibilidade com o legado Python, que tratava `bool` como número; verificado nos fixtures do mock que strings numéricas reais estão cobertas por keys ou `dataType` textual.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.1 - `oem_monitor_response`
+  Status: concluída
+  Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: criada geração do gauge `oem_monitor_response` para todos os targets configurados, usando `ResponseMonitor`, tolerância configurável e comparação estrita compatível com o legado.
