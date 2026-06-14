@@ -242,7 +242,7 @@ Critérios de aceite:
 
 #### Tarefa 0.2 - Configuração e defaults
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -926,3 +926,9 @@ Entradas:
   Status: concluída
   Verificações: `GOCACHE=/tmp/oem-go-build-cache go test ./...`, `GOCACHE=/tmp/oem-go-build-cache go vet ./...`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest --help`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest`
   Notas: workspace estava limpo antes da revisão; não foram encontradas regressões de compatibilidade com o legado no scaffold; adicionada cobertura para flag inválida e corrigida nota de progresso que ainda indicava bloqueio de commit.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.2 - Configuração e defaults
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: loader YAML e leitura de variáveis de ambiente implementados em `internal/config`; exemplos adicionados em `configs/`.

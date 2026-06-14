@@ -1,0 +1,21 @@
+host:
+  - freq: 5
+    metric_group_name: Load
+  - freq: 10
+    metric_group_name: Filesystems
+oracle_database:
+  - freq: 2
+    metric_group_name: Response
+  - freq: 10
+    metric_group_name: instance_throughput
+oracle_listener:
+  - freq: 5
+    metric_group_name: General Status
+oracle_pdb:
+  - freq: 15
+    metric_group_name: DBService
+rac_database:
+  - freq: 5
+    metric_group_name: Availability
+  - freq: 15
+    metric_group_name: service_performance

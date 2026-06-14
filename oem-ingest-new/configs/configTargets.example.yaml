@@ -1,0 +1,26 @@
+- name: oraemc
+  site: null
+  endpoint: http://localhost:8008
+  targets:
+    - id: "240D79C7320E221DE06400144FFBE115"
+      name: "occp40bc"
+      typeName: "rac_database"
+      tags:
+        rac_database: "occp40bc"
+        target_name: "occp40bc"
+        target_type: "rac_database"
+        sistema: "siapx"
+        torre: "cartoes"
+    - id: "3107639B0159F1634DCC581E477241AA"
+      name: "occp40bc_occp40bc3"
+      typeName: "oracle_database"
+      tags:
+        rac_database: "occp40bc"
+        oracle_database: "occp40bc_occp40bc3"
+        target_name: "occp40bc_occp40bc3"
+        target_type: "oracle_database"
+        machine_name: "cadecrk01cl01vm03"
+        listener_name: "cadecrk01cl01vm03_lstnr"
+        dg_role: "Physical Standby"
+        sistema: "siapx"
+        torre: "cartoes"
