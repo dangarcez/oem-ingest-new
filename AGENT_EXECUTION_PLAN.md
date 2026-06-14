@@ -1148,3 +1148,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`, `go test -race ./internal/selfmetrics`
   Notas: exportadores OTLP agora registram duração, payload e contagem por batch via logger/observer opcionais; `selfmetrics.Registry` acumula datapoints/logs exportados, falhas, payload e duração sem logs por datapoint.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.3 - Perfil e observabilidade do exportador
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test -race ./internal/exporter ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/oem/otel/customexport.py` e `old_code/oem/otel/exportadorlogs.py`; não foram encontrados bugs objetivos de produção ou regressões de compatibilidade na 5.3; adicionada cobertura de regressão para observabilidade de falha do exportador de logs sem expor body/atributos do log.

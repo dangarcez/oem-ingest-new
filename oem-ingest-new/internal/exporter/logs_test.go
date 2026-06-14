@@ -256,6 +256,61 @@ func TestLogsExporterRecordsBatchObservability(t *testing.T) {
 	}
 }
 
+func TestLogsExporterRecordsFailureObservability(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	registry := selfmetrics.NewRegistry()
+	logger := &exportRecordingLogger{}
+	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{
+		Observer: registry,
+		Logger:   logger,
+	})
+	if err != nil {
+		t.Fatalf("NewLogsExporter() error = %v", err)
+	}
+	exporter.Add(transform.LogRecord{
+		MetricName: "oem_connection_status",
+		TargetID:   "target-1",
+		SeriesID:   "target-1\x00connection",
+		Body:       "password expired",
+		Attributes: transform.Attributes{"target_name": "db1"},
+	})
+
+	result, err := exporter.Export(context.Background())
+	if err == nil {
+		t.Fatal("Export() error = nil, want failure")
+	}
+	if result.Duration <= 0 || result.PayloadBytes == 0 {
+		t.Fatalf("Export() result = %#v, want duration and payload on failure", result)
+	}
+
+	stats := registry.SnapshotStats()
+	if stats.LogsExportedTotal != 0 {
+		t.Fatalf("LogsExportedTotal = %d, want no successful logs", stats.LogsExportedTotal)
+	}
+	if stats.ExportFailuresTotal != 1 {
+		t.Fatalf("ExportFailuresTotal = %d, want 1", stats.ExportFailuresTotal)
+	}
+	if stats.ExportPayloadBytes != uint64(result.PayloadBytes) {
+		t.Fatalf("ExportPayloadBytes = %d, want %d", stats.ExportPayloadBytes, result.PayloadBytes)
+	}
+	if stats.ExportDurationSeconds <= 0 {
+		t.Fatalf("ExportDurationSeconds = %v, want positive duration", stats.ExportDurationSeconds)
+	}
+
+	warns := logger.warnsSnapshot()
+	if len(warns) != 1 {
+		t.Fatalf("warn logs len = %d, want one failure summary", len(warns))
+	}
+	if !warns[0].contains("http_status") || warns[0].contains("password expired") || warns[0].contains("target_name") {
+		t.Fatalf("warn log should summarize failure without log details: %#v", warns[0])
+	}
+}
+
 func TestLogsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	var recorder requestRecorder
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
