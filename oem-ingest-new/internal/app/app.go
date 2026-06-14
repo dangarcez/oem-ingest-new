@@ -154,6 +154,20 @@ func validateOutputPath(targetsPath, outputPath string) error {
 	if filepath.Clean(targetsAbs) == filepath.Clean(outputAbs) {
 		return fmt.Errorf("OEM_VALIDATED_CONFIG_OUTPUT %q deve ser diferente de OEM_CONFIG_TARGETS %q para preservar o arquivo original", outputPath, targetsPath)
 	}
+	targetsInfo, err := os.Stat(targetsAbs)
+	if err != nil {
+		return fmt.Errorf("verificar OEM_CONFIG_TARGETS %q: %w", targetsPath, err)
+	}
+	outputInfo, err := os.Stat(outputAbs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("verificar OEM_VALIDATED_CONFIG_OUTPUT %q: %w", outputPath, err)
+	}
+	if os.SameFile(targetsInfo, outputInfo) {
+		return fmt.Errorf("OEM_VALIDATED_CONFIG_OUTPUT %q aponta para o mesmo arquivo de OEM_CONFIG_TARGETS %q; use outro caminho para preservar o arquivo original", outputPath, targetsPath)
+	}
 	return nil
 }
 

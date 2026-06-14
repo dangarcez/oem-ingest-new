@@ -1004,3 +1004,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/config`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: validação opcional agora grava `OEM_VALIDATED_CONFIG_OUTPUT` em formato simplificado sem sobrescrever o arquivo original, preservando tags externas e registrando resumo de IDs corrigidos, targets adicionados, tags corrigidas e avisos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.3 - Escrita de configuração corrigida
+  Status: concluída
+  Verificações: `go test ./internal/app`, `go test ./internal/config`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida proteção contra `OEM_VALIDATED_CONFIG_OUTPUT` apontando para o arquivo original por symlink/hardlink, preservando `configTargets.yaml`; adicionada cobertura de regressão para symlink.

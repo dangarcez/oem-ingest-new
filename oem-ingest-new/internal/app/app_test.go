@@ -146,6 +146,38 @@ func TestRunValidationRejectsOutputPathEqualToOriginal(t *testing.T) {
 	}
 }
 
+func TestRunValidationRejectsOutputSymlinkToOriginal(t *testing.T) {
+	targetsPath := writeTargetsFile(t, "configured-id")
+	outputPath := filepath.Join(filepath.Dir(targetsPath), "validated.yaml")
+	if err := os.Symlink(targetsPath, outputPath); err != nil {
+		t.Skipf("symlink not available: %v", err)
+	}
+
+	err := Run(context.Background(), Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_VALIDATE_CONFIG":         "true",
+			"OEM_CONFIG_TARGETS":          targetsPath,
+			"OEM_VALIDATED_CONFIG_OUTPUT": outputPath,
+		}),
+		TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+			return appFakeTargetLister{
+				targets: []oem.Target{{ID: "configured-id", Name: "cdbp51bc", TypeName: "rac_database"}},
+			}, nil
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "aponta para o mesmo arquivo") {
+		t.Fatalf("expected symlink same-file validation error, got %v", err)
+	}
+
+	contents, readErr := os.ReadFile(targetsPath)
+	if readErr != nil {
+		t.Fatalf("read original targets file: %v", readErr)
+	}
+	if !strings.Contains(string(contents), "configured-id") || strings.Contains(string(contents), "site: null") {
+		t.Fatalf("original file should remain untouched, got:\n%s", contents)
+	}
+}
+
 type appFakeTargetLister struct {
 	targets []oem.Target
 }
