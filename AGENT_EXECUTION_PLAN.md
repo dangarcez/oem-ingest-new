@@ -761,7 +761,7 @@ Critérios de aceite:
 
 #### Tarefa 8.2 - Documentação de configuração
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 2.3.
 
@@ -1244,3 +1244,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/oem -run TestSharedConcurrencyLimiterCapsRequestsAcrossClients -count=1`, `go test ./internal/oem ./internal/app`, `go test -race ./internal/oem`, `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigido o uso de `OEM_MAX_CONCURRENT_REQUESTS`, que era lido/documentado mas não aplicado, adicionando limitador compartilhado de requests OEM para runtime e validação opcional; documentação de arquitetura e README atualizados para refletir o contrato.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.2 - Documentação de configuração
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: criada documentação de configuração em `oem-ingest-new/docs/configuracao.md`, cobrindo `configTargets.yaml`, `configMetrics.yaml`, variáveis de ambiente, token legado e validação opcional.
