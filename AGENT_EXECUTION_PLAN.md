@@ -594,7 +594,7 @@ Critérios de aceite:
 
 #### Tarefa 5.2 - Exportador OTLP de logs
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -1130,3 +1130,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigido isolamento do buffer para clonar atributos ao enfileirar datapoints e evitar mutação externa durante retry/export; exportador agora usa timeout HTTP padrão de 30s quando cliente não é injetado; adicionada cobertura para erro de transporte, mutação de atributos e datapoints adicionados durante um POST em andamento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.2 - Exportador OTLP de logs
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`
+  Notas: exportador OTLP HTTP/protobuf de logs implementado em `internal/exporter`, consultando `old_docs/4-processo_padrao.md`, `old_code/script.py` e `old_code/oem/otel/exportadorlogs.py`; mantém estado do último valor por série textual, reenvia mudanças/contínuas e preserva pendências para retry.
