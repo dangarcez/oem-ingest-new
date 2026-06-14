@@ -1076,3 +1076,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: criada geração do gauge `oem_monitor_response` para todos os targets configurados, usando `ResponseMonitor`, tolerância configurável e comparação estrita compatível com o legado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.1 - `oem_monitor_response`
+  Status: concluída
+  Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/collect ./internal/transform`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py` e `old_code/oem/otel/customexport.py`; não foram encontradas regressões objetivas de compatibilidade ou lacunas de teste bloqueantes na 4.1.
