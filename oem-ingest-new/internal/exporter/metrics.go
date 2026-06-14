@@ -34,6 +34,8 @@ type MetricsExporterOptions struct {
 	HTTPClient  *http.Client
 	ServiceName string
 	ScopeName   string
+	Observer    MetricsObserver
+	Logger      Logger
 }
 
 // MetricsExportResult summarizes one export attempt.
@@ -41,7 +43,26 @@ type MetricsExportResult struct {
 	Datapoints   int
 	PayloadBytes int
 	StatusCode   int
+	Duration     time.Duration
 	Skipped      bool
+}
+
+// MetricsObserver receives batch-level export statistics.
+type MetricsObserver interface {
+	RecordMetricsExportSuccess(datapointsExported, payloadBytes uint64, duration time.Duration)
+	RecordMetricsExportFailure(payloadBytes uint64, duration time.Duration)
+}
+
+// LogsObserver receives batch-level log export statistics.
+type LogsObserver interface {
+	RecordLogsExportSuccess(logsExported, payloadBytes uint64, duration time.Duration)
+	RecordLogsExportFailure(payloadBytes uint64, duration time.Duration)
+}
+
+// Logger is intentionally compatible with slog.Logger.
+type Logger interface {
+	InfoContext(context.Context, string, ...any)
+	WarnContext(context.Context, string, ...any)
 }
 
 // MetricsExporter buffers normalized numeric metrics and sends them as OTLP
@@ -51,6 +72,8 @@ type MetricsExporter struct {
 	httpClient  *http.Client
 	serviceName string
 	scopeName   string
+	observer    MetricsObserver
+	logger      Logger
 
 	mu      sync.Mutex
 	pending []transform.MetricPoint
@@ -84,6 +107,8 @@ func NewMetricsExporter(baseURL string, opts MetricsExporterOptions) (*MetricsEx
 		httpClient:  httpClient,
 		serviceName: serviceName,
 		scopeName:   scopeName,
+		observer:    opts.Observer,
+		logger:      opts.Logger,
 	}, nil
 }
 
@@ -146,20 +171,27 @@ func (e *MetricsExporter) Export(ctx context.Context) (MetricsExportResult, erro
 		return MetricsExportResult{Skipped: true}, nil
 	}
 
+	started := time.Now()
 	payload, err := e.buildPayload(batch, time.Now())
 	if err != nil {
-		return MetricsExportResult{Datapoints: len(batch)}, err
+		result := MetricsExportResult{Datapoints: len(batch), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return MetricsExportResult{Datapoints: len(batch), PayloadBytes: len(payload)}, err
+		result := MetricsExportResult{Datapoints: len(batch), PayloadBytes: len(payload), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return MetricsExportResult{Datapoints: len(batch), PayloadBytes: len(payload)}, err
+		result := MetricsExportResult{Datapoints: len(batch), PayloadBytes: len(payload), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
@@ -168,13 +200,58 @@ func (e *MetricsExporter) Export(ctx context.Context) (MetricsExportResult, erro
 		Datapoints:   len(batch),
 		PayloadBytes: len(payload),
 		StatusCode:   resp.StatusCode,
+		Duration:     time.Since(started),
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		return result, fmt.Errorf("exportar metricas OTLP para %s: status HTTP %d", e.endpoint, resp.StatusCode)
+		err := fmt.Errorf("exportar metricas OTLP: status HTTP %d", resp.StatusCode)
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 
 	e.discardExported(len(batch))
+	e.recordExport(ctx, result, nil)
 	return result, nil
+}
+
+func (e *MetricsExporter) recordExport(ctx context.Context, result MetricsExportResult, err error) {
+	if result.Skipped {
+		return
+	}
+	if e.observer != nil {
+		if err != nil {
+			e.observer.RecordMetricsExportFailure(uint64(result.PayloadBytes), result.Duration)
+		} else {
+			e.observer.RecordMetricsExportSuccess(uint64(result.Datapoints), uint64(result.PayloadBytes), result.Duration)
+		}
+	}
+	if e.logger == nil {
+		return
+	}
+	args := []any{
+		"signal", "metrics",
+		"datapoints", result.Datapoints,
+		"payload_bytes", result.PayloadBytes,
+		"duration", result.Duration,
+	}
+	if result.StatusCode != 0 {
+		args = append(args, "status_code", result.StatusCode)
+	}
+	if err != nil {
+		args = append(args, "error_kind", exportErrorKind(result.StatusCode, result.PayloadBytes))
+		e.logger.WarnContext(ctx, "falha ao exportar batch OTLP", args...)
+		return
+	}
+	e.logger.InfoContext(ctx, "batch OTLP exportado", args...)
+}
+
+func exportErrorKind(statusCode, payloadBytes int) string {
+	if statusCode != 0 {
+		return "http_status"
+	}
+	if payloadBytes == 0 {
+		return "payload_or_request"
+	}
+	return "transport"
 }
 
 func (e *MetricsExporter) snapshot() []transform.MetricPoint {

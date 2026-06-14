@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"oem-ingest-new/internal/selfmetrics"
 	"oem-ingest-new/internal/transform"
 
 	collectorlogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -184,6 +185,77 @@ func TestLogsExporterAlwaysSendsContinuousValues(t *testing.T) {
 	}
 }
 
+func TestLogsExporterRecordsBatchObservability(t *testing.T) {
+	var recorder requestRecorder
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	registry := selfmetrics.NewRegistry()
+	logger := &exportRecordingLogger{}
+	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{
+		Observer: registry,
+		Logger:   logger,
+	})
+	if err != nil {
+		t.Fatalf("NewLogsExporter() error = %v", err)
+	}
+	exporter.Add(
+		transform.LogRecord{
+			MetricName: "oem_filesystem_status",
+			TargetID:   "target-1",
+			SeriesID:   "target-1\x00/",
+			Body:       "Mounted",
+			Attributes: transform.Attributes{"target_name": "host01"},
+		},
+		transform.LogRecord{
+			MetricName: "oem_listener_status",
+			TargetID:   "target-2",
+			SeriesID:   "target-2\x00listener",
+			Body:       "OPEN",
+			Attributes: transform.Attributes{"target_name": "listener01"},
+		},
+	)
+
+	result, err := exporter.Export(context.Background())
+	if err != nil {
+		t.Fatalf("Export() error = %v", err)
+	}
+	if result.Duration <= 0 {
+		t.Fatalf("Export() duration = %s, want recorded duration", result.Duration)
+	}
+
+	stats := registry.SnapshotStats()
+	if stats.LogsExportedTotal != 2 {
+		t.Fatalf("LogsExportedTotal = %d, want 2", stats.LogsExportedTotal)
+	}
+	if stats.DatapointsExportedTotal != 0 {
+		t.Fatalf("DatapointsExportedTotal = %d, want log export not counted as datapoints", stats.DatapointsExportedTotal)
+	}
+	if stats.ExportPayloadBytes != uint64(result.PayloadBytes) {
+		t.Fatalf("ExportPayloadBytes = %d, want %d", stats.ExportPayloadBytes, result.PayloadBytes)
+	}
+	if stats.ExportDurationSeconds <= 0 {
+		t.Fatalf("ExportDurationSeconds = %v, want positive duration", stats.ExportDurationSeconds)
+	}
+
+	infos := logger.infosSnapshot()
+	if len(infos) != 1 {
+		t.Fatalf("info logs len = %d, want one batch summary", len(infos))
+	}
+	if !infos[0].contains("logs") || !infos[0].contains("payload_bytes") || !infos[0].contains("duration") {
+		t.Fatalf("info log missing batch fields: %#v", infos[0])
+	}
+	if infos[0].contains("Mounted") || infos[0].contains("OPEN") || infos[0].contains("target_name") {
+		t.Fatalf("info log contains per-log details: %#v", infos[0])
+	}
+	if len(logger.warnsSnapshot()) != 0 {
+		t.Fatalf("warn logs = %#v, want none on success", logger.warnsSnapshot())
+	}
+}
+
 func TestLogsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	var recorder requestRecorder
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +268,8 @@ func TestLogsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	}))
 	defer server.Close()
 
-	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{})
+	registry := selfmetrics.NewRegistry()
+	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{Observer: registry})
 	if err != nil {
 		t.Fatalf("NewLogsExporter() error = %v", err)
 	}
@@ -217,6 +290,9 @@ func TestLogsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	if exporter.Pending() != 1 {
 		t.Fatalf("Pending() = %d, want retained log after failure", exporter.Pending())
 	}
+	if stats := registry.SnapshotStats(); stats.ExportFailuresTotal != 1 || stats.LogsExportedTotal != 0 {
+		t.Fatalf("stats after failed export = %#v, want one failure and no successful logs", stats)
+	}
 
 	result, err = exporter.Export(context.Background())
 	if err != nil {
@@ -227,6 +303,9 @@ func TestLogsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	}
 	if exporter.Pending() != 0 {
 		t.Fatalf("Pending() = %d, want cleared after retry success", exporter.Pending())
+	}
+	if stats := registry.SnapshotStats(); stats.ExportFailuresTotal != 1 || stats.LogsExportedTotal != 1 {
+		t.Fatalf("stats after retry = %#v, want one failure and one exported log", stats)
 	}
 
 	requests := recorder.requests()

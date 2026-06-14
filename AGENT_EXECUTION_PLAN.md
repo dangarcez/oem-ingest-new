@@ -613,7 +613,7 @@ Critérios de aceite:
 
 #### Tarefa 5.3 - Perfil e observabilidade do exportador
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.1, 5.2, 4.4.
 
@@ -1142,3 +1142,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/script.py`, `old_code/oem/otel/exportadorlogs.py` e a cobertura do exportador de métricas; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para preservar logs adicionados durante um POST em andamento para o próximo ciclo de exportação.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.3 - Perfil e observabilidade do exportador
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`, `go test -race ./internal/selfmetrics`
+  Notas: exportadores OTLP agora registram duração, payload e contagem por batch via logger/observer opcionais; `selfmetrics.Registry` acumula datapoints/logs exportados, falhas, payload e duração sem logs por datapoint.

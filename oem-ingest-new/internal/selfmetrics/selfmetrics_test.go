@@ -54,8 +54,10 @@ func TestFromSnapshotBuildsRequestCollectionAndExportMetrics(t *testing.T) {
 		Collector: collect.Stats{DatapointsCollectedTotal: 13},
 		Exporter: ExporterStats{
 			DatapointsExportedTotal: 11,
+			LogsExportedTotal:       5,
 			ExportFailuresTotal:     1,
 			ExportPayloadBytes:      2048,
+			ExportDurationSeconds:   0.25,
 		},
 		ObservedAt: observedAt,
 	})
@@ -65,8 +67,10 @@ func TestFromSnapshotBuildsRequestCollectionAndExportMetrics(t *testing.T) {
 	assertPoint(t, points, OEMRequestErrorsMetricName, attrs, 2)
 	assertPoint(t, points, DatapointsCollectedMetricName, attrs, 13)
 	assertPoint(t, points, DatapointsExportedMetricName, attrs, 11)
+	assertPoint(t, points, LogsExportedMetricName, attrs, 5)
 	assertPoint(t, points, ExportFailuresMetricName, attrs, 1)
 	assertPoint(t, points, ExportPayloadBytesMetricName, attrs, 2048)
+	assertPoint(t, points, ExportDurationMetricName, attrs, 0.25)
 }
 
 func TestFromSnapshotAggregatesTargetsDeterministically(t *testing.T) {
@@ -105,8 +109,8 @@ func TestFromSnapshotAggregatesTargetsDeterministically(t *testing.T) {
 		TargetsActiveMetricName + "\x00site_1\x00http://a.example\x00rac_database",
 		TargetsInactiveMetricName + "\x00site_1\x00http://a.example\x00rac_database",
 	}
-	if len(points) != len(wantSeries)+6 {
-		t.Fatalf("points len = %d, want %d", len(points), len(wantSeries)+6)
+	if len(points) != len(wantSeries)+8 {
+		t.Fatalf("points len = %d, want %d", len(points), len(wantSeries)+8)
 	}
 	for i, want := range wantSeries {
 		if points[i].SeriesID != want {
@@ -123,18 +127,25 @@ func TestRegistryRecordsExportStats(t *testing.T) {
 	registry := NewRegistry()
 
 	registry.RecordExportSuccess(7, 512)
-	registry.RecordExportFailure(1024)
-	registry.RecordExportSuccess(3, 256)
+	registry.RecordMetricsExportFailure(1024, 250*time.Millisecond)
+	registry.RecordLogsExportSuccess(4, 768, 1500*time.Millisecond)
+	registry.RecordMetricsExportSuccess(3, 256, 2*time.Second)
 
 	stats := registry.SnapshotStats()
 	if stats.DatapointsExportedTotal != 10 {
 		t.Fatalf("DatapointsExportedTotal = %d, want 10", stats.DatapointsExportedTotal)
+	}
+	if stats.LogsExportedTotal != 4 {
+		t.Fatalf("LogsExportedTotal = %d, want 4", stats.LogsExportedTotal)
 	}
 	if stats.ExportFailuresTotal != 1 {
 		t.Fatalf("ExportFailuresTotal = %d, want 1", stats.ExportFailuresTotal)
 	}
 	if stats.ExportPayloadBytes != 256 {
 		t.Fatalf("ExportPayloadBytes = %d, want last payload size 256", stats.ExportPayloadBytes)
+	}
+	if stats.ExportDurationSeconds != 2 {
+		t.Fatalf("ExportDurationSeconds = %v, want last duration 2 seconds", stats.ExportDurationSeconds)
 	}
 }
 
@@ -155,8 +166,10 @@ func TestMetricNamesListsRequiredMetricsAndReturnsCopy(t *testing.T) {
 		OEMRequestErrorsMetricName,
 		DatapointsCollectedMetricName,
 		DatapointsExportedMetricName,
+		LogsExportedMetricName,
 		ExportFailuresMetricName,
 		ExportPayloadBytesMetricName,
+		ExportDurationMetricName,
 	}
 	got := MetricNames()
 	if !reflect.DeepEqual(got, want) {

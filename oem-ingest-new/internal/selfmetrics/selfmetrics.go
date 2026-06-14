@@ -20,8 +20,10 @@ const (
 	OEMRequestErrorsMetricName    = "oem_collector_oem_request_errors_total"
 	DatapointsCollectedMetricName = "oem_collector_datapoints_collected_total"
 	DatapointsExportedMetricName  = "oem_collector_datapoints_exported_total"
+	LogsExportedMetricName        = "oem_collector_logs_exported_total"
 	ExportFailuresMetricName      = "oem_collector_export_failures_total"
 	ExportPayloadBytesMetricName  = "oem_collector_export_payload_bytes"
+	ExportDurationMetricName      = "oem_collector_export_duration_seconds"
 )
 
 var metricNames = []string{
@@ -32,8 +34,10 @@ var metricNames = []string{
 	OEMRequestErrorsMetricName,
 	DatapointsCollectedMetricName,
 	DatapointsExportedMetricName,
+	LogsExportedMetricName,
 	ExportFailuresMetricName,
 	ExportPayloadBytesMetricName,
+	ExportDurationMetricName,
 }
 
 // MetricNames lists the internal metrics emitted by this package.
@@ -46,15 +50,19 @@ func MetricNames() []string {
 // ExporterStats is the exporter's contribution to internal metrics.
 type ExporterStats struct {
 	DatapointsExportedTotal uint64
+	LogsExportedTotal       uint64
 	ExportFailuresTotal     uint64
 	ExportPayloadBytes      uint64
+	ExportDurationSeconds   float64
 }
 
 // Registry keeps exporter counters that do not yet live in a concrete exporter.
 type Registry struct {
-	datapointsExported uint64
-	exportFailures     uint64
-	exportPayloadBytes uint64
+	datapointsExported  uint64
+	logsExported        uint64
+	exportFailures      uint64
+	exportPayloadBytes  uint64
+	exportDurationNanos uint64
 }
 
 // NewRegistry creates an empty internal metrics registry.
@@ -64,21 +72,57 @@ func NewRegistry() *Registry {
 
 // RecordExportSuccess records a successful export batch.
 func (r *Registry) RecordExportSuccess(datapointsExported, payloadBytes uint64) {
+	r.RecordMetricsExportSuccess(datapointsExported, payloadBytes, 0)
+}
+
+// RecordMetricsExportSuccess records a successful metrics export batch.
+func (r *Registry) RecordMetricsExportSuccess(datapointsExported, payloadBytes uint64, duration time.Duration) {
 	if r == nil {
 		return
 	}
 	atomic.AddUint64(&r.datapointsExported, datapointsExported)
-	atomic.StoreUint64(&r.exportPayloadBytes, payloadBytes)
+	r.recordPayloadAndDuration(payloadBytes, duration)
 }
 
 // RecordExportFailure records a failed export attempt and the payload size that
 // was attempted, when known.
 func (r *Registry) RecordExportFailure(payloadBytes uint64) {
+	r.RecordMetricsExportFailure(payloadBytes, 0)
+}
+
+// RecordMetricsExportFailure records a failed metrics export attempt.
+func (r *Registry) RecordMetricsExportFailure(payloadBytes uint64, duration time.Duration) {
 	if r == nil {
 		return
 	}
 	atomic.AddUint64(&r.exportFailures, 1)
+	r.recordPayloadAndDuration(payloadBytes, duration)
+}
+
+// RecordLogsExportSuccess records a successful log export batch.
+func (r *Registry) RecordLogsExportSuccess(logsExported, payloadBytes uint64, duration time.Duration) {
+	if r == nil {
+		return
+	}
+	atomic.AddUint64(&r.logsExported, logsExported)
+	r.recordPayloadAndDuration(payloadBytes, duration)
+}
+
+// RecordLogsExportFailure records a failed log export attempt.
+func (r *Registry) RecordLogsExportFailure(payloadBytes uint64, duration time.Duration) {
+	if r == nil {
+		return
+	}
+	atomic.AddUint64(&r.exportFailures, 1)
+	r.recordPayloadAndDuration(payloadBytes, duration)
+}
+
+func (r *Registry) recordPayloadAndDuration(payloadBytes uint64, duration time.Duration) {
 	atomic.StoreUint64(&r.exportPayloadBytes, payloadBytes)
+	if duration < 0 {
+		duration = 0
+	}
+	atomic.StoreUint64(&r.exportDurationNanos, uint64(duration))
 }
 
 // SnapshotStats returns a consistent snapshot of exporter counters.
@@ -88,8 +132,10 @@ func (r *Registry) SnapshotStats() ExporterStats {
 	}
 	return ExporterStats{
 		DatapointsExportedTotal: atomic.LoadUint64(&r.datapointsExported),
+		LogsExportedTotal:       atomic.LoadUint64(&r.logsExported),
 		ExportFailuresTotal:     atomic.LoadUint64(&r.exportFailures),
 		ExportPayloadBytes:      atomic.LoadUint64(&r.exportPayloadBytes),
+		ExportDurationSeconds:   float64(atomic.LoadUint64(&r.exportDurationNanos)) / float64(time.Second),
 	}
 }
 
@@ -112,7 +158,7 @@ func FromSnapshot(input SnapshotInput) []transform.MetricPoint {
 		observedAt = time.Now()
 	}
 
-	points := make([]transform.MetricPoint, 0, len(input.Sites)*3+6)
+	points := make([]transform.MetricPoint, 0, len(input.Sites)*3+8)
 	for _, group := range targetGroups(input.Sites, input.ResponseMonitor, input.ResponseTolerance, observedAt) {
 		attrs := transform.Attributes{
 			"scope":       "targets",
@@ -133,8 +179,10 @@ func FromSnapshot(input SnapshotInput) []transform.MetricPoint {
 		metricPoint(OEMRequestErrorsMetricName, float64(input.OEM.RequestErrorsTotal), globalAttrs, observedAt),
 		metricPoint(DatapointsCollectedMetricName, float64(input.Collector.DatapointsCollectedTotal), globalAttrs, observedAt),
 		metricPoint(DatapointsExportedMetricName, float64(input.Exporter.DatapointsExportedTotal), globalAttrs, observedAt),
+		metricPoint(LogsExportedMetricName, float64(input.Exporter.LogsExportedTotal), globalAttrs, observedAt),
 		metricPoint(ExportFailuresMetricName, float64(input.Exporter.ExportFailuresTotal), globalAttrs, observedAt),
 		metricPoint(ExportPayloadBytesMetricName, float64(input.Exporter.ExportPayloadBytes), globalAttrs, observedAt),
+		metricPoint(ExportDurationMetricName, input.Exporter.ExportDurationSeconds, globalAttrs, observedAt),
 	)
 
 	return points

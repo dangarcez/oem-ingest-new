@@ -3,6 +3,7 @@ package exporter
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"oem-ingest-new/internal/selfmetrics"
 	"oem-ingest-new/internal/transform"
 
 	collectormetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -190,6 +192,123 @@ func TestMetricsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	}
 	if got := len(recorder.requests()); got != 2 {
 		t.Fatalf("requests after cleared buffer = %d, want still 2", got)
+	}
+}
+
+func TestMetricsExporterRecordsBatchObservability(t *testing.T) {
+	var recorder requestRecorder
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	registry := selfmetrics.NewRegistry()
+	logger := &exportRecordingLogger{}
+	exporter, err := NewMetricsExporter(server.URL, MetricsExporterOptions{
+		Observer: registry,
+		Logger:   logger,
+	})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter() error = %v", err)
+	}
+	exporter.Add(
+		transform.MetricPoint{
+			Name:  "oem_response_status",
+			Value: 2,
+			Attributes: transform.Attributes{
+				"target_name": "db1",
+			},
+		},
+		transform.MetricPoint{
+			Name:  "oem_load_value",
+			Value: 0.5,
+			Attributes: transform.Attributes{
+				"target_name": "host01",
+			},
+		},
+	)
+
+	result, err := exporter.Export(context.Background())
+	if err != nil {
+		t.Fatalf("Export() error = %v", err)
+	}
+	if result.Duration <= 0 {
+		t.Fatalf("Export() duration = %s, want recorded duration", result.Duration)
+	}
+
+	stats := registry.SnapshotStats()
+	if stats.DatapointsExportedTotal != 2 {
+		t.Fatalf("DatapointsExportedTotal = %d, want 2", stats.DatapointsExportedTotal)
+	}
+	if stats.ExportPayloadBytes != uint64(result.PayloadBytes) {
+		t.Fatalf("ExportPayloadBytes = %d, want %d", stats.ExportPayloadBytes, result.PayloadBytes)
+	}
+	if stats.ExportDurationSeconds <= 0 {
+		t.Fatalf("ExportDurationSeconds = %v, want positive duration", stats.ExportDurationSeconds)
+	}
+
+	infos := logger.infosSnapshot()
+	if len(infos) != 1 {
+		t.Fatalf("info logs len = %d, want one batch summary", len(infos))
+	}
+	if !infos[0].contains("metrics") || !infos[0].contains("datapoints") || !infos[0].contains("payload_bytes") || !infos[0].contains("duration") {
+		t.Fatalf("info log missing batch fields: %#v", infos[0])
+	}
+	if infos[0].contains("oem_response_status") || infos[0].contains("target_name") || infos[0].contains("db1") {
+		t.Fatalf("info log contains per-datapoint details: %#v", infos[0])
+	}
+	if len(logger.warnsSnapshot()) != 0 {
+		t.Fatalf("warn logs = %#v, want none on success", logger.warnsSnapshot())
+	}
+}
+
+func TestMetricsExporterRecordsFailureObservability(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	registry := selfmetrics.NewRegistry()
+	logger := &exportRecordingLogger{}
+	exporter, err := NewMetricsExporter(server.URL, MetricsExporterOptions{
+		Observer: registry,
+		Logger:   logger,
+	})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter() error = %v", err)
+	}
+	exporter.Add(transform.MetricPoint{Name: "oem_load_value", Value: 9})
+
+	result, err := exporter.Export(context.Background())
+	if err == nil {
+		t.Fatal("Export() error = nil, want failure")
+	}
+	if result.Duration <= 0 || result.PayloadBytes == 0 {
+		t.Fatalf("Export() result = %#v, want duration and payload on failure", result)
+	}
+
+	stats := registry.SnapshotStats()
+	if stats.DatapointsExportedTotal != 0 {
+		t.Fatalf("DatapointsExportedTotal = %d, want no successful datapoints", stats.DatapointsExportedTotal)
+	}
+	if stats.ExportFailuresTotal != 1 {
+		t.Fatalf("ExportFailuresTotal = %d, want 1", stats.ExportFailuresTotal)
+	}
+	if stats.ExportPayloadBytes != uint64(result.PayloadBytes) {
+		t.Fatalf("ExportPayloadBytes = %d, want %d", stats.ExportPayloadBytes, result.PayloadBytes)
+	}
+	if stats.ExportDurationSeconds <= 0 {
+		t.Fatalf("ExportDurationSeconds = %v, want positive duration", stats.ExportDurationSeconds)
+	}
+
+	warns := logger.warnsSnapshot()
+	if len(warns) != 1 {
+		t.Fatalf("warn logs len = %d, want one failure summary", len(warns))
+	}
+	if !warns[0].contains("http_status") || warns[0].contains("oem_load_value") {
+		t.Fatalf("warn log should summarize failure without datapoint details: %#v", warns[0])
 	}
 }
 
@@ -404,6 +523,57 @@ func (r *requestRecorder) requests() []recordedRequest {
 	defer r.mu.Unlock()
 	out := make([]recordedRequest, len(r.requestsList))
 	copy(out, r.requestsList)
+	return out
+}
+
+type exportLogEntry struct {
+	msg  string
+	args []any
+}
+
+func (e exportLogEntry) contains(value string) bool {
+	if strings.Contains(e.msg, value) {
+		return true
+	}
+	for _, arg := range e.args {
+		if strings.Contains(fmt.Sprint(arg), value) {
+			return true
+		}
+	}
+	return false
+}
+
+type exportRecordingLogger struct {
+	mu    sync.Mutex
+	infos []exportLogEntry
+	warns []exportLogEntry
+}
+
+func (l *exportRecordingLogger) InfoContext(_ context.Context, msg string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.infos = append(l.infos, exportLogEntry{msg: msg, args: append([]any(nil), args...)})
+}
+
+func (l *exportRecordingLogger) WarnContext(_ context.Context, msg string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.warns = append(l.warns, exportLogEntry{msg: msg, args: append([]any(nil), args...)})
+}
+
+func (l *exportRecordingLogger) infosSnapshot() []exportLogEntry {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]exportLogEntry, len(l.infos))
+	copy(out, l.infos)
+	return out
+}
+
+func (l *exportRecordingLogger) warnsSnapshot() []exportLogEntry {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]exportLogEntry, len(l.warns))
+	copy(out, l.warns)
 	return out
 }
 

@@ -28,6 +28,8 @@ type LogsExporterOptions struct {
 	HTTPClient  *http.Client
 	ServiceName string
 	ScopeName   string
+	Observer    LogsObserver
+	Logger      Logger
 }
 
 // LogsExportResult summarizes one log export attempt.
@@ -35,6 +37,7 @@ type LogsExportResult struct {
 	Logs         int
 	PayloadBytes int
 	StatusCode   int
+	Duration     time.Duration
 	Skipped      bool
 }
 
@@ -46,6 +49,8 @@ type LogsExporter struct {
 	httpClient  *http.Client
 	serviceName string
 	scopeName   string
+	observer    LogsObserver
+	logger      Logger
 
 	mu         sync.Mutex
 	pending    []transform.LogRecord
@@ -80,6 +85,8 @@ func NewLogsExporter(baseURL string, opts LogsExporterOptions) (*LogsExporter, e
 		httpClient:  httpClient,
 		serviceName: serviceName,
 		scopeName:   scopeName,
+		observer:    opts.Observer,
+		logger:      opts.Logger,
 		lastValues:  make(map[string]string),
 	}, nil
 }
@@ -146,20 +153,27 @@ func (e *LogsExporter) Export(ctx context.Context) (LogsExportResult, error) {
 		return LogsExportResult{Skipped: true}, nil
 	}
 
+	started := time.Now()
 	payload, err := e.buildPayload(batch, time.Now())
 	if err != nil {
-		return LogsExportResult{Logs: len(batch)}, err
+		result := LogsExportResult{Logs: len(batch), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return LogsExportResult{Logs: len(batch), PayloadBytes: len(payload)}, err
+		result := LogsExportResult{Logs: len(batch), PayloadBytes: len(payload), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return LogsExportResult{Logs: len(batch), PayloadBytes: len(payload)}, err
+		result := LogsExportResult{Logs: len(batch), PayloadBytes: len(payload), Duration: time.Since(started)}
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
@@ -168,13 +182,48 @@ func (e *LogsExporter) Export(ctx context.Context) (LogsExportResult, error) {
 		Logs:         len(batch),
 		PayloadBytes: len(payload),
 		StatusCode:   resp.StatusCode,
+		Duration:     time.Since(started),
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > 299 {
-		return result, fmt.Errorf("exportar logs OTLP para %s: status HTTP %d", e.endpoint, resp.StatusCode)
+		err := fmt.Errorf("exportar logs OTLP: status HTTP %d", resp.StatusCode)
+		e.recordExport(ctx, result, err)
+		return result, err
 	}
 
 	e.discardExported(len(batch))
+	e.recordExport(ctx, result, nil)
 	return result, nil
+}
+
+func (e *LogsExporter) recordExport(ctx context.Context, result LogsExportResult, err error) {
+	if result.Skipped {
+		return
+	}
+	if e.observer != nil {
+		if err != nil {
+			e.observer.RecordLogsExportFailure(uint64(result.PayloadBytes), result.Duration)
+		} else {
+			e.observer.RecordLogsExportSuccess(uint64(result.Logs), uint64(result.PayloadBytes), result.Duration)
+		}
+	}
+	if e.logger == nil {
+		return
+	}
+	args := []any{
+		"signal", "logs",
+		"logs", result.Logs,
+		"payload_bytes", result.PayloadBytes,
+		"duration", result.Duration,
+	}
+	if result.StatusCode != 0 {
+		args = append(args, "status_code", result.StatusCode)
+	}
+	if err != nil {
+		args = append(args, "error_kind", exportErrorKind(result.StatusCode, result.PayloadBytes))
+		e.logger.WarnContext(ctx, "falha ao exportar batch OTLP", args...)
+		return
+	}
+	e.logger.InfoContext(ctx, "batch OTLP exportado", args...)
 }
 
 func (e *LogsExporter) snapshot() []transform.LogRecord {
