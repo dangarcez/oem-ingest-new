@@ -35,12 +35,12 @@ func TestRunReturnsCanceledContext(t *testing.T) {
 	}
 }
 
-func TestRunValidatesTargetIDsWhenEnabled(t *testing.T) {
+func TestRunValidatesTargetsWhenEnabled(t *testing.T) {
 	targetsPath := writeTargetsFile(t, "stale-id")
 	var output bytes.Buffer
 	factoryCalled := false
 
-	factory := func(site config.SiteConfig) (validate.TargetLister, error) {
+	factory := func(site config.SiteConfig) (validate.TargetInventory, error) {
 		factoryCalled = true
 		if site.Name != "oraemc" || site.Endpoint != "http://oem.example" {
 			t.Fatalf("unexpected site passed to factory: %#v", site)
@@ -51,9 +51,9 @@ func TestRunValidatesTargetIDsWhenEnabled(t *testing.T) {
 	}
 
 	err := Run(context.Background(), Options{
-		Output:              &output,
-		LookupEnv:           mapLookup(map[string]string{"OEM_VALIDATE_CONFIG": "true", "OEM_CONFIG_TARGETS": targetsPath}),
-		TargetListerFactory: factory,
+		Output:                 &output,
+		LookupEnv:              mapLookup(map[string]string{"OEM_VALIDATE_CONFIG": "true", "OEM_CONFIG_TARGETS": targetsPath}),
+		TargetInventoryFactory: factory,
 	})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
@@ -61,7 +61,7 @@ func TestRunValidatesTargetIDsWhenEnabled(t *testing.T) {
 	if !factoryCalled {
 		t.Fatal("expected validation factory to be called")
 	}
-	if !strings.Contains(output.String(), "validacao de IDs concluida: 1 correcoes, 1 avisos") {
+	if !strings.Contains(output.String(), "validacao de configuracao concluida: 1 correcoes de ID, 0 targets adicionados, 1 tags corrigidas, 2 avisos") {
 		t.Fatalf("expected validation summary, got %q", output.String())
 	}
 	if !strings.Contains(output.String(), "scaffold inicializado") {
@@ -94,6 +94,10 @@ type appFakeTargetLister struct {
 
 func (f appFakeTargetLister) ListTargets(context.Context) (oem.Page[oem.Target], error) {
 	return oem.Page[oem.Target]{Items: f.targets}, nil
+}
+
+func (f appFakeTargetLister) TargetProperties(context.Context, string) (oem.Page[oem.Property], error) {
+	return oem.Page[oem.Property]{}, nil
 }
 
 func writeTargetsFile(t *testing.T, targetID string) string {
