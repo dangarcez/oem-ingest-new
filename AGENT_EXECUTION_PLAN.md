@@ -407,7 +407,7 @@ Critérios de aceite:
 
 #### Tarefa 3.2 - Cache em memória de keys de metric group
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -1022,3 +1022,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigido o runner para aplicar `DefaultJitter` de 60s por padrão, preservando opção determinística com `Jitter: -1`; adicionada cobertura para esse contrato.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.2 - Cache em memória de keys de metric group
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: cache de metadados implementado em `internal/collect`, reutilizando keys por `targetId + metricGroupName`, preservando definições de métricas para transformação futura, permitindo grupos bodyless/custom sem keys e tratando 404 como grupo indisponível para o job.
