@@ -29,19 +29,7 @@ Em cada sessão, o agent deve:
 9. Atualizar o status da tarefa neste arquivo e registrar uma nota curta em "Registro de Progresso".
 10. Criar um commit com a tarefa concluída ou com o progresso parcial relevante.
 
-## Prompt Reutilizável Para Próximas Sessões
 
-Use este prompt em cada nova sessão:
-
-```text
-Leia AGENT_EXECUTION_PLAN.md e project.prd. Verifique o estado do Git, crie uma branch task/<id>-<slug> se estiver iniciando uma tarefa nova a partir de main, escolha a próxima tarefa pendente com dependências satisfeitas, implemente-a no projeto ./oem-ingest-new, adicione/ajuste testes, rode as verificações possíveis, atualize AGENT_EXECUTION_PLAN.md com o status e uma nota curta de progresso e faça um commit com a mudança. Antes de codar, consulte os arquivos antigos indicados no plano quando a tarefa depender de compatibilidade com o legado. Não implemente funcionalidades fora do escopo da tarefa escolhida.
-```
-
-Prompt para revisão de uma tarefa já feita:
-
-```text
-Leia AGENT_EXECUTION_PLAN.md, project.prd e as mudanças atuais do workspace. Faça uma revisão técnica da última tarefa marcada como concluída, priorizando bugs, regressões de compatibilidade com o legado e lacunas de teste. Corrija problemas objetivos que encontrar, rode as verificações possíveis, atualize o Registro de Progresso e faça um commit se houver mudanças.
-```
 
 ## Fluxo Git
 
