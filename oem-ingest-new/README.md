@@ -17,6 +17,7 @@ O projeto atual define:
   agendamento e logging;
 - leitura de variaveis de ambiente;
 - loader YAML para `configTargets.yaml` e `configMetrics.yaml`;
+- resolucao de credenciais OEM para Basic Auth, incluindo token legado;
 - ponto de entrada que encerra sem iniciar coleta real.
 
 Chamadas OEM, transformacao e exportacao OTLP serao implementadas nas proximas
@@ -49,6 +50,24 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_HTTP_MAX_RETRIES`.
 - `OEM_MAX_CONCURRENT_REQUESTS`.
 - `OEM_LOG_LEVEL`.
+
+### Autenticacao
+
+O OEM usa HTTP Basic Auth. A aplicacao resolve as credenciais assim:
+
+- `OEM_USER` e obrigatorio.
+- `OEM_PASSWORD` e a senha direta e tem prioridade quando tambem existir
+  `OEM_TOKEN`.
+- `OEM_TOKEN` mantem compatibilidade com o algoritmo legado de
+  `old_code/oem/tools/xisou.py`.
+- Ao usar `OEM_TOKEN`, informe `OEM_AUTH_TOKEN_HASH_FILE`. O token legado e
+  decodificado com XOR usando o SHA-256 hexadecimal desse arquivo como chave.
+
+No Python antigo, o hash era calculado sobre o arquivo fonte do script em
+execucao. Em Go, o binario compilado nao tem o mesmo conceito de arquivo fonte;
+por isso o arquivo usado no hash e configurado explicitamente. Para preservar
+tokens antigos, aponte `OEM_AUTH_TOKEN_HASH_FILE` para o mesmo arquivo usado
+quando o token foi gerado.
 
 ## Comandos
 

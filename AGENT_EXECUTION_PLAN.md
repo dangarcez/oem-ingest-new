@@ -260,7 +260,7 @@ Critérios de aceite:
 
 #### Tarefa 0.3 - Autenticação Basic Auth e token legado
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -938,3 +938,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: workspace estava limpo antes da revisão; corrigida validação de `tags.target_type` e `tags.target_name` com normalização compatível com o legado para `host` e `oracle_listener`; adicionada cobertura para exemplos versionados e tags inconsistentes.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.3 - Autenticação Basic Auth e token legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: pacote `internal/auth` implementa Basic Auth, prioridade de `OEM_PASSWORD` sobre `OEM_TOKEN` e decodificação XOR/base64/hash compatível com `old_code/oem/tools/xisou.py`; README documenta a limitação do hash de arquivo em Go.

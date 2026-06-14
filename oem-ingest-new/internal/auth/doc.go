@@ -1,2 +1,2 @@
-// Package auth will hold Basic Auth and legacy token decoding.
+// Package auth resolves OEM credentials and applies HTTP Basic Auth.
 package auth
