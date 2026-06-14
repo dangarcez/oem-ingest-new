@@ -123,7 +123,8 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 				result.addWarning(ctx, opts.Logger, warning)
 			case 1:
 				current := matches[0]
-				if strings.TrimSpace(current.ID) == strings.TrimSpace(target.ID) {
+				currentID := strings.TrimSpace(current.ID)
+				if target.ID == currentID {
 					continue
 				}
 				correction := IDCorrection{
@@ -133,9 +134,9 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 					TargetName:  target.Name,
 					TargetType:  target.TypeName,
 					OldID:       target.ID,
-					NewID:       current.ID,
+					NewID:       currentID,
 				}
-				corrected[siteIndex].Targets[targetIndex].ID = current.ID
+				corrected[siteIndex].Targets[targetIndex].ID = currentID
 				result.IDCorrections = append(result.IDCorrections, correction)
 				warning := Warning{
 					Code:        WarningIDDivergent,
@@ -145,7 +146,7 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 					TargetName:  target.Name,
 					TargetType:  target.TypeName,
 					ConfigID:    target.ID,
-					CurrentID:   current.ID,
+					CurrentID:   currentID,
 					Message:     fmt.Sprintf("ID do target %q tipo %q diverge da API OEM", target.Name, target.TypeName),
 				}
 				result.addWarning(ctx, opts.Logger, warning)
@@ -196,6 +197,9 @@ func (r *IDValidationResult) addWarning(ctx context.Context, logger Logger, warn
 func indexTargetsByNameAndType(targets []oem.Target) map[string][]oem.Target {
 	index := make(map[string][]oem.Target, len(targets))
 	for _, target := range targets {
+		if strings.TrimSpace(target.ID) == "" {
+			continue
+		}
 		key := targetKey(target.Name, target.TypeName)
 		if key == "" {
 			continue

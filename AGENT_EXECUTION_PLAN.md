@@ -980,3 +980,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/validate`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: validação opcional de IDs implementada em `internal/validate`, com correção em memória por `name` + `typeName`, warnings para divergência/ausência/duplicidade e preservação da configuração original.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.1 - Validação de IDs
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./cmd/oem-ingest`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; ligada a validação opcional ao startup quando `OEM_VALIDATE_CONFIG=true`; corrigida normalização de IDs com whitespace e preservação do ID configurado quando a API retorna target sem ID; adicionada cobertura para startup, preservação do arquivo original e casos de ID inválido.

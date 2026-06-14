@@ -20,6 +20,7 @@ O projeto atual define:
 - resolucao de credenciais OEM para Basic Auth, incluindo token legado;
 - cliente HTTP OEM com Basic Auth, timeouts, retries, pool de conexoes,
   paginacao por `links.next` e endpoints tipados;
+- validacao opcional de IDs de targets na inicializacao;
 - ponto de entrada que encerra sem iniciar coleta real.
 
 Scheduler de coleta, transformacao e exportacao OTLP serao implementados nas
@@ -41,7 +42,8 @@ Variaveis de ambiente suportadas nesta fase:
 
 - `OEM_CONFIG_TARGETS`: caminho do arquivo de targets.
 - `OEM_CONFIG_METRICS`: caminho do arquivo de metricas.
-- `OEM_VALIDATE_CONFIG`: `true` ou `false`.
+- `OEM_VALIDATE_CONFIG`: `true` ou `false`; quando `true`, consulta a API OEM
+  e corrige IDs divergentes em memoria.
 - `OEM_VALIDATED_CONFIG_OUTPUT`: caminho para configuracao corrigida futura.
 - `OEM_USER`, `OEM_PASSWORD`, `OEM_TOKEN`, `OEM_AUTH_TOKEN_HASH_FILE`.
 - `OTEL_EXPORT_URL`.
@@ -81,4 +83,5 @@ go run ./cmd/oem-ingest --version
 ```
 
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
-scaffold foi inicializado. Nenhuma chamada externa e feita nesta fase.
+scaffold foi inicializado. Chamadas externas so sao feitas nesta fase quando
+`OEM_VALIDATE_CONFIG=true`.

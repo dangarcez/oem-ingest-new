@@ -72,6 +72,29 @@ func TestValidateTargetIDsCorrectsDivergentIDAndDoesNotMutateOriginal(t *testing
 	}
 }
 
+func TestValidateTargetIDsNormalizesConfiguredIDWhitespace(t *testing.T) {
+	sites := []config.SiteConfig{newTestSite(newTestTarget(" current-id ", "cdbp51bc", "rac_database"))}
+	factory := singleListerFactory(fakeTargetLister{
+		targets: []oem.Target{{ID: "current-id", Name: "cdbp51bc", TypeName: "rac_database"}},
+	})
+
+	result, err := ValidateTargetIDs(context.Background(), sites, factory, IDValidationOptions{Enabled: true})
+	if err != nil {
+		t.Fatalf("ValidateTargetIDs returned error: %v", err)
+	}
+	if !result.Changed() {
+		t.Fatal("result should be changed")
+	}
+	if result.Sites[0].Targets[0].ID != "current-id" {
+		t.Fatalf("corrected ID = %q, want current-id", result.Sites[0].Targets[0].ID)
+	}
+	correction := result.IDCorrections[0]
+	if correction.OldID != " current-id " || correction.NewID != "current-id" {
+		t.Fatalf("unexpected correction: %#v", correction)
+	}
+	assertWarning(t, result.Warnings, WarningIDDivergent)
+}
+
 func TestValidateTargetIDsWarnsAndKeepsMissingTarget(t *testing.T) {
 	sites := []config.SiteConfig{newTestSite(newTestTarget("configured-id", "missing", "oracle_database"))}
 	factory := singleListerFactory(fakeTargetLister{
@@ -84,6 +107,25 @@ func TestValidateTargetIDsWarnsAndKeepsMissingTarget(t *testing.T) {
 	}
 	if result.Changed() {
 		t.Fatalf("missing target should not change config: %#v", result)
+	}
+	if result.Sites[0].Targets[0].ID != "configured-id" {
+		t.Fatalf("target ID = %q, want configured-id", result.Sites[0].Targets[0].ID)
+	}
+	assertWarning(t, result.Warnings, WarningTargetMissing)
+}
+
+func TestValidateTargetIDsIgnoresAPITargetWithoutID(t *testing.T) {
+	sites := []config.SiteConfig{newTestSite(newTestTarget("configured-id", "cdbp51bc", "rac_database"))}
+	factory := singleListerFactory(fakeTargetLister{
+		targets: []oem.Target{{ID: " ", Name: "cdbp51bc", TypeName: "rac_database"}},
+	})
+
+	result, err := ValidateTargetIDs(context.Background(), sites, factory, IDValidationOptions{Enabled: true})
+	if err != nil {
+		t.Fatalf("ValidateTargetIDs returned error: %v", err)
+	}
+	if result.Changed() {
+		t.Fatalf("API target without ID should not change config: %#v", result)
 	}
 	if result.Sites[0].Targets[0].ID != "configured-id" {
 		t.Fatalf("target ID = %q, want configured-id", result.Sites[0].Targets[0].ID)

@@ -8,6 +8,7 @@ import (
 )
 
 func TestRunHelpDoesNotStartCollector(t *testing.T) {
+	t.Setenv("OEM_VALIDATE_CONFIG", "false")
 	var stdout, stderr bytes.Buffer
 
 	err := run(context.Background(), []string{"--help"}, &stdout, &stderr)
@@ -26,6 +27,7 @@ func TestRunHelpDoesNotStartCollector(t *testing.T) {
 }
 
 func TestRunVersion(t *testing.T) {
+	t.Setenv("OEM_VALIDATE_CONFIG", "false")
 	var stdout, stderr bytes.Buffer
 
 	err := run(context.Background(), []string{"--version"}, &stdout, &stderr)
@@ -41,6 +43,7 @@ func TestRunVersion(t *testing.T) {
 }
 
 func TestRunInvalidFlagReturnsError(t *testing.T) {
+	t.Setenv("OEM_VALIDATE_CONFIG", "false")
 	var stdout, stderr bytes.Buffer
 
 	err := run(context.Background(), []string{"--unknown"}, &stdout, &stderr)
