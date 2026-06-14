@@ -746,7 +746,7 @@ Critérios de aceite:
 
 #### Tarefa 8.1 - Documentação de arquitetura
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -1232,3 +1232,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
   Notas: workspace estava limpo antes da revisão; comparados workflow, README e critérios da tarefa 7.4; não foram encontradas regressões objetivas de CI, compatibilidade com o legado ou lacunas obrigatórias de teste.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.1 - Documentação de arquitetura
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: criada documentação de arquitetura em `oem-ingest-new/docs/arquitetura.md`, cobrindo componentes, fluxo config-validacao-coleta-transformacao-export, buffer incremental, incidentes e diferenças para o legado.
