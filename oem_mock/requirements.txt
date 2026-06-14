@@ -1,0 +1,5 @@
+fastapi==0.137.0
+msgpack==1.2.0
+PyYAML==6.0.3
+requests==2.34.2
+uvicorn==0.49.0

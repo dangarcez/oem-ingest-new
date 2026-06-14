@@ -305,7 +305,7 @@ Critérios de aceite:
 
 #### Tarefa 1.2 - Adaptar mock para testes locais
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -962,3 +962,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: workspace estava limpo antes da revisão; corrigida preservação de paths escapados para IDs/grupos OEM com caracteres especiais e paginação com `links.next` apenas em query string; incidentes agora preservam campos extras para compatibilidade futura com logs; README atualizado para refletir o cliente OEM implementado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 1.2 - Adaptar mock para testes locais
+  Status: concluída
+  Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: mock FastAPI agora responde `/em/api`, carrega fixtures por caminho absoluto do modulo e aceita payloads binarios em `/v1/metrics` e `/v1/logs`; adicionada documentacao local do mock.
