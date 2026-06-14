@@ -11,6 +11,8 @@ import (
 
 const MonitorResponseMetricName = "oem_monitor_response"
 const MonitorStatusMetricName = "oem_monitor_stus"
+const ServiceStatusMetricName = "oem_service_status"
+const StringServiceStatusMetricName = "oem_str_service_status"
 
 // FromResponseMonitor builds the custom oem_monitor_response gauge for every
 // configured target. Value 1 means the target had a useful collection inside
@@ -59,6 +61,58 @@ func FromMonitorStatus(result collect.Result, monitor *collect.ResponseMonitor, 
 	}, true
 }
 
+// FromServiceStatus builds the legacy custom service status series. It emits a
+// numeric gauge plus a textual continuous log for rac_database/service_performance
+// and oracle_pdb/DBService items.
+func FromServiceStatus(result collect.Result) Output {
+	if !serviceStatusSupported(result) {
+		return Output{}
+	}
+
+	targetID := resultTargetID(result)
+	out := Output{}
+	for _, item := range result.LatestData.Items {
+		active, ok := serviceActive(item)
+		if !ok {
+			continue
+		}
+		seriesID := buildSeriesID(targetID, result.Metadata.Keys, item)
+		attrs := BuildAttributes(result.Job.Target, result.Metadata, item)
+
+		value := float64(0)
+		body := "inativo"
+		if active {
+			value = 1
+			body = "ativo"
+		}
+
+		out.Metrics = append(out.Metrics, MetricPoint{
+			Name:            ServiceStatusMetricName,
+			MetricGroupName: resultMetricGroupName(result),
+			MetricName:      ServiceStatusMetricName,
+			TargetID:        targetID,
+			SeriesID:        seriesID,
+			Value:           value,
+			Attributes:      attrs.Clone(),
+			Timestamp:       result.CollectedAt,
+		})
+
+		logAttrs := attrs.Clone()
+		logAttrs["metric"] = StringServiceStatusMetricName
+		out.Logs = append(out.Logs, LogRecord{
+			MetricName: StringServiceStatusMetricName,
+			TargetID:   targetID,
+			SeriesID:   seriesID,
+			Body:       body,
+			Attributes: logAttrs,
+			Timestamp:  result.CollectedAt,
+			Continuous: true,
+		})
+	}
+
+	return out
+}
+
 func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor, tolerance time.Duration) (int, bool) {
 	targetType := strings.TrimSpace(result.Job.Target.TypeName)
 	if targetType == "" {
@@ -103,6 +157,43 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 	default:
 		return 0, false
 	}
+}
+
+func serviceStatusSupported(result collect.Result) bool {
+	targetType := strings.TrimSpace(result.Job.Target.TypeName)
+	if targetType == "" {
+		targetType = strings.TrimSpace(result.LatestData.TargetTypeName)
+	}
+	groupName := resultMetricGroupName(result)
+
+	switch targetType {
+	case "rac_database":
+		return sameMetricGroup(groupName, "service_performance")
+	case "oracle_pdb":
+		return sameMetricGroup(groupName, "DBService")
+	default:
+		return false
+	}
+}
+
+func serviceActive(item map[string]any) (bool, bool) {
+	active, ok := serviceActiveFromDBTime(item)
+	if status, hasStatus := item["status"]; hasStatus {
+		active, ok = fmt.Sprint(status) == "Up", true
+	}
+	return active, ok
+}
+
+func serviceActiveFromDBTime(item map[string]any) (bool, bool) {
+	value, ok := item["DBTime_delta"]
+	if !ok {
+		return false, false
+	}
+	number, ok := coerceNumber(value)
+	if !ok {
+		return false, false
+	}
+	return number > 0, true
 }
 
 func oracleDatabaseStatus(item map[string]any) (int, bool) {

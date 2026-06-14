@@ -524,7 +524,7 @@ Critérios de aceite:
 
 #### Tarefa 4.3 - `oem_service_status` e `oem_str_service_status`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -1094,3 +1094,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test -race ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
   Notas: workspace estava limpo antes da revisão; corrigida regra de `oracle_pdb` para respeitar `State != OPEN` mesmo quando `Status` também existe, conforme o critério da tarefa; adicionada cobertura de regressão.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.3 - `oem_service_status` e `oem_str_service_status`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementada geração customizada de status de serviço em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `DBTime_delta`, `status`, valor ativo/inativo, prioridade legada e log textual contínuo.
