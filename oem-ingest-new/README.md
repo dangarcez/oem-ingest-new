@@ -86,3 +86,34 @@ go run ./cmd/oem-ingest --version
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
 scaffold foi inicializado. Chamadas externas so sao feitas nesta fase quando
 `OEM_VALIDATE_CONFIG=true`.
+
+## Docker
+
+A imagem e construida com multi-stage build e executa como usuario nao-root:
+
+```sh
+docker build -t oem-ingest:dev .
+docker run --rm oem-ingest:dev --help
+```
+
+O diretorio de trabalho do container e `/app`. Por padrao, a aplicacao procura:
+
+- `/app/configs/configTargets.yaml`
+- `/app/configs/configMetrics.yaml`
+- `/app/configs/configTargets.validated.yaml`
+
+Os exemplos versionados sao copiados para `/app/configs`, mas arquivos reais de
+configuracao devem ser montados nesse diretorio em execucao:
+
+```sh
+docker run --rm \
+  -v "$PWD/configs:/app/configs:ro" \
+  -e OEM_USER=usuario \
+  -e OEM_PASSWORD=senha \
+  -e OTEL_EXPORT_URL=http://otel-collector:4318 \
+  oem-ingest:dev
+```
+
+Para usar `OEM_TOKEN`, monte tambem o arquivo usado como base de hash e aponte
+`OEM_AUTH_TOKEN_HASH_FILE` para o caminho dentro do container, por exemplo
+`/app/auth/xisou.py`.

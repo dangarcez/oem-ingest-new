@@ -669,7 +669,7 @@ Critérios de aceite:
 
 #### Tarefa 7.1 - Dockerfile
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.1, 5.2, 6.1.
 
@@ -1178,3 +1178,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `./oem_mock/.venv/bin/python -m unittest oem_mock/test_api.py`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigido o mock para `GET /em/api/incidents/{id}` retornar o incidente solicitado ou 404, evitando falso fechamento de todos os IDs pelo fixture estático; adicionada cobertura para reexportar um incidente depois de removido da deduplicação por fechamento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.1 - Dockerfile
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:dev .` indisponível por ausência do Docker CLI, `podman build -t oem-ingest:dev .`, `podman run --rm oem-ingest:dev --help`
+  Notas: Dockerfile multi-stage criado em `oem-ingest-new`, imagem runtime mínima não-root validada via Podman, exemplos de configuração copiados para `/app/configs` e caminho `/app/auth` documentado para `OEM_AUTH_TOKEN_HASH_FILE`.
