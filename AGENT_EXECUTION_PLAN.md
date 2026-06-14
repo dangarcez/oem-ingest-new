@@ -776,7 +776,7 @@ Critérios de aceite:
 
 #### Tarefa 8.3 - Documentação operacional
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.2.
 
@@ -1256,3 +1256,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida a documentação para deixar explícito que os exemplos de execução dependem de OEM/OTLP acessíveis, apontando Docker Compose/teste de integração para uso sem OEM real; refinada a regra do arquivo de hash quando `OEM_TOKEN` é a credencial ativa.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.3 - Documentação operacional
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `docker compose config`, `git diff --check`
+  Notas: criado `oem-ingest-new/docs/operacao.md` com execução local, Docker, Docker Compose, logs, troubleshooting e métricas internas; README passa a apontar para a documentação operacional.
