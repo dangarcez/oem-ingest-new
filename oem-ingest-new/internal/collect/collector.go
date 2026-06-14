@@ -63,9 +63,28 @@ type Result struct {
 	CollectedAt time.Time
 }
 
-// Datapoints returns the number of OEM items collected in this result.
+// Datapoints returns the number of metric values collected in this result.
+// OEM items can include key columns; those identify the series and are not
+// counted as datapoints.
 func (r Result) Datapoints() int {
-	return len(r.LatestData.Items)
+	if len(r.LatestData.Items) == 0 {
+		return 0
+	}
+	keys := make(map[string]struct{}, len(r.Metadata.Keys))
+	for _, key := range r.Metadata.Keys {
+		keys[key] = struct{}{}
+	}
+
+	count := 0
+	for _, item := range r.LatestData.Items {
+		for name := range item {
+			if _, isKey := keys[name]; isKey {
+				continue
+			}
+			count++
+		}
+	}
+	return count
 }
 
 // LatestDataUnavailableError describes a target/group pair whose latestData
@@ -138,12 +157,15 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		MetricGroupName: job.MetricGroupName,
 	})
 	if err != nil {
-		if !errors.Is(err, ErrMetricGroupUnavailable) {
+		if errors.Is(err, ErrMetricGroupUnavailable) {
+			c.recordUnavailableGroup()
+		} else {
 			c.recordCollectionError()
 			c.warn(ctx, "falha transitoria ao consultar metadata de grupo de metrica", job, err)
 		}
 		return Result{}, err
 	}
+	job = jobWithCollectionIdentity(job, metadata.TargetID, metadata.MetricGroupName)
 
 	latest, err := c.latestClient.LatestData(ctx, job.Target.ID, job.MetricGroupName)
 	if err != nil {
@@ -170,6 +192,17 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		atomic.AddUint64(&c.stats.datapointsCollected, uint64(result.Datapoints()))
 	}
 	return result, nil
+}
+
+func jobWithCollectionIdentity(job scheduler.Job, targetID, groupName string) scheduler.Job {
+	if targetID != "" {
+		job.Target.ID = targetID
+	}
+	if groupName != "" {
+		job.MetricGroupName = groupName
+		job.MetricGroup.MetricGroupName = groupName
+	}
+	return job
 }
 
 // SnapshotStats returns collector counters accumulated since process start.

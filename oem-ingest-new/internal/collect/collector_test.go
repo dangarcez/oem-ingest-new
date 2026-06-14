@@ -93,6 +93,130 @@ func TestCollectorAllowsEmptyLatestDataWithoutUpdatingResponseMonitor(t *testing
 	}
 }
 
+func TestCollectorCountsOnlyNonKeyValuesAsDatapoints(t *testing.T) {
+	now := time.Unix(1700000200, 0)
+	client := &fakeCollectClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {
+				Keys: []oem.MetricKey{{Name: "cpuName"}},
+				Metrics: []oem.MetricDefinition{
+					{Name: "value", DataType: "NUMBER"},
+					{Name: "state", DataType: "STRING"},
+				},
+			},
+		},
+		latest: map[string]oem.LatestData{
+			"target-1\x00Load": {
+				MetricGroupName: "Load",
+				Items: []map[string]any{
+					{"cpuName": "cpu0", "value": 42, "state": "ok"},
+					{"cpuName": "cpu1"},
+				},
+			},
+		},
+	}
+	monitor := NewResponseMonitor()
+	collector := NewCollector(client, CollectorOptions{
+		Clock:           func() time.Time { return now },
+		ResponseMonitor: monitor,
+	})
+
+	result, err := collector.Collect(context.Background(), collectJob())
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if got := result.Datapoints(); got != 2 {
+		t.Fatalf("Datapoints = %d, want 2 non-key values", got)
+	}
+	if got := collector.SnapshotStats(); got.DatapointsCollectedTotal != 2 {
+		t.Fatalf("DatapointsCollectedTotal = %d, want 2", got.DatapointsCollectedTotal)
+	}
+	if got, ok := monitor.Last("target-1"); !ok || !got.Equal(now) {
+		t.Fatalf("last useful collection = %s, %v; want %s, true", got, ok, now)
+	}
+}
+
+func TestCollectorDoesNotTreatItemsWithOnlyKeysAsUseful(t *testing.T) {
+	now := time.Unix(1700000300, 0)
+	client := &fakeCollectClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {
+				Keys:    []oem.MetricKey{{Name: "cpuName"}},
+				Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}},
+			},
+		},
+		latest: map[string]oem.LatestData{
+			"target-1\x00Load": {
+				MetricGroupName: "Load",
+				Items:           []map[string]any{{"cpuName": "cpu0"}},
+			},
+		},
+	}
+	monitor := NewResponseMonitor()
+	collector := NewCollector(client, CollectorOptions{
+		Clock:           func() time.Time { return now },
+		ResponseMonitor: monitor,
+	})
+
+	result, err := collector.Collect(context.Background(), collectJob())
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if got := result.Datapoints(); got != 0 {
+		t.Fatalf("Datapoints = %d, want 0", got)
+	}
+	if _, ok := monitor.Last("target-1"); ok {
+		t.Fatal("item with only keys should not update response monitor")
+	}
+	if got := collector.SnapshotStats(); got.DatapointsCollectedTotal != 0 {
+		t.Fatalf("DatapointsCollectedTotal = %d, want 0", got.DatapointsCollectedTotal)
+	}
+}
+
+func TestCollectorUsesNormalizedIdentityForLatestData(t *testing.T) {
+	now := time.Unix(1700000400, 0)
+	client := &fakeCollectClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}}},
+		},
+		latest: map[string]oem.LatestData{
+			"target-1\x00Load": {
+				MetricGroupName: "Load",
+				Items:           []map[string]any{{"value": 42}},
+			},
+		},
+	}
+	monitor := NewResponseMonitor()
+	collector := NewCollector(client, CollectorOptions{
+		Clock:           func() time.Time { return now },
+		ResponseMonitor: monitor,
+	})
+	job := collectJob()
+	job.Target.ID = " target-1 "
+	job.MetricGroupName = " Load "
+	job.MetricGroup.MetricGroupName = " Load "
+
+	result, err := collector.Collect(context.Background(), job)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if result.Job.Target.ID != "target-1" || result.Job.MetricGroupName != "Load" {
+		t.Fatalf("result job identity = %q/%q, want normalized target-1/Load", result.Job.Target.ID, result.Job.MetricGroupName)
+	}
+	if client.metricGroupCalls("target-1", "Load") != 1 || client.latestCallsFor("target-1", "Load") != 1 {
+		t.Fatalf("expected normalized calls, metadata=%d latest=%d", client.metricGroupCalls("target-1", "Load"), client.latestCallsFor("target-1", "Load"))
+	}
+	if got, ok := monitor.Last("target-1"); !ok || !got.Equal(now) {
+		t.Fatalf("normalized response monitor = %s, %v; want %s, true", got, ok, now)
+	}
+	if _, ok := monitor.Last(" target-1 "); ok {
+		t.Fatal("response monitor should not keep raw whitespace target ID")
+	}
+}
+
 func TestCollectorAppliesLatestDataPaginationThroughOEMClient(t *testing.T) {
 	var mu sync.Mutex
 	requests := make([]string, 0, 3)
@@ -192,6 +316,30 @@ func TestCollectorTreatsLatestDataNotFoundAsUnavailable(t *testing.T) {
 	}
 	if got := collector.SnapshotStats(); got.UnavailableGroupsTotal != 1 || got.CollectionErrorsTotal != 0 {
 		t.Fatalf("unexpected collector stats: %#v", got)
+	}
+}
+
+func TestCollectorCountsMetadataNotFoundAsUnavailable(t *testing.T) {
+	client := &fakeCollectClient{
+		metadataErrors: map[string]error{
+			"target-1\x00Load": &oem.HTTPError{StatusCode: http.StatusNotFound, Method: http.MethodGet, URL: "http://oem.example/metricGroups/Load"},
+		},
+	}
+	logger := &recordingLogger{}
+	collector := NewCollector(client, CollectorOptions{Logger: logger})
+
+	_, err := collector.Collect(context.Background(), collectJob())
+	if !errors.Is(err, ErrMetricGroupUnavailable) {
+		t.Fatalf("Collect error = %T %v, want ErrMetricGroupUnavailable", err, err)
+	}
+	if !logger.containsWarn("metadata de grupo de metrica indisponivel", "target-1", "Load", "404") {
+		t.Fatalf("expected unavailable metadata warning, got %#v", logger.warnings)
+	}
+	if got := collector.SnapshotStats(); got.UnavailableGroupsTotal != 1 || got.CollectionErrorsTotal != 0 {
+		t.Fatalf("unexpected collector stats: %#v", got)
+	}
+	if client.latestCallsFor("target-1", "Load") != 0 {
+		t.Fatalf("latestData calls = %d, want 0 after metadata 404", client.latestCallsFor("target-1", "Load"))
 	}
 }
 

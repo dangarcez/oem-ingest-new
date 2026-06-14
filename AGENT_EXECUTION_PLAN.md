@@ -1040,3 +1040,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: coletor de `latestData` implementado em `internal/collect`, reutilizando metadata cache, paginação do cliente OEM, monitoramento de última coleta útil por target e contadores internos básicos para datapoints, erros e grupos indisponíveis.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.3 - Coleta latestData
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida contagem de datapoints para considerar valores de métrica não-key, evitando marcar coleta útil quando o payload tem apenas keys; 404 de metadata agora alimenta o contador de grupos indisponíveis; IDs/grupos normalizados pelo cache são reutilizados na chamada `latestData`.
