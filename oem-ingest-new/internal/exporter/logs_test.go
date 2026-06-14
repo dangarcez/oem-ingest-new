@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -338,6 +339,84 @@ func TestLogsExporterClonesAttributesWhenBuffering(t *testing.T) {
 	}
 	if got := stringAttr(logRecord.Attributes, "leaked"); got != "" {
 		t.Fatalf("leaked attr = %q, want attribute mutation isolated from buffer", got)
+	}
+}
+
+func TestLogsExporterKeepsConcurrentAddsForNextCycle(t *testing.T) {
+	var recorder requestRecorder
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enteredOnce sync.Once
+	var releaseOnce sync.Once
+	releasePost := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releasePost()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		if len(recorder.requests()) == 1 {
+			enteredOnce.Do(func() { close(entered) })
+			<-release
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{})
+	if err != nil {
+		t.Fatalf("NewLogsExporter() error = %v", err)
+	}
+	exporter.Add(transform.LogRecord{
+		MetricName: "oem_live_status",
+		TargetID:   "target-1",
+		SeriesID:   "target-1\x00filesystem",
+		Body:       "Mounted",
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := exporter.Export(context.Background())
+		errCh <- err
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for first export request")
+	}
+	exporter.Add(transform.LogRecord{
+		MetricName: "oem_live_status",
+		TargetID:   "target-1",
+		SeriesID:   "target-1\x00filesystem",
+		Body:       "Unmounted",
+	})
+	releasePost()
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("first Export() error = %v", err)
+	}
+	if exporter.Pending() != 1 {
+		t.Fatalf("Pending() = %d, want concurrent add retained for next export", exporter.Pending())
+	}
+	if _, err := exporter.Export(context.Background()); err != nil {
+		t.Fatalf("second Export() error = %v", err)
+	}
+	if exporter.Pending() != 0 {
+		t.Fatalf("Pending() = %d, want cleared after second export", exporter.Pending())
+	}
+
+	requests := recorder.requests()
+	if len(requests) != 2 {
+		t.Fatalf("requests len = %d, want two export cycles", len(requests))
+	}
+	firstPayload := decodeLogsPayload(t, requests[0].body)
+	firstLog := firstPayload.ResourceLogs[0].ScopeLogs[0].LogRecords[0]
+	if got := firstLog.Body.GetStringValue(); got != "Mounted" {
+		t.Fatalf("first export body = %q, want Mounted", got)
+	}
+	secondPayload := decodeLogsPayload(t, requests[1].body)
+	secondLog := secondPayload.ResourceLogs[0].ScopeLogs[0].LogRecords[0]
+	if got := secondLog.Body.GetStringValue(); got != "Unmounted" {
+		t.Fatalf("second export body = %q, want concurrent log Unmounted", got)
 	}
 }
 

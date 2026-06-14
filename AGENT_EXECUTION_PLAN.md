@@ -1136,3 +1136,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`
   Notas: exportador OTLP HTTP/protobuf de logs implementado em `internal/exporter`, consultando `old_docs/4-processo_padrao.md`, `old_code/script.py` e `old_code/oem/otel/exportadorlogs.py`; mantém estado do último valor por série textual, reenvia mudanças/contínuas e preserva pendências para retry.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.2 - Exportador OTLP de logs
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/script.py`, `old_code/oem/otel/exportadorlogs.py` e a cobertura do exportador de métricas; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para preservar logs adicionados durante um POST em andamento para o próximo ciclo de exportação.
