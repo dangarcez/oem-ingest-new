@@ -705,7 +705,7 @@ Critérios de aceite:
 
 #### Tarefa 7.3 - Teste de integração com mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.2.
 
@@ -1208,3 +1208,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker compose up --build -d --remove-orphans`, `docker compose logs --no-color --tail=240`, `docker compose ps`, `docker compose down -v --remove-orphans`
   Notas: workspace estava limpo antes da revisão; smoke real do Compose revelou loop de paginação em incidentes com `links.next` repetido e encerramento do container por codigo 137; cliente OEM agora detecta paginacao ciclica, o mock trata a pagina seguinte de incidentes como terminal e o Compose confirmou GETs OEM, POSTs OTLP de metricas/logs e containers ativos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.3 - Teste de integração com mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: adicionado teste de integração com `httptest` que carrega os exemplos de configuração, executa um ciclo de coleta/exportação e valida POSTs OTLP em `/v1/metrics` e `/v1/logs`; README documenta o comando local.

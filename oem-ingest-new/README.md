@@ -85,6 +85,13 @@ go run ./cmd/oem-ingest --help
 go run ./cmd/oem-ingest --version
 ```
 
+Teste de integracao local com mock HTTP em memoria, usando os exemplos
+versionados de configuracao:
+
+```sh
+go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1
+```
+
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
 scaffold foi inicializado quando `OTEL_EXPORT_URL` nao esta definido. Quando
 `OTEL_EXPORT_URL` esta definido, a aplicacao carrega os arquivos de
