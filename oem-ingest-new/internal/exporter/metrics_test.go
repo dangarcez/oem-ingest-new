@@ -2,9 +2,11 @@ package exporter
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -191,6 +193,164 @@ func TestMetricsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	}
 }
 
+func TestMetricsExporterRetainsBufferAfterTransportErrorAndRetries(t *testing.T) {
+	attempts := 0
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return nil, errors.New("collector connection failed")
+			}
+			_, _ = io.Copy(io.Discard, req.Body)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	exporter, err := NewMetricsExporter("http://collector.example:4318", MetricsExporterOptions{HTTPClient: client})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter() error = %v", err)
+	}
+	exporter.Add(transform.MetricPoint{Name: "oem_retry_value", Value: 11})
+
+	result, err := exporter.Export(context.Background())
+	if err == nil {
+		t.Fatal("first Export() error = nil, want transport failure")
+	}
+	if result.Datapoints != 1 || result.PayloadBytes == 0 || result.StatusCode != 0 {
+		t.Fatalf("first Export() result = %#v, want retained failed transport attempt", result)
+	}
+	if exporter.Pending() != 1 {
+		t.Fatalf("Pending() = %d, want retained datapoint after transport failure", exporter.Pending())
+	}
+
+	result, err = exporter.Export(context.Background())
+	if err != nil {
+		t.Fatalf("retry Export() error = %v", err)
+	}
+	if result.StatusCode != http.StatusOK || result.Datapoints != 1 {
+		t.Fatalf("retry Export() result = %#v, want 200 with retained datapoint", result)
+	}
+	if exporter.Pending() != 0 {
+		t.Fatalf("Pending() = %d, want cleared after retry success", exporter.Pending())
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want failure plus retry", attempts)
+	}
+}
+
+func TestMetricsExporterClonesAttributesWhenBuffering(t *testing.T) {
+	var recorder requestRecorder
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	exporter, err := NewMetricsExporter(server.URL, MetricsExporterOptions{})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter() error = %v", err)
+	}
+	attrs := transform.Attributes{"target_name": "db1"}
+	exporter.Add(transform.MetricPoint{
+		Name:       "oem_response_status",
+		Value:      2,
+		Attributes: attrs,
+	})
+	attrs["target_name"] = "mutated"
+	attrs["leaked"] = "true"
+
+	if _, err := exporter.Export(context.Background()); err != nil {
+		t.Fatalf("Export() error = %v", err)
+	}
+
+	requests := recorder.requests()
+	if len(requests) != 1 {
+		t.Fatalf("requests len = %d, want 1", len(requests))
+	}
+	payload := decodeMetricsPayload(t, requests[0].body)
+	metric := findMetric(t, payload.ResourceMetrics[0].ScopeMetrics[0].Metrics, "oem_response_status")
+	datapoint := metric.GetGauge().DataPoints[0]
+	if got := stringAttr(datapoint.Attributes, "target_name"); got != "db1" {
+		t.Fatalf("target_name = %q, want original db1", got)
+	}
+	if got := stringAttr(datapoint.Attributes, "leaked"); got != "" {
+		t.Fatalf("leaked attr = %q, want attribute mutation isolated from buffer", got)
+	}
+}
+
+func TestMetricsExporterKeepsConcurrentAddsForNextCycle(t *testing.T) {
+	var recorder requestRecorder
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var enteredOnce sync.Once
+	var releaseOnce sync.Once
+	releasePost := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releasePost()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		if len(recorder.requests()) == 1 {
+			enteredOnce.Do(func() { close(entered) })
+			<-release
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	exporter, err := NewMetricsExporter(server.URL, MetricsExporterOptions{})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter() error = %v", err)
+	}
+	exporter.Add(transform.MetricPoint{Name: "oem_live_value", Value: 1})
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := exporter.Export(context.Background())
+		errCh <- err
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for first export request")
+	}
+	exporter.Add(transform.MetricPoint{Name: "oem_live_value", Value: 2})
+	releasePost()
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("first Export() error = %v", err)
+	}
+	if exporter.Pending() != 1 {
+		t.Fatalf("Pending() = %d, want concurrent add retained for next export", exporter.Pending())
+	}
+	if _, err := exporter.Export(context.Background()); err != nil {
+		t.Fatalf("second Export() error = %v", err)
+	}
+	if exporter.Pending() != 0 {
+		t.Fatalf("Pending() = %d, want cleared after second export", exporter.Pending())
+	}
+
+	requests := recorder.requests()
+	if len(requests) != 2 {
+		t.Fatalf("requests len = %d, want two export cycles", len(requests))
+	}
+	firstPayload := decodeMetricsPayload(t, requests[0].body)
+	firstMetric := findMetric(t, firstPayload.ResourceMetrics[0].ScopeMetrics[0].Metrics, "oem_live_value")
+	if got := firstMetric.GetGauge().DataPoints[0].GetAsDouble(); got != 1 {
+		t.Fatalf("first export value = %v, want 1", got)
+	}
+	secondPayload := decodeMetricsPayload(t, requests[1].body)
+	secondMetric := findMetric(t, secondPayload.ResourceMetrics[0].ScopeMetrics[0].Metrics, "oem_live_value")
+	if got := secondMetric.GetGauge().DataPoints[0].GetAsDouble(); got != 2 {
+		t.Fatalf("second export value = %v, want concurrent datapoint 2", got)
+	}
+}
+
 func TestNewMetricsExporterRequiresValidBaseURL(t *testing.T) {
 	if _, err := NewMetricsExporter("", MetricsExporterOptions{}); err == nil {
 		t.Fatal("NewMetricsExporter(empty) error = nil, want validation error")
@@ -198,6 +358,19 @@ func TestNewMetricsExporterRequiresValidBaseURL(t *testing.T) {
 	if _, err := NewMetricsExporter("localhost:4318", MetricsExporterOptions{}); err == nil {
 		t.Fatal("NewMetricsExporter(no scheme) error = nil, want validation error")
 	}
+	exporter, err := NewMetricsExporter("http://collector.example:4318", MetricsExporterOptions{})
+	if err != nil {
+		t.Fatalf("NewMetricsExporter(valid) error = %v", err)
+	}
+	if exporter.httpClient.Timeout != defaultHTTPTimeout {
+		t.Fatalf("default HTTP timeout = %s, want %s", exporter.httpClient.Timeout, defaultHTTPTimeout)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 type recordedRequest struct {

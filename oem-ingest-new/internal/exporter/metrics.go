@@ -26,6 +26,7 @@ import (
 const (
 	defaultServiceName = "oemAPIService"
 	defaultScopeName   = "oem.metrics.collector"
+	defaultHTTPTimeout = 30 * time.Second
 )
 
 // MetricsExporterOptions controls optional dependencies of MetricsExporter.
@@ -67,7 +68,7 @@ func NewMetricsExporter(baseURL string, opts MetricsExporterOptions) (*MetricsEx
 
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: defaultHTTPTimeout}
 	}
 	serviceName := strings.TrimSpace(opts.ServiceName)
 	if serviceName == "" {
@@ -107,6 +108,7 @@ func (e *MetricsExporter) Add(points ...transform.MetricPoint) {
 		if point.Name == "" || math.IsNaN(point.Value) || math.IsInf(point.Value, 0) {
 			continue
 		}
+		point.Attributes = point.Attributes.Clone()
 		filtered = append(filtered, point)
 	}
 	if len(filtered) == 0 {

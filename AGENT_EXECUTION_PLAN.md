@@ -1124,3 +1124,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: exportador OTLP HTTP/protobuf de métricas implementado em `internal/exporter`, com `service.name=oemAPIService`, gauges, endpoint `/v1/metrics`, buffer incremental e retry preservando datapoints após falha.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.1 - Exportador OTLP de métricas incremental
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido isolamento do buffer para clonar atributos ao enfileirar datapoints e evitar mutação externa durante retry/export; exportador agora usa timeout HTTP padrão de 30s quando cliente não é injetado; adicionada cobertura para erro de transporte, mutação de atributos e datapoints adicionados durante um POST em andamento.
