@@ -204,6 +204,12 @@ func coerceNumber(value any) (float64, bool) {
 	var ok bool
 
 	switch v := value.(type) {
+	case bool:
+		if v {
+			parsed, ok = 1, true
+		} else {
+			parsed, ok = 0, true
+		}
 	case json.Number:
 		parsed, ok = parseFiniteFloat(v.String())
 	case float64:

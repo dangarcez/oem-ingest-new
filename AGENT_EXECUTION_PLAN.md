@@ -1064,3 +1064,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: implementada transformação de `collect.Result` em gauges numéricos e logs textuais, com nomes lowercase, keys ignoradas, uso de `dataType` do OEM para números representados como string e cobertura com cenário similar ao mock.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.5 - Normalização de métricas numéricas e logs textuais
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida coerção de booleanos em métricas numéricas para preservar compatibilidade com o legado Python, que tratava `bool` como número; verificado nos fixtures do mock que strings numéricas reais estão cobertas por keys ou `dataType` textual.

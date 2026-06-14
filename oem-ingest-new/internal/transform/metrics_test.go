@@ -97,6 +97,37 @@ func TestFromCollectionKeepsNumericStringsAsLogsWithoutMetadata(t *testing.T) {
 	}
 }
 
+func TestFromCollectionCoercesBooleanMetricsLikeLegacy(t *testing.T) {
+	result := transformResult(
+		targetConfig("target-1", "host01", "host"),
+		collect.GroupMetadata{
+			TargetID:        "target-1",
+			MetricGroupName: "BootEnvironmentStatus",
+			MetricByName: map[string]oem.MetricDefinition{
+				"IsBootable":      {Name: "IsBootable", DataType: "NUMBER"},
+				"ActiveOnReboot":  {Name: "ActiveOnReboot", DataType: "NUMBER"},
+				"DisplayAsString": {Name: "DisplayAsString", DataType: "STRING"},
+			},
+		},
+		[]map[string]any{{
+			"IsBootable":      true,
+			"ActiveOnReboot":  false,
+			"DisplayAsString": true,
+		}},
+	)
+
+	out := FromCollection(result, Options{})
+
+	if len(out.Metrics) != 2 {
+		t.Fatalf("metrics = %#v, want two numeric boolean-compatible points", out.Metrics)
+	}
+	assertMetric(t, out.Metrics[0], "oem_bootenvironmentstatus_activeonreboot", 0)
+	assertMetric(t, out.Metrics[1], "oem_bootenvironmentstatus_isbootable", 1)
+	if len(out.Logs) != 1 || out.Logs[0].MetricName != "oem_bootenvironmentstatus_displayasstring" || out.Logs[0].Body != "true" {
+		t.Fatalf("logs = %#v, want STRING metadata preserved as textual log", out.Logs)
+	}
+}
+
 func TestFromCollectionSkipsKeysAsMetrics(t *testing.T) {
 	result := transformResult(
 		targetConfig("target-1", "db1", "oracle_database"),
