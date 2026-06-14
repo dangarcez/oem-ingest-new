@@ -1016,3 +1016,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`
   Notas: implementado scheduler em `internal/scheduler` com criação de jobs por site/target/grupo, frequências em minutos, jitter configurável, proteção contra sobreposição do mesmo job, shutdown por contexto/sinal e logs de registro/falha.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.1 - Scheduler de coletas
+  Status: concluída
+  Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o runner para aplicar `DefaultJitter` de 60s por padrão, preservando opção determinística com `Jitter: -1`; adicionada cobertura para esse contrato.

@@ -45,7 +45,8 @@ type Logger interface {
 // deterministic function; production uses a random value up to Options.Jitter.
 type JitterFunc func(Job) time.Duration
 
-// Options configures Runner.
+// Options configures Runner. Jitter defaults to DefaultJitter; set it to a
+// negative duration to disable random delays for deterministic runs.
 type Options struct {
 	Logger     Logger
 	Jitter     time.Duration
@@ -61,8 +62,11 @@ type Runner struct {
 
 // New creates a scheduler runner.
 func New(opts Options) *Runner {
-	jitter := opts.Jitter
-	if jitter < 0 {
+	jitter := DefaultJitter
+	if opts.Jitter != 0 {
+		jitter = opts.Jitter
+	}
+	if opts.Jitter < 0 {
 		jitter = 0
 	}
 	return &Runner{

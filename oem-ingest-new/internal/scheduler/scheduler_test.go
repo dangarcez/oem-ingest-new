@@ -78,11 +78,23 @@ func TestBuildJobsRejectsInvalidFrequency(t *testing.T) {
 	}
 }
 
+func TestNewUsesDefaultJitterUnlessDisabled(t *testing.T) {
+	runner := New(Options{})
+	if runner.jitter != DefaultJitter {
+		t.Fatalf("expected default jitter %s, got %s", DefaultJitter, runner.jitter)
+	}
+
+	runner = New(Options{Jitter: -1})
+	if runner.jitter != 0 {
+		t.Fatalf("expected disabled jitter, got %s", runner.jitter)
+	}
+}
+
 func TestRunnerExecutesJobOnScheduleAndStopsOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := &recordingLogger{}
-	runner := New(Options{Logger: logger})
+	runner := New(Options{Logger: logger, Jitter: -1})
 	job := runtimeJob(20 * time.Millisecond)
 	started := make(chan time.Time, 2)
 	var calls atomic.Int32
@@ -144,7 +156,7 @@ func TestRunnerDoesNotOverlapSameJob(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := &recordingLogger{}
-	runner := New(Options{Logger: logger})
+	runner := New(Options{Logger: logger, Jitter: -1})
 	job := runtimeJob(5 * time.Millisecond)
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -181,7 +193,7 @@ func TestRunnerLogsHandlerFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := &recordingLogger{}
-	runner := New(Options{Logger: logger})
+	runner := New(Options{Logger: logger, Jitter: -1})
 	job := runtimeJob(time.Hour)
 	done := make(chan error, 1)
 
