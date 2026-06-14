@@ -1226,3 +1226,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
   Notas: workflow GitHub Actions adicionado para testes Go, vet, integração com mock, build Docker e smoke da imagem; README documenta o CI e comandos locais.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.4 - CI
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
+  Notas: workspace estava limpo antes da revisão; comparados workflow, README e critérios da tarefa 7.4; não foram encontradas regressões objetivas de CI, compatibilidade com o legado ou lacunas obrigatórias de teste.
