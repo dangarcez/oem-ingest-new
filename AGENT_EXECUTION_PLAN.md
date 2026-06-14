@@ -280,7 +280,7 @@ Critérios de aceite:
 
 #### Tarefa 1.1 - Cliente HTTP OEM
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 0.3.
 
@@ -950,3 +950,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: workspace estava limpo antes da revisão; substituído hash de arquivo por leitura em streaming compatível com o legado e adicionada fixture estática do algoritmo Python para evitar cobertura apenas por roundtrip interno.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 1.1 - Cliente HTTP OEM
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: cliente OEM implementado em `internal/oem` com Basic Auth, timeouts, pool HTTP, TLS insecure configurável, retry de GET, paginação por `links.next` e contadores de requests/erros.
