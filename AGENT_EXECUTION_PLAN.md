@@ -1262,3 +1262,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `docker compose config`, `git diff --check`
   Notas: criado `oem-ingest-new/docs/operacao.md` com execução local, Docker, Docker Compose, logs, troubleshooting e métricas internas; README passa a apontar para a documentação operacional.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.3 - Documentação operacional
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `docker compose config`, `timeout 90s docker compose up --build`, `docker compose down --remove-orphans`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparados `docs/operacao.md`, README, runtime, Dockerfile e Compose; o smoke real confirmou healthcheck do mock, GETs OEM/latestData/incidentes e POSTs OTLP de métricas/logs; não foram encontradas regressões objetivas de operação, compatibilidade com o legado ou lacunas obrigatórias de teste na 8.3.
