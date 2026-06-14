@@ -179,6 +179,43 @@ func TestValidateTargetCorrelationsPreservesStandaloneTarget(t *testing.T) {
 	assertTargetTags(t, result.Sites[0].Targets[0], host.Tags)
 }
 
+func TestValidateTargetCorrelationsPreservesExistingStructuralTagsWhenPropertiesFail(t *testing.T) {
+	rac := newTestTarget("rac-id", "cdbp51bc", targetTypeRAC)
+	rac.Tags["rac_database"] = "cdbp51bc"
+	database := newTestTarget("db-id", "cdbp51bc_cdbp51bc1", targetTypeDatabase)
+	database.Tags["rac_database"] = "cdbp51bc"
+	database.Tags["oracle_database"] = "cdbp51bc_cdbp51bc1"
+	database.Tags["oracle_dbsys"] = "existing_sys"
+	database.Tags["dg_role"] = "Primary"
+	database.Tags["machine_name"] = "dbhost01"
+	database.Tags["listener_name"] = "dbhost01_lstnr"
+	sites := []config.SiteConfig{newTestSite(rac, database)}
+
+	result, err := ValidateTargetCorrelations(context.Background(), sites, singleInventoryFactory(fakeTargetInventory{
+		targets: []oem.Target{
+			apiTarget("rac-id", "cdbp51bc", targetTypeRAC),
+			apiTarget("db-id", "cdbp51bc_cdbp51bc1", targetTypeDatabase),
+		},
+		propertyErrs: map[string]error{
+			"db-id": errors.New("properties unavailable"),
+		},
+	}), CorrelationValidationOptions{Enabled: true})
+	if err != nil {
+		t.Fatalf("ValidateTargetCorrelations returned error: %v", err)
+	}
+
+	correctedDB := findConfigTarget(t, result.Sites[0].Targets, "cdbp51bc_cdbp51bc1", targetTypeDatabase)
+	assertTargetTags(t, correctedDB, map[string]string{
+		"oracle_dbsys":    "existing_sys",
+		"dg_role":         "Primary",
+		"machine_name":    "dbhost01",
+		"listener_name":   "dbhost01_lstnr",
+		"rac_database":    "cdbp51bc",
+		"oracle_database": "cdbp51bc_cdbp51bc1",
+	})
+	assertHasWarningCode(t, result.Warnings, WarningTargetProperties)
+}
+
 func TestValidateTargetCorrelationsDisabledSkipsFactoryAndClonesConfig(t *testing.T) {
 	sites := []config.SiteConfig{newTestSite(newTestTarget("rac-id", "cdbp51bc", targetTypeRAC))}
 	result, err := ValidateTargetCorrelations(context.Background(), sites, func(config.SiteConfig) (TargetInventory, error) {
@@ -216,9 +253,10 @@ func singleInventoryFactory(inventory fakeTargetInventory) TargetInventoryFactor
 }
 
 type fakeTargetInventory struct {
-	targets    []oem.Target
-	properties map[string][]oem.Property
-	listErr    error
+	targets      []oem.Target
+	properties   map[string][]oem.Property
+	propertyErrs map[string]error
+	listErr      error
 }
 
 func (f fakeTargetInventory) ListTargets(context.Context) (oem.Page[oem.Target], error) {
@@ -229,6 +267,9 @@ func (f fakeTargetInventory) ListTargets(context.Context) (oem.Page[oem.Target],
 }
 
 func (f fakeTargetInventory) TargetProperties(_ context.Context, targetID string) (oem.Page[oem.Property], error) {
+	if err := f.propertyErrs[targetID]; err != nil {
+		return oem.Page[oem.Property]{}, err
+	}
 	return oem.Page[oem.Property]{Items: f.properties[targetID]}, nil
 }
 
@@ -267,4 +308,15 @@ func assertTargetTags(t *testing.T, target config.TargetConfig, want map[string]
 			t.Fatalf("%s tag %q = %q, want %q; all tags=%#v", target.Name, key, target.Tags[key], value, target.Tags)
 		}
 	}
+}
+
+func assertHasWarningCode(t *testing.T, warnings []Warning, code WarningCode) {
+	t.Helper()
+
+	for _, warning := range warnings {
+		if warning.Code == code {
+			return
+		}
+	}
+	t.Fatalf("warning %q not found in %#v", code, warnings)
 }

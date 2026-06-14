@@ -992,3 +992,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: implementada expansão em memória de correlação para `rac_database` e `oracle_pdb`, com tags compatíveis com `processMapping.py`, uso de propriedades de `oracle_database` para `MachineName`/`DataGuardStatus` e preservação de targets avulsos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.2 - Validação de correlação e inclusão de relacionados
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido merge de tags estruturais para não apagar metadados legados existentes quando a validação não consegue redescobrir propriedades ou ancestrais pela API; adicionada cobertura para falha em `TargetProperties`.

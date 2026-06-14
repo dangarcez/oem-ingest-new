@@ -563,6 +563,10 @@ func mergeGeneratedTags(generated, existing map[string]string) map[string]string
 	}
 	for key, value := range existing {
 		if isStructuralTag(key) {
+			if _, generatedHasKey := generated[key]; generatedHasKey {
+				continue
+			}
+			out[key] = value
 			continue
 		}
 		out[key] = value
