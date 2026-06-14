@@ -1,0 +1,49 @@
+host:
+- freq: 5
+  metric_group_name: Load
+- freq: 10
+  metric_group_name: Filesystems
+oracle_database:
+- freq: 2
+  metric_group_name: Response
+- freq: 10
+  metric_group_name: instance_throughput
+- freq: 15
+  metric_group_name: topWaitEvents
+- freq: 10
+  metric_group_name: Database_Resource_Usage
+- freq: 15
+  metric_group_name: UserAudit
+- freq: 15
+  metric_group_name: wait_sess_cls
+- freq: 5
+  metric_group_name: alertLogStatus
+- freq: 10
+  metric_group_name: wait_bottlenecks
+- freq: 10
+  metric_group_name: instance_efficiency
+- freq: 5
+  metric_group_name: adrAlertLogIncidentError
+oracle_listener:
+- freq: 5
+  metric_group_name: Load
+- freq: 5
+  metric_group_name: General Status
+oracle_pdb:
+- freq: 1440
+  metric_group_name: DATABASE_SIZE
+- freq: 1440
+  metric_group_name: tbspAllocation
+- freq: 15
+  metric_group_name: DBService
+rac_database:
+- freq: 1440
+  metric_group_name: DATABASE_SIZE
+- freq: 15
+  metric_group_name: service_performance
+- freq: 1440
+  metric_group_name: tbspAllocation
+- freq: 10
+  metric_group_name: UserLocks
+- freq: 5
+  metric_group_name: UserBlock

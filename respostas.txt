@@ -1,0 +1,106 @@
+1 - O novo projeto Go deve nascer em qual pasta? Ex.: raiz do repo, ./oem-collector, ./cmd/oem-collector, outro nome?
+R: Quero que seja ./oem-ingest-new
+
+2 -O formato de configuração oficial será o simplificado de configTargets.yaml + configMetrics.yaml, ou o formato antigo de config.yaml também deve continuar suportado?
+
+R: O formato de configuração oficial será o simplificado de configTargets.yaml + configMetrics.yaml
+
+3 - A aplicação Go deve apenas consumir arquivos de configuração já gerados, ou também deve manter a capacidade antiga de descobrir/montar targets automaticamente a partir de roots?
+
+R: Deve apenas consumir arquivos de configuração já gerados
+
+4 - Na validação opcional de inicialização, se um target configurado estiver com id divergente do OEM, a aplicação deve falhar, apenas logar warning, ou corrigir em memória e continuar?
+
+R: deve logar warning, corrigir em memória e gerar um novo arquivo de configuração corrigido
+
+5 - Essa validação deve escrever um arquivo corrigido de configuração, ou nunca deve alterar arquivos de entrada?
+
+R: Deve escrever um arquivo corrigido, mas preservando o antigo
+
+6 - Para validar “correlacionamento correto”, a regra esperada é exatamente a hierarquia oracle_dbsys -> rac_database -> oracle_pdb -> oracle_database -> host/listener, ou existem casos válidos fora desse padrão?
+
+R: Essa hierarquia é a esperada. Além disso, deve se verificar por exemplo, se não faltou algum oracle_database que segue o padrão de nomeclatura, se os hosts relacionados estão errados, etc..
+
+7 - Targets adicionados manualmente/pesquisa livre pelo frontend devem ser aceitos mesmo sem correlação completa?
+
+R: Sim, targets avulsos podem estar presentes. Com atenção para Racs e PDBS, caso seja esses dois, uma correção adicionando os targets que companham o cluster(oracle_database,hosts, etc..) devem ser adicionados se presentes na API
+
+8 - O nome correto da métrica customizada deve ser oem_monitor_status conforme documentação, ou manter compatibilidade com o bug legado oem_monitor_stus?
+
+R: Manter o nome oem_monitor_stus
+
+9 - A compatibilidade de saída exige manter os nomes antigos exatamente em lowercase? O exportador legado faz metric.name.lower().
+
+R: sim
+
+10 - A mudança “exportar somente métricas coletadas desde a última exportação” significa que cada ciclo OTLP deve limpar o buffer após sucesso? E se o POST ao collector falhar, deve tentar reenviar no próximo ciclo?
+
+R: Sim, tente enviar no proximo ciclo
+
+11 - Para métricas textuais/logs, devemos manter a lógica de só reenviar quando o valor muda, exceto métricas marcadas como contínuas?
+
+R - Sim, essa lógica deve ser mantida
+
+12 - Incidentes devem ser exportados como logs OTLP igual ao legado, com polling a cada 5 minutos e janela de 1 hora?
+
+R : Sim
+
+13 - A correção de timestamp dos incidentes subtraindo 3 horas ainda é necessária ou isso era workaround do ambiente antigo?
+
+R: Ainda é necessária, matenha essa caracterista mas comente esse fato no código e documentação
+
+14 - Quais variáveis de ambiente devem ser contrato público? Ex.: EM_BASE_URL, PROTOCOL, USER, TOKEN, OTEL_EXPORT_URL, USE_TARGET_CONFIG, USE_TARGET_CACHE.
+
+R: as novas configurações de url do target ficam em configTargets.yaml, portanto EM_BASE_URL, PROTOCOL não precisa existir. Alem de disso USE_TARGET_CONFIG, USE_TARGET_CACHE não são necessárias também, pois eram opcões para quando esse proprio aplicativo gerava configuração. Não sei exatamente oque voce quis dizer com "devem ser contrato publico".
+
+16 - A autenticação continua sendo Basic Auth contra o OEM? O TOKEN antigo passa por xisou.check_health; isso deve existir no Go ou podemos simplificar para usuário/senha/token direto?
+
+R: Sobre essa autenticação, esse token é algo gerado a partir da hash do arquivo fonte, onde a função "check_health" reverte um processo de gerar token com hash e senha, e pega a senha a partir do token e hash. Isso é uma solução temporaria que tinha o objetivo de não deixar a senha explicita em variavel de ambiente, substituindo pelo token. Por enquanto essa solução deve ser mantida (no sentido de que essa funcionalidade deve ser mantida). Mas na prática isso acaba sendo um Basic Auth
+
+17 - O serviço deve exportar métricas e logs para o mesmo collector usando /v1/metrics e /v1/logs derivados de uma URL base?
+
+R: Sim
+
+18 - O service.name deve continuar oemAPIService ou quer um novo nome?
+
+R: pode manter esse nome
+
+19 - Para métricas internas da aplicação, qual prefixo deseja? O PRD diz “prefixo diferente do usado para métricas do oem, o oem_”, mas isso ficou ambíguo. Sugestão: oem_collector_.
+
+R: Okay, faça oem_collector_ 
+
+20 - Quais métricas internas são obrigatórias no primeiro release? Sugestão mínima: targets configurados, targets ativos, targets sem coleta, requests OEM, requests com erro, datapoints coletados, datapoints exportados, falhas de exportação, tamanho do payload.
+
+R: Pode colocar essa sugestão minima
+
+21 - A tolerância de target sem coleta continua fixa em 21 minutos ou deve ser configurável?
+
+R: Deve ser configuravel, com default para 21min
+
+22 - Frequências em configMetrics.yaml seguem em minutos, certo? Existe necessidade de segundos para testes/dev?
+
+R: Segue em minutos
+
+23 - Deve haver cache local de targets/propriedades/metric group keys em disco, ou somente cache em memória?
+
+R: Em memória
+
+24 - O mock oem_mock deve permanecer Python/FastAPI, ou quer que ele também seja adaptado/reescrito em Go ou dockerizado apenas para testes?
+
+R: Pode permancer em Python, sem problemas
+
+25 - O Docker Compose deve subir só a aplicação e o mock, ou também um OpenTelemetry Collector de exemplo?
+
+R: Só aplicação e o mock
+
+26 - O projeto precisa gerar documentação em português, inglês, ou ambos?
+
+R: Português apenas
+
+27 - Quer CI planejado no arquivo de tarefas, mesmo que ainda não seja implementado agora? Ex.: go test, lint, build Docker.
+
+R: Quero
+
+28 - Existe alguma versão mínima de Go desejada? Se não houver, eu usaria Go estável atual e registraria no plano.
+
+R: Pode usar o GO estável atual então

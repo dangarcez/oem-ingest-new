@@ -1,0 +1,150 @@
+targets:
+  non_cdbs:
+    - occp40bc
+#    - occp04ng
+#    - occp11ng_1
+#    - occp14ng_1
+  PDB:                             #Utilizando o nome do pdb para mapeamento, em casos que multiplos pdbs coexistem em um cdb, refatorar arquitetura
+    - cdbp51bc_CDBP51BCPDB001
+metrics:
+ oracle_listener:
+  metric_groups:
+   - metric_group_name: "Load"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+     dg_role: "Any"
+   - metric_group_name: "General Status"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+     dg_role: "Any"
+ host:
+  metric_groups:
+   - metric_group_name: "Load"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+     dg_role: "Any"
+   - metric_group_name: "Filesystems"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+     dg_role: "Any"
+ oracle_dbsys:
+ rac_database:
+  metric_groups:
+   - metric_group_name: "DATABASE_SIZE"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 1440
+     dg_role: "Any"
+   - metric_group_name: "service_performance"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 15
+     dg_role: "Any"
+   - metric_group_name: "tbspAllocation"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 1440
+     dg_role: "Any"
+   - metric_group_name: "UserLocks"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+   - metric_group_name: "UserBlock"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+ oracle_database:
+  metric_groups:
+  - metric_group_name: "Response"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 2
+    dg_role: "Physical Standby"
+  - metric_group_name: "instance_throughput"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+    dg_role: "any"
+  - metric_group_name: "topWaitEvents"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 15
+    dg_role: "any"
+  - metric_group_name: "Database_Resource_Usage"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+    dg_role: "any"
+  - metric_group_name: "UserAudit"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 15
+    dg_role: "any"
+  - metric_group_name: "wait_sess_cls"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 15
+    dg_role: "any"
+  - metric_group_name: "alertLogStatus"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+    dg_role: "any"
+  - metric_group_name: "wait_bottlenecks"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+    dg_role: "any"
+  - metric_group_name: "instance_efficiency"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 10
+    dg_role: "any"
+  - metric_group_name: "adrAlertLogIncidentError"
+    metrics:
+     - metric:
+        name: "ALL"
+        freq: 5
+
+ oracle_pdb:
+  metric_groups:
+   - metric_group_name: "DATABASE_SIZE"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 1440
+     dg_role: "Any"
+   - metric_group_name: "tbspAllocation"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 1440
+     dg_role: "Any"
+   - metric_group_name: "DBService"
+     metrics:
+     - metric:
+        name: "ALL"
+        freq: 15
+     dg_role: "Any"

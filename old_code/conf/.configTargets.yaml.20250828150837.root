@@ -1,0 +1,140 @@
+targetsList:
+  - id: 4392BCF0D30D99A18B5B76D0B3938A33
+    name: cdbp99ng_sys
+    tags:
+      oracle_dbsys: cdbp99ng_sys
+      target_name: cdbp99ng_sys
+      target_type: oracle_dbsys
+      torre: pix
+      sistema: sitest
+    typeName: oracle_dbsys
+  - id: 8518BA0FE33FE570EB033A2857BB3CF8
+    name: cdbp99ng
+    tags:
+      oracle_dbsys: cdbp99ng_sys
+      rac_database: cdbp99ng
+      target_name: cdbp99ng
+      target_type: rac_database
+      torre: pix
+      sistema: sitest
+    typeName: rac_database
+  - id: 057FC1255C7E61BEF9F7863E8E0012B2
+    name: cdbp99ng_CDBP99NGPDB001
+    tags:
+      oracle_dbsys: cdbp99ng_sys
+      oracle_pdb: cdbp99ng_CDBP99NGPDB001
+      rac_database: cdbp99ng
+      target_name: cdbp99ng_CDBP99NGPDB001
+      target_type: oracle_pdb
+      torre: pix
+      sistema: sitest
+    typeName: oracle_pdb
+  - dg_role: ' '
+    id: C171D848815E6B7F009404379A54EBBE
+    listener_name: LISTENER_cbrpcdadux049.intra.caixa.gov.br
+    machine_name: cbrpcdadux049.intra.caixa.gov.br
+    name: cdbp99ng_cdbp99ng2
+    tags:
+      dg_role: ' '
+      listener_name: cbrpcdadux049_lstnr
+      machine_name: cbrpcdadux049
+      oracle_database: cdbp99ng_cdbp99ng2
+      oracle_dbsys: cdbp99ng_sys
+      oracle_pdb: cdbp99ng_CDBP99NGPDB001
+      rac_database: cdbp99ng
+      target_name: cdbp99ng_cdbp99ng2
+      target_type: oracle_database
+      torre: pix
+      sistema: sitest
+    typeName: oracle_database
+  - id: 93D24727A90841233A367391C86A98DC
+    name: cbrpcdadux049.intra.caixa.gov.br
+    tags:
+      host: cbrpcdadux049
+      target_name: cbrpcdadux049
+      target_type: host
+      torre: pix
+      sistema: sitest
+    typeName: host
+  - id: 14BEF38B394D7192E06400144FFBE115
+    name: LISTENER_cbrpcdadux049.intra.caixa.gov.br
+    tags:
+      oracle_listener: cbrpcdadux049_lstnr
+      target_name: cbrpcdadux049_lstnr
+      target_type: oracle_listener
+      torre: pix
+      sistema: sitest
+    typeName: oracle_listener
+  - dg_role: ' '
+    id: CCCEAEE8A0C1843A04EF580056FA8574
+    listener_name: LISTENER_cbrpcdadux048.intra.caixa.gov.br
+    machine_name: cbrpcdadux048.intra.caixa.gov.br
+    name: cdbp99ng_cdbp99ng1
+    tags:
+      dg_role: ' '
+      listener_name: cbrpcdadux048_lstnr
+      machine_name: cbrpcdadux048
+      oracle_database: cdbp99ng_cdbp99ng1
+      oracle_dbsys: cdbp99ng_sys
+      oracle_pdb: cdbp99ng_CDBP99NGPDB001
+      rac_database: cdbp99ng
+      target_name: cdbp99ng_cdbp99ng1
+      target_type: oracle_database
+      torre: pix
+      sistema: sitest
+    typeName: oracle_database
+  - id: 9AE0208FADA07BB9CE9599563643D569
+    name: cbrpcdadux048.intra.caixa.gov.br
+    tags:
+      host: cbrpcdadux048
+      target_name: cbrpcdadux048
+      target_type: host
+      torre: pix
+      sistema: sitest
+    typeName: host
+  - id: 14BEA3BA6D5B454DE06400144FFBE115
+    name: LISTENER_cbrpcdadux048.intra.caixa.gov.br
+    tags:
+      oracle_listener: cbrpcdadux048_lstnr
+      target_name: cbrpcdadux048_lstnr
+      target_type: oracle_listener
+      torre: pix
+      sistema: sitest
+    typeName: oracle_listener
+  - dg_role: ' '
+    id: E8FB1ED05D95E50A3C49C2DE7B4884EC
+    listener_name: LISTENER_cbrpcdadux050.intra.caixa.gov.br
+    machine_name: cbrpcdadux050.intra.caixa.gov.br
+    name: cdbp99ng_cdbp99ng3
+    tags:
+      dg_role: ' '
+      listener_name: cbrpcdadux050_lstnr
+      machine_name: cbrpcdadux050
+      oracle_database: cdbp99ng_cdbp99ng3
+      oracle_dbsys: cdbp99ng_sys
+      oracle_pdb: cdbp99ng_CDBP99NGPDB001
+      rac_database: cdbp99ng
+      target_name: cdbp99ng_cdbp99ng3
+      target_type: oracle_database
+      torre: pix
+      sistema: sitest
+    typeName: oracle_database
+  - id: 73A1241A78D50F4C93A9EF5F73FDBABC
+    name: cbrpcdadux050.intra.caixa.gov.br
+    tags:
+      host: cbrpcdadux050
+      target_name: cbrpcdadux050
+      target_type: host
+      torre: pix
+      sistema: sitest
+    typeName: host
+  - id: 14BEF389FE837194E06400144FFBE115
+    name: LISTENER_cbrpcdadux050.intra.caixa.gov.br
+    tags:
+      oracle_listener: cbrpcdadux050_lstnr
+      target_name: cbrpcdadux050_lstnr
+      target_type: oracle_listener
+      torre: pix
+      sistema: sitest
+    typeName: oracle_listener
+

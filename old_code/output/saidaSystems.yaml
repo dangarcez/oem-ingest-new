@@ -1,0 +1,200 @@
+systems:
+- system:
+  - id: 240D79C7320E221DE06400144FFBE115
+    name: occp40bc
+    typeName: rac_database
+    children:
+    - id: 3107639B0159F1634DCC581E477241AA
+      name: occp40bc_occp40bc3
+      typeName: oracle_database
+      children:
+      - id: 222F3F2BAC58D57596CE3191F29C787E
+        name: cadecrk01cl01vm03.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: 969111313D6F75179B35AEDBAAF4A250
+        name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Physical Standby
+      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
+    - id: CBD87648426B3D784CE2CF46AE56D889
+      name: occp40bc_occp40bc1
+      typeName: oracle_database
+      children:
+      - id: 32389351CAE76EF77608BE6E4214A63D
+        name: cadecrk01cl01vm01.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: 87EC31B54ECFC863324B09BA2C242D9E
+        name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Physical Standby
+      machine_name: cadecrk01cl01vm01.intra.caixa.gov.br
+      listener_name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
+    - id: DD41D53664FFF6198C858E9B9BC5B0F5
+      name: occp40bc_occp40bc2
+      typeName: oracle_database
+      children:
+      - id: 4DA580CF40B750221ED26CCADE11EFF0
+        name: cadecrk01cl01vm02.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: 1C26C3E5842BE719951B2C24F55D4BA5
+        name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Physical Standby
+      machine_name: cadecrk01cl01vm02.intra.caixa.gov.br
+      listener_name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
+  - id: A2624D2E24EAB8B63D9EC68F36FA8FA7
+    name: occs40bc
+    typeName: rac_database
+    children:
+    - id: 4F93B731025C2B09B2B15242F8E75023
+      name: occs40bc_occs40bc2
+      typeName: oracle_database
+      children:
+      - id: 79E5CCE902CFABA240ADFAC656DE5BD5
+        name: dadecrk01cl01vm02.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: EA9C6FF1582AC4E46B2BAD39FFA0E289
+        name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Primary
+      machine_name: dadecrk01cl01vm02.intra.caixa.gov.br
+      listener_name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
+    - id: 6B5BCE19D09562E178E5D033953F0ECD
+      name: occs40bc_occs40bc1
+      typeName: oracle_database
+      children:
+      - id: E9163A6AC6B60DD53BDF1208FD3019D8
+        name: dadecrk01cl01vm01.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: BEDCF202C97C7C889C3E6EE97E58AD76
+        name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Primary
+      machine_name: dadecrk01cl01vm01.intra.caixa.gov.br
+      listener_name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
+    - id: A46EB31F48949D18AF436E417F27377E
+      name: occs40bc_occs40bc3
+      typeName: oracle_database
+      children:
+      - id: D271E225533E456ECBDFD5F18DBBE8D1
+        name: dadecrk01cl01vm03.intra.caixa.gov.br
+        typeName: host
+        children: []
+      - id: 71A65C08870F99753CC5DC7EB78254DB
+        name: LISTENER_dadecrk01cl01vm03.intra.caixa.gov.br
+        typeName: oracle_listener
+        children: []
+      dg_role: Primary
+      machine_name: dadecrk01cl01vm03.intra.caixa.gov.br
+      listener_name: LISTENER_dadecrk01cl01vm03.intra.caixa.gov.br
+- system:
+  - id: 24106991E97B7446E06400144FFBE115
+    name: cdbp51bc_sys
+    typeName: oracle_dbsys
+    children:
+    - id: 24106991E97C7446E06400144FFBE115
+      name: cdbp51bc
+      typeName: rac_database
+      children:
+      - id: 2410FA509A1B22CBE06400144FFB0AE4
+        name: cdbp51bc_CDBP51BCPDB001
+        typeName: oracle_pdb
+        children:
+        - id: 24106991E9AF7446E06400144FFBE115
+          name: cdbp51bc_cdbp51bc2
+          typeName: oracle_database
+          children:
+          - id: 4DA580CF40B750221ED26CCADE11EFF0
+            name: cadecrk01cl01vm02.intra.caixa.gov.br
+            typeName: host
+            children: []
+          - id: 1C26C3E5842BE719951B2C24F55D4BA5
+            name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
+            typeName: oracle_listener
+            children: []
+          dg_role: Physical Standby
+          machine_name: cadecrk01cl01vm02.intra.caixa.gov.br
+          listener_name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
+        - id: 2410FA509A1922CBE06400144FFB0AE4
+          name: cdbp51bc_cdbp51bc1
+          typeName: oracle_database
+          children:
+          - id: 32389351CAE76EF77608BE6E4214A63D
+            name: cadecrk01cl01vm01.intra.caixa.gov.br
+            typeName: host
+            children: []
+          - id: 87EC31B54ECFC863324B09BA2C242D9E
+            name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
+            typeName: oracle_listener
+            children: []
+          dg_role: Physical Standby
+          machine_name: cadecrk01cl01vm01.intra.caixa.gov.br
+          listener_name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
+        - id: 2410FA509A1A22CBE06400144FFB0AE4
+          name: cdbp51bc_cdbp51bc3
+          typeName: oracle_database
+          children:
+          - id: 222F3F2BAC58D57596CE3191F29C787E
+            name: cadecrk01cl01vm03.intra.caixa.gov.br
+            typeName: host
+            children: []
+          - id: 969111313D6F75179B35AEDBAAF4A250
+            name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
+            typeName: oracle_listener
+            children: []
+          dg_role: Physical Standby
+          machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+          listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
+    - id: 384FEA1AFA2C325FE06400144FFB0AE4
+      name: cdbs51bc
+      typeName: rac_database
+      children:
+      - id: 384FEA1AFA84325FE06400144FFB0AE4
+        name: cdbs51bc_CDBP51BCPDB001
+        typeName: oracle_pdb
+        children:
+        - id: 384FEA1AFA29325FE06400144FFB0AE4
+          name: cdbs51bc_cdbs51bc1
+          typeName: oracle_database
+          children:
+          - id: E9163A6AC6B60DD53BDF1208FD3019D8
+            name: dadecrk01cl01vm01.intra.caixa.gov.br
+            typeName: host
+            children: []
+          - id: BEDCF202C97C7C889C3E6EE97E58AD76
+            name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
+            typeName: oracle_listener
+            children: []
+          dg_role: Primary
+          machine_name: dadecrk01cl01vm01.intra.caixa.gov.br
+          listener_name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
+        - id: 384FEA1AFA2A325FE06400144FFB0AE4
+          name: cdbs51bc_cdbs51bc2
+          typeName: oracle_database
+          children:
+          - id: 79E5CCE902CFABA240ADFAC656DE5BD5
+            name: dadecrk01cl01vm02.intra.caixa.gov.br
+            typeName: host
+            children: []
+          - id: EA9C6FF1582AC4E46B2BAD39FFA0E289
+            name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
+            typeName: oracle_listener
+            children: []
+          dg_role: Primary
+          machine_name: dadecrk01cl01vm02.intra.caixa.gov.br
+          listener_name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
+        - id: 384FEA1AFA2B325FE06400144FFB0AE4
+          name: cdbs51bc_cdbs51bc3
+          typeName: oracle_database
+          children: []

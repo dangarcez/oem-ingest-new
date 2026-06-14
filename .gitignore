@@ -1,0 +1,44 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python runtime/cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Go build/test artifacts
+bin/
+dist/
+build/
+*.test
+*.out
+coverage.out
+coverage.html
+
+# New application generated files
+oem-ingest-new/configs/configTargets.validated.yaml
+oem-ingest-new/tmp/
+oem-ingest-new/.env
+
+# Logs and temporary files
+*.log
+tmp/
+*.tmp
