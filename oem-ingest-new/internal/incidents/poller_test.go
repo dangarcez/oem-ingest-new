@@ -2,6 +2,7 @@ package incidents
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -68,6 +69,9 @@ func TestPollOnceExportsNewIncidentAsLog(t *testing.T) {
 	if record.Body != "Database target is down" {
 		t.Fatalf("Body = %q, want incident message", record.Body)
 	}
+	if record.SeverityText != "WARN" {
+		t.Fatalf("SeverityText = %q, want WARN for incident logs", record.SeverityText)
+	}
 
 	wantCreated := time.Date(2026, 6, 14, 9, 30, 15, 123456000, time.UTC)
 	if !record.Timestamp.Equal(wantCreated) {
@@ -96,6 +100,36 @@ func TestPollOnceExportsNewIncidentAsLog(t *testing.T) {
 	}
 	if len(logger.infosSnapshot()) != 1 {
 		t.Fatalf("info logs = %#v, want one summary", logger.infosSnapshot())
+	}
+}
+
+func TestIncidentLogRecordDoesNotInventAbsentJSONAttributes(t *testing.T) {
+	var incident oem.Incident
+	raw := `{
+		"id": "INC-2",
+		"message": "minimal incident",
+		"timeCreated": "2026-06-14T12:00:00.000Z",
+		"isOpen": false
+	}`
+	if err := json.Unmarshal([]byte(raw), &incident); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	record := incidentLogRecord(incident)
+	if record.Body != "minimal incident" {
+		t.Fatalf("Body = %q, want message body", record.Body)
+	}
+	if got := record.Attributes["isOpen"]; got != false {
+		t.Fatalf("isOpen attr = %#v, want present false value", got)
+	}
+	if _, ok := record.Attributes["displayId"]; ok {
+		t.Fatalf("displayId should be absent when OEM payload omits it: %#v", record.Attributes)
+	}
+	if _, ok := record.Attributes["isAcknowledged"]; ok {
+		t.Fatalf("isAcknowledged should be absent when OEM payload omits it: %#v", record.Attributes)
+	}
+	if _, ok := record.Attributes["incident_target_count"]; ok {
+		t.Fatalf("incident_target_count should be absent when targets field is absent: %#v", record.Attributes)
 	}
 }
 

@@ -185,6 +185,42 @@ func TestLogsExporterAlwaysSendsContinuousValues(t *testing.T) {
 	}
 }
 
+func TestLogsExporterUsesRecordSeverity(t *testing.T) {
+	var recorder requestRecorder
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(t, r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	exporter, err := NewLogsExporter(server.URL, LogsExporterOptions{})
+	if err != nil {
+		t.Fatalf("NewLogsExporter() error = %v", err)
+	}
+	exporter.Add(transform.LogRecord{
+		MetricName:   "oem_incident",
+		TargetID:     "target-1",
+		SeriesID:     "INC-1",
+		Body:         "Database target is down",
+		SeverityText: "WARN",
+		Attributes:   transform.Attributes{"id": "INC-1"},
+	})
+
+	if _, err := exporter.Export(context.Background()); err != nil {
+		t.Fatalf("Export() error = %v", err)
+	}
+
+	requests := recorder.requests()
+	if len(requests) != 1 {
+		t.Fatalf("requests len = %d, want 1", len(requests))
+	}
+	payload := decodeLogsPayload(t, requests[0].body)
+	logRecord := payload.ResourceLogs[0].ScopeLogs[0].LogRecords[0]
+	if logRecord.SeverityNumber != logspb.SeverityNumber_SEVERITY_NUMBER_WARN || logRecord.SeverityText != "WARN" {
+		t.Fatalf("severity = %s/%q, want WARN", logRecord.SeverityNumber, logRecord.SeverityText)
+	}
+}
+
 func TestLogsExporterRecordsBatchObservability(t *testing.T) {
 	var recorder requestRecorder
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

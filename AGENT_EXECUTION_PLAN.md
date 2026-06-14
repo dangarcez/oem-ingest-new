@@ -1160,3 +1160,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: implementado poller de incidentes em `internal/incidents`, consultando `old_code/oem/tools/oemalert.py` e `old_code/oem/otel/exportadorlogs.py`; novos incidentes são deduplicados por ID, convertidos em logs com `message` no body, atributos preservados e timestamp corrigido em -3h por compatibilidade legada.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 6.1 - Polling de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test ./internal/exporter`, `go test ./internal/oem`, `go test ./...`, `go vet ./...`, `go test -race ./internal/incidents ./internal/exporter ./internal/oem`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida severidade de incidentes para WARN no OTLP, preservando INFO como default dos logs textuais; incidentes decodificados do JSON real deixam de inventar atributos ausentes com zero/false; adicionada cobertura de regressão para severidade e atributos mínimos.

@@ -211,11 +211,12 @@ func incidentLogRecord(incident oem.Incident) transform.LogRecord {
 	}
 
 	record := transform.LogRecord{
-		MetricName: incidentMetricName,
-		TargetID:   targetID,
-		SeriesID:   strings.TrimSpace(incident.ID),
-		Body:       incident.Message,
-		Attributes: attrs,
+		MetricName:   incidentMetricName,
+		TargetID:     targetID,
+		SeriesID:     strings.TrimSpace(incident.ID),
+		Body:         incident.Message,
+		Attributes:   attrs,
+		SeverityText: "WARN",
 	}
 	if createdOK {
 		record.Timestamp = correctedCreated
@@ -224,23 +225,31 @@ func incidentLogRecord(incident oem.Incident) transform.LogRecord {
 }
 
 func incidentAttributes(incident oem.Incident) transform.Attributes {
-	attrs := transform.Attributes{
-		"id":                    incident.ID,
-		"displayId":             incident.DisplayID,
-		"timeCreated":           incident.TimeCreated,
-		"timeUpdated":           incident.TimeUpdated,
-		"ageInHours":            incident.AgeInHours,
-		"isOpen":                incident.IsOpen,
-		"status":                incident.Status,
-		"owner":                 incident.Owner,
-		"isAcknowledged":        incident.IsAcknowledged,
-		"isEscalated":           incident.IsEscalated,
-		"severity":              incident.Severity,
-		"canBeManuallyClosed":   incident.CanBeManuallyClosed,
-		"isDiagnosticIncident":  incident.IsDiagnostic,
-		"incident_target_count": len(incident.Targets),
+	attrs := transform.Attributes{}
+	addPresent := func(field string, value any) {
+		if incident.HasField(field) {
+			attrs[field] = value
+		}
 	}
-	if len(incident.Targets) > 0 {
+
+	addPresent("id", incident.ID)
+	addPresent("displayId", incident.DisplayID)
+	addPresent("timeCreated", incident.TimeCreated)
+	addPresent("timeUpdated", incident.TimeUpdated)
+	addPresent("ageInHours", incident.AgeInHours)
+	addPresent("isOpen", incident.IsOpen)
+	addPresent("status", incident.Status)
+	addPresent("owner", incident.Owner)
+	addPresent("isAcknowledged", incident.IsAcknowledged)
+	addPresent("isEscalated", incident.IsEscalated)
+	addPresent("severity", incident.Severity)
+	addPresent("canBeManuallyClosed", incident.CanBeManuallyClosed)
+	addPresent("isDiagnosticIncident", incident.IsDiagnostic)
+
+	if incident.HasField("targets") {
+		attrs["incident_target_count"] = len(incident.Targets)
+	}
+	if incident.HasField("targets") && len(incident.Targets) > 0 {
 		target := incident.Targets[0]
 		attrs["target_id"] = target.ID
 		attrs["target_name"] = target.Name
@@ -248,11 +257,14 @@ func incidentAttributes(incident oem.Incident) transform.Attributes {
 		attrs["target_type_display_name"] = target.TypeDisplayName
 		attrs["targets"] = jsonString(incident.Targets)
 	}
-	if len(incident.Links) > 0 {
+	if incident.HasField("links") && len(incident.Links) > 0 {
 		attrs["links"] = jsonString(incident.Links)
 	}
 	for key, value := range incident.Extra {
-		if key == "message" {
+		if key == "" || key == "message" {
+			continue
+		}
+		if _, exists := attrs[key]; exists {
 			continue
 		}
 		attrs[key] = normalizeAttributeValue(value)

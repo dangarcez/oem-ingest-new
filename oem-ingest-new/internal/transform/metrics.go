@@ -36,6 +36,8 @@ type LogRecord struct {
 	Attributes Attributes
 	Timestamp  time.Time
 	Continuous bool
+	// SeverityText is optional. Empty means INFO, matching textual metric logs.
+	SeverityText string
 }
 
 // Output contains the normalized products of one collection result.

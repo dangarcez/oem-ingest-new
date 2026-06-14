@@ -124,23 +124,24 @@ type LatestData struct {
 
 // Incident represents both incident list items and detail payloads.
 type Incident struct {
-	ID                  string           `json:"id"`
-	DisplayID           int              `json:"displayId"`
-	Message             string           `json:"message"`
-	Targets             []IncidentTarget `json:"targets"`
-	TimeCreated         string           `json:"timeCreated"`
-	TimeUpdated         string           `json:"timeUpdated"`
-	AgeInHours          float64          `json:"ageInHours"`
-	IsOpen              bool             `json:"isOpen"`
-	Status              string           `json:"status"`
-	Owner               string           `json:"owner"`
-	IsAcknowledged      bool             `json:"isAcknowledged"`
-	IsEscalated         bool             `json:"isEscalated"`
-	Severity            string           `json:"severity"`
-	CanBeManuallyClosed bool             `json:"canBeManuallyClosed"`
-	IsDiagnostic        bool             `json:"isDiagnosticIncident"`
-	Links               Links            `json:"links"`
-	Extra               map[string]any   `json:"-"`
+	ID                  string              `json:"id"`
+	DisplayID           int                 `json:"displayId"`
+	Message             string              `json:"message"`
+	Targets             []IncidentTarget    `json:"targets"`
+	TimeCreated         string              `json:"timeCreated"`
+	TimeUpdated         string              `json:"timeUpdated"`
+	AgeInHours          float64             `json:"ageInHours"`
+	IsOpen              bool                `json:"isOpen"`
+	Status              string              `json:"status"`
+	Owner               string              `json:"owner"`
+	IsAcknowledged      bool                `json:"isAcknowledged"`
+	IsEscalated         bool                `json:"isEscalated"`
+	Severity            string              `json:"severity"`
+	CanBeManuallyClosed bool                `json:"canBeManuallyClosed"`
+	IsDiagnostic        bool                `json:"isDiagnosticIncident"`
+	Links               Links               `json:"links"`
+	Extra               map[string]any      `json:"-"`
+	PresentFields       map[string]struct{} `json:"-"`
 }
 
 // UnmarshalJSON keeps unmodeled incident fields so the incident log exporter
@@ -158,6 +159,10 @@ func (i *Incident) UnmarshalJSON(data []byte) error {
 	if err := decoder.Decode(&raw); err != nil {
 		return err
 	}
+	present := make(map[string]struct{}, len(raw))
+	for field := range raw {
+		present[field] = struct{}{}
+	}
 	for _, field := range knownIncidentFields {
 		delete(raw, field)
 	}
@@ -167,7 +172,19 @@ func (i *Incident) UnmarshalJSON(data []byte) error {
 
 	*i = Incident(decoded)
 	i.Extra = raw
+	i.PresentFields = present
 	return nil
+}
+
+// HasField reports whether a JSON incident payload contained field. Incidents
+// built directly in tests keep the historical behavior of treating fields as
+// present.
+func (i Incident) HasField(field string) bool {
+	if i.PresentFields == nil {
+		return true
+	}
+	_, ok := i.PresentFields[field]
+	return ok
 }
 
 var knownIncidentFields = []string{

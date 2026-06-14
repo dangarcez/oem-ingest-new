@@ -279,16 +279,36 @@ func buildLogRecords(records []transform.LogRecord, fallbackTimestamp time.Time)
 		if timestamp.IsZero() {
 			timestamp = fallbackTimestamp
 		}
+		severityNumber, severityText := logSeverity(record.SeverityText)
 		out = append(out, &logspb.LogRecord{
 			TimeUnixNano:         uint64(timestamp.UnixNano()),
 			ObservedTimeUnixNano: observed,
-			SeverityNumber:       logspb.SeverityNumber_SEVERITY_NUMBER_INFO,
-			SeverityText:         "INFO",
+			SeverityNumber:       severityNumber,
+			SeverityText:         severityText,
 			Body:                 stringValue(record.Body),
 			Attributes:           attributes(record.Attributes),
 		})
 	}
 	return out
+}
+
+func logSeverity(raw string) (logspb.SeverityNumber, string) {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case "TRACE":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_TRACE, "TRACE"
+	case "DEBUG":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_DEBUG, "DEBUG"
+	case "", "INFO":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_INFO, "INFO"
+	case "WARN", "WARNING":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_WARN, "WARN"
+	case "ERROR":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_ERROR, "ERROR"
+	case "FATAL":
+		return logspb.SeverityNumber_SEVERITY_NUMBER_FATAL, "FATAL"
+	default:
+		return logspb.SeverityNumber_SEVERITY_NUMBER_INFO, "INFO"
+	}
 }
 
 func normalizeLogRecord(record transform.LogRecord) transform.LogRecord {
