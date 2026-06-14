@@ -122,16 +122,20 @@ func oracleDatabaseStatus(item map[string]any) (int, bool) {
 }
 
 func oraclePDBStatus(item map[string]any) (int, bool) {
+	hasStatus := false
 	if value, ok := item["Status"]; ok {
+		hasStatus = true
 		if statusIsZero(value) {
 			return 0, true
 		}
-		return 2, true
 	}
 	if value, ok := item["State"]; ok {
 		if strings.TrimSpace(fmt.Sprint(value)) != "OPEN" {
 			return 0, true
 		}
+		return 2, true
+	}
+	if hasStatus {
 		return 2, true
 	}
 	return 0, false

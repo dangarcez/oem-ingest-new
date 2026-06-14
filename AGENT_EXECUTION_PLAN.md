@@ -1088,3 +1088,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: implementada geração do gauge legado `oem_monitor_stus` em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `rac_database`, `oracle_database`, `oracle_pdb`, `host`, nome exportado e ramos sem coleta.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.2 - `oem_monitor_stus`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test -race ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
+  Notas: workspace estava limpo antes da revisão; corrigida regra de `oracle_pdb` para respeitar `State != OPEN` mesmo quando `Status` também existe, conforme o critério da tarefa; adicionada cobertura de regressão.

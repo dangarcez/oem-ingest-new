@@ -186,6 +186,11 @@ func TestFromMonitorStatusOraclePDB(t *testing.T) {
 			want:  2,
 		},
 		{
+			name:  "non open state marks inactive even with status nonzero",
+			items: []map[string]any{{"Status": 1, "State": "MOUNTED"}},
+			want:  0,
+		},
+		{
 			name:  "open state marks up",
 			items: []map[string]any{{"State": "OPEN"}},
 			want:  2,
