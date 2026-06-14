@@ -425,7 +425,7 @@ Critérios de aceite:
 
 #### Tarefa 3.3 - Coleta latestData
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.1, 3.2.
 
@@ -1034,3 +1034,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida coalescência de chamadas concorrentes de metadata para evitar múltiplos requests ao OEM no mesmo target/grupo; metadata bodyless/custom agora fica fora do cache OEM regular para não apagar keys reais nem herdar keys indevidas quando usa o mesmo grupo legado, como `Response`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.3 - Coleta latestData
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: coletor de `latestData` implementado em `internal/collect`, reutilizando metadata cache, paginação do cliente OEM, monitoramento de última coleta útil por target e contadores internos básicos para datapoints, erros e grupos indisponíveis.
