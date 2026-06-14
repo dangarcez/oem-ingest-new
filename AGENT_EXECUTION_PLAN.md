@@ -463,7 +463,7 @@ Critérios de aceite:
 
 #### Tarefa 3.5 - Normalização de métricas numéricas e logs textuais
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.2, 3.3, 3.4.
 
@@ -1058,3 +1058,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para a ordem legada de colisões entre tags, keys, `service_name`, `name` e `instance`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.5 - Normalização de métricas numéricas e logs textuais
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: implementada transformação de `collect.Result` em gauges numéricos e logs textuais, com nomes lowercase, keys ignoradas, uso de `dataType` do OEM para números representados como string e cobertura com cenário similar ao mock.
