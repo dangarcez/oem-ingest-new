@@ -545,7 +545,7 @@ Critérios de aceite:
 
 #### Tarefa 4.4 - Métricas internas `oem_collector_*`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5, 4.1.
 
@@ -1106,3 +1106,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/transform`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
   Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py`, `old_code/oem/otel/customexport.py` e fixtures do `oem_mock`; corrigida inferência de keys legadas quando metadata vier vazia para evitar colapso de séries de serviço; testes agora usam os campos reais `name`/`dbname` e `service_name`/`instance` e garantem que campos de cálculo não viram atributos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.4 - Métricas internas `oem_collector_*`
+  Status: concluída
+  Verificações: `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: pacote `internal/selfmetrics` implementado com gauges `oem_collector_*`, agregação estável por site/tipo de target, contadores de OEM/coleta/exportação e testes de atualização/incremento.
