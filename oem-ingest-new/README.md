@@ -43,8 +43,9 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_CONFIG_TARGETS`: caminho do arquivo de targets.
 - `OEM_CONFIG_METRICS`: caminho do arquivo de metricas.
 - `OEM_VALIDATE_CONFIG`: `true` ou `false`; quando `true`, consulta a API OEM
-  e corrige IDs divergentes em memoria.
-- `OEM_VALIDATED_CONFIG_OUTPUT`: caminho para configuracao corrigida futura.
+  e corrige IDs/correlacoes divergentes em memoria.
+- `OEM_VALIDATED_CONFIG_OUTPUT`: caminho para gravar a configuracao corrigida,
+  sem sobrescrever o arquivo original.
 - `OEM_USER`, `OEM_PASSWORD`, `OEM_TOKEN`, `OEM_AUTH_TOKEN_HASH_FILE`.
 - `OTEL_EXPORT_URL`.
 - `OEM_EXPORT_INTERVAL_SECONDS`.

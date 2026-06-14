@@ -368,7 +368,7 @@ Critérios de aceite:
 
 #### Tarefa 2.3 - Escrita de configuração corrigida
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 2.1, 2.2.
 
@@ -998,3 +998,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigido merge de tags estruturais para não apagar metadados legados existentes quando a validação não consegue redescobrir propriedades ou ancestrais pela API; adicionada cobertura para falha em `TargetProperties`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 2.3 - Escrita de configuração corrigida
+  Status: concluída
+  Verificações: `go test ./internal/config`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: validação opcional agora grava `OEM_VALIDATED_CONFIG_OUTPUT` em formato simplificado sem sobrescrever o arquivo original, preservando tags externas e registrando resumo de IDs corrigidos, targets adicionados, tags corrigidas e avisos.

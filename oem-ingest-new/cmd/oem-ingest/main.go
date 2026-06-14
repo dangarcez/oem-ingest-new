@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"oem-ingest-new/internal/app"
@@ -46,5 +47,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	return app.Run(ctx, app.Options{Output: stdout})
+	logger := slog.New(slog.NewTextHandler(stderr, nil))
+	return app.Run(ctx, app.Options{Output: stdout, Logger: logger})
 }

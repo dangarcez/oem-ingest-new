@@ -151,6 +151,75 @@ func TestLoadVersionedExampleFiles(t *testing.T) {
 	}
 }
 
+func TestWriteTargetsWritesSimplifiedYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "configTargets.validated.yaml")
+	sites := []SiteConfig{
+		{
+			Name:     "oraemc",
+			Endpoint: "http://oem.example",
+			Targets: []TargetConfig{
+				{
+					ID:       "current-id",
+					Name:     "cdbp51bc",
+					TypeName: "rac_database",
+					Tags: map[string]string{
+						"rac_database": "cdbp51bc",
+						"target_name":  "cdbp51bc",
+						"target_type":  "rac_database",
+						"sistema":      "siapx",
+					},
+				},
+				{
+					ID:       "host-id",
+					Name:     "dbhost01.intra.example",
+					TypeName: "host",
+					Tags: map[string]string{
+						"host":        "dbhost01",
+						"target_name": "dbhost01",
+						"target_type": "host",
+					},
+				},
+			},
+		},
+	}
+
+	if err := WriteTargets(path, sites); err != nil {
+		t.Fatalf("WriteTargets returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read written targets: %v", err)
+	}
+	want := strings.TrimLeft(`
+- name: oraemc
+  site: null
+  endpoint: http://oem.example
+  targets:
+    - id: current-id
+      name: cdbp51bc
+      typeName: rac_database
+      tags:
+        rac_database: cdbp51bc
+        sistema: siapx
+        target_name: cdbp51bc
+        target_type: rac_database
+    - id: host-id
+      name: dbhost01.intra.example
+      typeName: host
+      tags:
+        host: dbhost01
+        target_name: dbhost01
+        target_type: host
+`, "\n")
+	if string(data) != want {
+		t.Fatalf("validated YAML mismatch\nwant:\n%s\ngot:\n%s", want, data)
+	}
+	if _, err := LoadTargets(path); err != nil {
+		t.Fatalf("written targets should load cleanly: %v", err)
+	}
+}
+
 func TestLoadTargetsMissingFile(t *testing.T) {
 	_, err := LoadTargets(filepath.Join(t.TempDir(), "missing.yaml"))
 	if err == nil {
