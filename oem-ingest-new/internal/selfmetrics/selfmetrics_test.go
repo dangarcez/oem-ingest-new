@@ -1,6 +1,7 @@
 package selfmetrics
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,56 @@ func TestFromSnapshotBuildsRequestCollectionAndExportMetrics(t *testing.T) {
 	assertPoint(t, points, ExportPayloadBytesMetricName, attrs, 2048)
 }
 
+func TestFromSnapshotAggregatesTargetsDeterministically(t *testing.T) {
+	observedAt := time.Unix(1700000200, 0)
+	monitor := collect.NewResponseMonitor()
+	monitor.Mark("host-1", observedAt.Add(-time.Minute))
+	monitor.Mark("rac-1", observedAt.Add(-time.Minute))
+
+	points := FromSnapshot(SnapshotInput{
+		Sites: []config.SiteConfig{
+			{
+				Site:     "legacy-site",
+				Endpoint: "http://b.example",
+				Targets: []config.TargetConfig{
+					target("host-2", "host02", "host"),
+					target("host-1", "host01", "host"),
+				},
+			},
+			{
+				Endpoint: "http://a.example",
+				Targets: []config.TargetConfig{
+					target("rac-1", "rac01", "rac_database"),
+				},
+			},
+		},
+		ResponseMonitor:   monitor,
+		ResponseTolerance: 21 * time.Minute,
+		ObservedAt:        observedAt,
+	})
+
+	wantSeries := []string{
+		TargetsConfiguredMetricName + "\x00legacy-site\x00http://b.example\x00host",
+		TargetsActiveMetricName + "\x00legacy-site\x00http://b.example\x00host",
+		TargetsInactiveMetricName + "\x00legacy-site\x00http://b.example\x00host",
+		TargetsConfiguredMetricName + "\x00site_1\x00http://a.example\x00rac_database",
+		TargetsActiveMetricName + "\x00site_1\x00http://a.example\x00rac_database",
+		TargetsInactiveMetricName + "\x00site_1\x00http://a.example\x00rac_database",
+	}
+	if len(points) != len(wantSeries)+6 {
+		t.Fatalf("points len = %d, want %d", len(points), len(wantSeries)+6)
+	}
+	for i, want := range wantSeries {
+		if points[i].SeriesID != want {
+			t.Fatalf("target point %d SeriesID = %q, want %q", i, points[i].SeriesID, want)
+		}
+	}
+
+	assertPoint(t, points, TargetsConfiguredMetricName, transform.Attributes{"scope": "targets", "site": "legacy-site", "endpoint": "http://b.example", "target_type": "host"}, 2)
+	assertPoint(t, points, TargetsActiveMetricName, transform.Attributes{"scope": "targets", "site": "legacy-site", "endpoint": "http://b.example", "target_type": "host"}, 1)
+	assertPoint(t, points, TargetsInactiveMetricName, transform.Attributes{"scope": "targets", "site": "site_1", "endpoint": "http://a.example", "target_type": "rac_database"}, 0)
+}
+
 func TestRegistryRecordsExportStats(t *testing.T) {
 	registry := NewRegistry()
 
@@ -92,6 +143,29 @@ func TestMetricNamesUseCollectorPrefix(t *testing.T) {
 		if !strings.HasPrefix(name, "oem_collector_") {
 			t.Fatalf("metric name %q does not use oem_collector_ prefix", name)
 		}
+	}
+}
+
+func TestMetricNamesListsRequiredMetricsAndReturnsCopy(t *testing.T) {
+	want := []string{
+		TargetsConfiguredMetricName,
+		TargetsActiveMetricName,
+		TargetsInactiveMetricName,
+		OEMRequestsMetricName,
+		OEMRequestErrorsMetricName,
+		DatapointsCollectedMetricName,
+		DatapointsExportedMetricName,
+		ExportFailuresMetricName,
+		ExportPayloadBytesMetricName,
+	}
+	got := MetricNames()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MetricNames() = %#v, want %#v", got, want)
+	}
+
+	got[0] = "mutated"
+	if MetricNames()[0] != TargetsConfiguredMetricName {
+		t.Fatalf("MetricNames should return a defensive copy")
 	}
 }
 

@@ -1112,3 +1112,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: pacote `internal/selfmetrics` implementado com gauges `oem_collector_*`, agregação estável por site/tipo de target, contadores de OEM/coleta/exportação e testes de atualização/incremento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.4 - Métricas internas `oem_collector_*`
+  Status: concluída
+  Verificações: `go test ./internal/selfmetrics`, `go test -race ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas de compatibilidade com o legado na 4.4; adicionada cobertura para a lista obrigatória de métricas internas e para agregação determinística por site/tipo sem atributos de target individual.
