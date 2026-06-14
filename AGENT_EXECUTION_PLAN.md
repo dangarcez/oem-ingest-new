@@ -956,3 +956,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: cliente OEM implementado em `internal/oem` com Basic Auth, timeouts, pool HTTP, TLS insecure configurável, retry de GET, paginação por `links.next` e contadores de requests/erros.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 1.1 - Cliente HTTP OEM
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; corrigida preservação de paths escapados para IDs/grupos OEM com caracteres especiais e paginação com `links.next` apenas em query string; incidentes agora preservam campos extras para compatibilidade futura com logs; README atualizado para refletir o cliente OEM implementado.

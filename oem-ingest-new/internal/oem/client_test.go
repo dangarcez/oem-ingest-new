@@ -132,6 +132,26 @@ func TestClientEndpointsApplyBasicAuthAndDecodeResponses(t *testing.T) {
 	}
 }
 
+func TestPathSegmentsRemainEscaped(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		if !strings.HasPrefix(r.RequestURI, "/em/api/targets/target%2F1/metricGroups/Metric%20Group%2FA") {
+			t.Fatalf("request URI = %q, want escaped target and metric group segments", r.RequestURI)
+		}
+		writeJSON(t, w, MetricGroup{Name: "Metric Group/A"})
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	group, err := client.MetricGroup(context.Background(), "target/1", "Metric Group/A")
+	if err != nil {
+		t.Fatalf("MetricGroup returned error: %v", err)
+	}
+	if group.Name != "Metric Group/A" {
+		t.Fatalf("unexpected group: %#v", group)
+	}
+}
+
 func TestListTargetsFollowsNextLinks(t *testing.T) {
 	var calls atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -175,6 +195,40 @@ func TestListTargetsFollowsNextLinks(t *testing.T) {
 	}
 }
 
+func TestListTargetsFollowsQueryOnlyNextLink(t *testing.T) {
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		switch calls.Add(1) {
+		case 1:
+			if r.URL.Path != "/em/api/targets" {
+				t.Fatalf("first path = %s", r.URL.Path)
+			}
+			writeJSON(t, w, Page[Target]{
+				Links: Links{"next": {Href: "?page=2"}},
+				Items: []Target{{ID: "target-1"}},
+			})
+		case 2:
+			if r.URL.Path != "/em/api/targets" || r.URL.Query().Get("page") != "2" {
+				t.Fatalf("second request = %s?%s", r.URL.Path, r.URL.RawQuery)
+			}
+			writeJSON(t, w, Page[Target]{Items: []Target{{ID: "target-2"}}})
+		default:
+			t.Fatalf("unexpected extra request %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	targets, err := client.ListTargets(context.Background())
+	if err != nil {
+		t.Fatalf("ListTargets returned error: %v", err)
+	}
+	if len(targets.Items) != 2 || targets.Items[1].ID != "target-2" {
+		t.Fatalf("unexpected targets: %#v", targets)
+	}
+}
+
 func TestLatestDataFollowsNextLinksAndKeepsJSONNumbers(t *testing.T) {
 	var calls atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -214,6 +268,39 @@ func TestLatestDataFollowsNextLinksAndKeepsJSONNumbers(t *testing.T) {
 	value, ok := latest.Items[0]["value"].(json.Number)
 	if !ok || value.String() != "1.5" {
 		t.Fatalf("value should decode as json.Number, got %#v", latest.Items[0]["value"])
+	}
+}
+
+func TestIncidentPreservesUnknownFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		writeJSON(t, w, map[string]any{
+			"id":         "incident-1",
+			"message":    "alert",
+			"status":     "Open",
+			"priority":   "P1",
+			"eventCount": 3,
+		})
+	}))
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	incident, err := client.Incident(context.Background(), "incident-1")
+	if err != nil {
+		t.Fatalf("Incident returned error: %v", err)
+	}
+	if incident.Message != "alert" || incident.Status != "Open" {
+		t.Fatalf("unexpected incident fields: %#v", incident)
+	}
+	if _, ok := incident.Extra["message"]; ok {
+		t.Fatalf("known fields should not be duplicated in Extra: %#v", incident.Extra)
+	}
+	if incident.Extra["priority"] != "P1" {
+		t.Fatalf("priority extra = %#v, want P1", incident.Extra["priority"])
+	}
+	eventCount, ok := incident.Extra["eventCount"].(json.Number)
+	if !ok || eventCount.String() != "3" {
+		t.Fatalf("eventCount extra = %#v, want json.Number(3)", incident.Extra["eventCount"])
 	}
 }
 

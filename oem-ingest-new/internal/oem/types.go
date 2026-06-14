@@ -1,6 +1,7 @@
 package oem
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -140,6 +141,52 @@ type Incident struct {
 	IsDiagnostic        bool             `json:"isDiagnosticIncident"`
 	Links               Links            `json:"links"`
 	Extra               map[string]any   `json:"-"`
+}
+
+// UnmarshalJSON keeps unmodeled incident fields so the incident log exporter
+// can preserve attributes returned by OEM without requiring a type change.
+func (i *Incident) UnmarshalJSON(data []byte) error {
+	type incidentAlias Incident
+	var decoded incidentAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var raw map[string]any
+	if err := decoder.Decode(&raw); err != nil {
+		return err
+	}
+	for _, field := range knownIncidentFields {
+		delete(raw, field)
+	}
+	if len(raw) == 0 {
+		raw = nil
+	}
+
+	*i = Incident(decoded)
+	i.Extra = raw
+	return nil
+}
+
+var knownIncidentFields = []string{
+	"id",
+	"displayId",
+	"message",
+	"targets",
+	"timeCreated",
+	"timeUpdated",
+	"ageInHours",
+	"isOpen",
+	"status",
+	"owner",
+	"isAcknowledged",
+	"isEscalated",
+	"severity",
+	"canBeManuallyClosed",
+	"isDiagnosticIncident",
+	"links",
 }
 
 // IncidentTarget is a target attached to an OEM incident.

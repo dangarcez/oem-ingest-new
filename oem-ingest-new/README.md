@@ -18,10 +18,12 @@ O projeto atual define:
 - leitura de variaveis de ambiente;
 - loader YAML para `configTargets.yaml` e `configMetrics.yaml`;
 - resolucao de credenciais OEM para Basic Auth, incluindo token legado;
+- cliente HTTP OEM com Basic Auth, timeouts, retries, pool de conexoes,
+  paginacao por `links.next` e endpoints tipados;
 - ponto de entrada que encerra sem iniciar coleta real.
 
-Chamadas OEM, transformacao e exportacao OTLP serao implementadas nas proximas
-tarefas do plano.
+Scheduler de coleta, transformacao e exportacao OTLP serao implementados nas
+proximas tarefas do plano.
 
 ## Configuracao
 

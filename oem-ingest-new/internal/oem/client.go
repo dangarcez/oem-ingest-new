@@ -251,7 +251,7 @@ func getPaged[T any](ctx context.Context, c *Client, firstPath string) (Page[T],
 		} else {
 			merged.Items = append(merged.Items, page.Items...)
 		}
-		nextPath = page.Links.NextHref()
+		nextPath = nextPagePath(nextPath, page.Links.NextHref())
 	}
 	if merged.Links != nil {
 		delete(merged.Links, "next")
@@ -273,7 +273,7 @@ func getPagedLatestData(ctx context.Context, c *Client, firstPath string) (Lates
 		} else {
 			merged.Items = append(merged.Items, page.Items...)
 		}
-		nextPath = page.Links.NextHref()
+		nextPath = nextPagePath(nextPath, page.Links.NextHref())
 	}
 	if merged.Links != nil {
 		delete(merged.Links, "next")
@@ -363,9 +363,15 @@ func (c *Client) resolveURL(pathOrURL string) (string, error) {
 	}
 
 	resolved := *c.endpoint
-	basePath := strings.TrimRight(resolved.Path, "/")
-	refPath := "/" + strings.TrimLeft(ref.Path, "/")
-	resolved.Path = basePath + refPath
+	basePath := strings.TrimRight(resolved.EscapedPath(), "/")
+	refPath := "/" + strings.TrimLeft(ref.EscapedPath(), "/")
+	escapedPath := basePath + refPath
+	decodedPath, err := url.PathUnescape(escapedPath)
+	if err != nil {
+		return "", fmt.Errorf("path OEM invalido: %w", err)
+	}
+	resolved.Path = decodedPath
+	resolved.RawPath = escapedPath
 	resolved.RawQuery = ref.RawQuery
 	resolved.Fragment = ""
 	return resolved.String(), nil
@@ -374,6 +380,26 @@ func (c *Client) resolveURL(pathOrURL string) (string, error) {
 func shouldRetryStatus(statusCode int) bool {
 	_, ok := retryableStatusCodes[statusCode]
 	return ok
+}
+
+func nextPagePath(currentPath, href string) string {
+	if strings.TrimSpace(href) == "" {
+		return ""
+	}
+	ref, err := url.Parse(href)
+	if err != nil {
+		return href
+	}
+	if ref.IsAbs() || ref.Host != "" || ref.Path != "" || ref.RawQuery == "" {
+		return href
+	}
+	current, err := url.Parse(currentPath)
+	if err != nil {
+		return href
+	}
+	current.RawQuery = ref.RawQuery
+	current.Fragment = ""
+	return current.String()
 }
 
 func sleepWithContext(ctx context.Context, delay time.Duration) error {
