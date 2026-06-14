@@ -1184,3 +1184,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:dev .` indisponível por ausência do Docker CLI, `podman build -t oem-ingest:dev .`, `podman run --rm oem-ingest:dev --help`
   Notas: Dockerfile multi-stage criado em `oem-ingest-new`, imagem runtime mínima não-root validada via Podman, exemplos de configuração copiados para `/app/configs` e caminho `/app/auth` documentado para `OEM_AUTH_TOKEN_HASH_FILE`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.1 - Dockerfile
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:review .` indisponível por Docker Desktop sem integração WSL, `podman build -t oem-ingest:review .`, `podman run --rm oem-ingest:review --help`, `podman run --rm oem-ingest:review --version`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no Dockerfile; documentado o cuidado com `OEM_VALIDATED_CONFIG_OUTPUT` quando `/app/configs` for montado somente leitura.

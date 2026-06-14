@@ -114,6 +114,11 @@ docker run --rm \
   oem-ingest:dev
 ```
 
+Quando `OEM_VALIDATE_CONFIG=true`, a aplicacao grava a configuracao corrigida no
+caminho de `OEM_VALIDATED_CONFIG_OUTPUT`. Se `/app/configs` estiver montado como
+somente leitura, defina essa variavel para um caminho gravavel, por exemplo
+`/tmp/configTargets.validated.yaml`, ou monte um diretorio de saida separado.
+
 Para usar `OEM_TOKEN`, monte tambem o arquivo usado como base de hash e aponte
 `OEM_AUTH_TOKEN_HASH_FILE` para o caminho dentro do container, por exemplo
 `/app/auth/xisou.py`.
