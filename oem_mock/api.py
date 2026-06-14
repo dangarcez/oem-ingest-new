@@ -1,7 +1,6 @@
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Any, Dict, List, Union
 import msgpack
 import random
 from pydantic import BaseModel
@@ -165,10 +164,14 @@ def read_teams_message(use_data: UserCreate):
     return {"message": use_data.mensagem}
 
 @app.post("/posting")
-async def handle_unstructured_json(request_body: Union[List, Dict, Any] = None):
+async def handle_unstructured_json(request: Request):
     """
     Handles a POST request with an arbitrary JSON body.
     The request_body can be a list, dictionary, or any other valid JSON type.
     """
+    try:
+        request_body = await request.json()
+    except Exception:
+        request_body = None
    #  print(request_body)
     return {"received_data": request_body}

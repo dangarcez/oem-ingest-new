@@ -6,25 +6,27 @@ e exportar dados em OTLP para um OpenTelemetry Collector.
 Este diretorio contem o novo projeto. O codigo legado permanece fora daqui, em
 `../old_code`, apenas como referencia de compatibilidade para tarefas futuras.
 
-## Escopo inicial
+## Estado atual
 
 O projeto atual define:
 
 - modulo Go em `oem-ingest-new`;
 - comando `cmd/oem-ingest`;
-- estrutura de pacotes internos planejada para configuracao, cliente OEM,
-  validacao, coleta, transformacao, exportacao, incidentes, metricas internas,
-  agendamento e logging;
+- pacotes internos para configuracao, cliente OEM, validacao, coleta,
+  transformacao, exportacao, incidentes, metricas internas, agendamento e
+  logging;
 - leitura de variaveis de ambiente;
 - loader YAML para `configTargets.yaml` e `configMetrics.yaml`;
 - resolucao de credenciais OEM para Basic Auth, incluindo token legado;
 - cliente HTTP OEM com Basic Auth, timeouts, retries, pool de conexoes,
   paginacao por `links.next` e endpoints tipados;
-- validacao opcional de IDs de targets na inicializacao;
-- ponto de entrada que encerra sem iniciar coleta real.
-
-Scheduler de coleta, transformacao e exportacao OTLP serao implementados nas
-proximas tarefas do plano.
+- validacao opcional de IDs/correlacoes de targets na inicializacao;
+- scheduler de coleta por site, target e grupo de metrica;
+- transformacao de metricas numericas, logs textuais e metricas customizadas
+  legadas;
+- exportacao OTLP HTTP/protobuf incremental de metricas e logs;
+- polling de incidentes OEM como logs OTLP;
+- Dockerfile e Docker Compose local com o `oem_mock`.
 
 ## Configuracao
 
@@ -140,3 +142,9 @@ docker compose up --build
 As configuracoes usadas pelo Compose ficam em `configs/docker-compose/` e
 apontam o app para `http://oem-mock:8008`. Para encerrar, use `Ctrl+C`; o app
 recebe SIGTERM/SIGINT e tenta exportar o buffer pendente antes de sair.
+Para uma verificacao curta em WSL, prefira limitar a execucao:
+
+```sh
+timeout 90s docker compose up --build
+docker compose down
+```

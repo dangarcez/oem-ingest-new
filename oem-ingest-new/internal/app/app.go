@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"oem-ingest-new/internal/auth"
 	"oem-ingest-new/internal/collect"
 	"oem-ingest-new/internal/config"
 	"oem-ingest-new/internal/exporter"
+	"oem-ingest-new/internal/incidents"
 	"oem-ingest-new/internal/oem"
 	"oem-ingest-new/internal/scheduler"
 	"oem-ingest-new/internal/selfmetrics"
@@ -152,12 +154,16 @@ type runtimeState struct {
 	selfMetrics          *selfmetrics.Registry
 	metricsExporter      *exporter.MetricsExporter
 	logsExporter         *exporter.LogsExporter
+	incidentPollers      []*incidents.Poller
 	clientsByEndpoint    map[string]*oem.Client
 	collectorsByEndpoint map[string]*collect.Collector
 }
 
 func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts Options) error {
-	state, err := newRuntimeState(ctx, env, cfg, opts.Logger)
+	runtimeCtx, cancelRuntime := context.WithCancel(ctx)
+	defer cancelRuntime()
+
+	state, err := newRuntimeState(runtimeCtx, env, cfg, opts.Logger)
 	if err != nil {
 		return err
 	}
@@ -175,34 +181,56 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 		}
 	}
 
-	if err := state.runInitialCollections(ctx, jobs); err != nil {
+	if err := state.runInitialCollections(runtimeCtx, jobs); err != nil {
 		return err
 	}
+	state.pollIncidentsOnce(runtimeCtx)
 	state.enqueueRuntimeMetrics(time.Now())
-	state.flush(ctx)
+	state.flush(runtimeCtx)
 
 	runner := scheduler.New(scheduler.Options{Logger: opts.Logger})
-	errCh := make(chan error, 1)
+	schedulerErrCh := make(chan error, 1)
 	go func() {
-		errCh <- runner.Run(ctx, jobs, state.collectAndBuffer)
+		schedulerErrCh <- runner.Run(runtimeCtx, jobs, state.collectAndBuffer)
 	}()
+	incidentErrCh := state.startIncidentPollers(runtimeCtx)
 
 	ticker := time.NewTicker(env.ExportInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-runtimeCtx.Done():
+			schedulerErr := waitRuntimeStop(schedulerErrCh, 10*time.Second)
+			incidentErr := waitIncidentPollers(incidentErrCh, 10*time.Second)
 			state.flushWithTimeout(10 * time.Second)
-			return waitRuntimeStop(errCh, 10*time.Second)
-		case err := <-errCh:
+			return firstRuntimeError(schedulerErr, incidentErr)
+		case err := <-schedulerErrCh:
 			if err == nil || isContextDone(err) {
+				cancelRuntime()
+				_ = waitIncidentPollers(incidentErrCh, 10*time.Second)
+				state.flushWithTimeout(10 * time.Second)
 				return nil
 			}
+			cancelRuntime()
+			_ = waitIncidentPollers(incidentErrCh, 10*time.Second)
+			state.flushWithTimeout(10 * time.Second)
+			return err
+		case err, ok := <-incidentErrCh:
+			if !ok {
+				incidentErrCh = nil
+				continue
+			}
+			if err == nil || isContextDone(err) {
+				continue
+			}
+			cancelRuntime()
+			_ = waitRuntimeStop(schedulerErrCh, 10*time.Second)
+			state.flushWithTimeout(10 * time.Second)
 			return err
 		case <-ticker.C:
 			state.enqueueRuntimeMetrics(time.Now())
-			state.flush(ctx)
+			state.flush(runtimeCtx)
 		}
 	}
 }
@@ -268,6 +296,15 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			Logger:          logger,
 			ResponseMonitor: state.responseMonitor,
 		})
+		poller, err := incidents.New(incidents.Options{
+			Client: client,
+			Logs:   logsExporter,
+			Logger: logger,
+		})
+		if err != nil {
+			return nil, err
+		}
+		state.incidentPollers = append(state.incidentPollers, poller)
 		if logger != nil {
 			logger.InfoContext(ctx, "conexao OEM validada", "endpoint", site.Endpoint)
 		}
@@ -290,6 +327,44 @@ func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []schedul
 		return errors.New("nenhum job de coleta concluiu com sucesso")
 	}
 	return nil
+}
+
+func (s *runtimeState) pollIncidentsOnce(ctx context.Context) {
+	for _, poller := range s.incidentPollers {
+		if _, err := poller.PollOnce(ctx); err != nil {
+			if s.logger != nil && ctx.Err() == nil {
+				s.logger.WarnContext(ctx, "falha ao consultar incidentes OEM", "err", err)
+			}
+		}
+	}
+}
+
+func (s *runtimeState) startIncidentPollers(ctx context.Context) <-chan error {
+	if len(s.incidentPollers) == 0 {
+		return nil
+	}
+
+	errCh := make(chan error, 1)
+	var wg sync.WaitGroup
+	var once sync.Once
+	for _, poller := range s.incidentPollers {
+		poller := poller
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := poller.Run(ctx); err != nil && !isContextDone(err) {
+				once.Do(func() {
+					errCh <- err
+				})
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
+	return errCh
 }
 
 func (s *runtimeState) collectAndBuffer(ctx context.Context, job scheduler.Job) error {
@@ -383,6 +458,37 @@ func waitRuntimeStop(errCh <-chan error, timeout time.Duration) error {
 	case <-timer.C:
 		return errors.New("scheduler nao encerrou dentro do timeout")
 	}
+}
+
+func waitIncidentPollers(errCh <-chan error, timeout time.Duration) error {
+	if errCh == nil {
+		return nil
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case err, ok := <-errCh:
+			if !ok {
+				return nil
+			}
+			if err != nil && !isContextDone(err) {
+				return err
+			}
+		case <-timer.C:
+			return errors.New("polling de incidentes nao encerrou dentro do timeout")
+		}
+	}
+}
+
+func firstRuntimeError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func targetInventoryFactory(env config.Env) (validate.TargetInventoryFactory, error) {

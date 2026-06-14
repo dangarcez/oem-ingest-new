@@ -1196,3 +1196,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `git diff --check`, parse YAML de `docker-compose.yml` e configs do Compose, `go run ./cmd/oem-ingest --help`, `podman build -t oem-ingest-compose:dev .`, `podman run --rm oem-ingest-compose:dev --help`; `docker compose` indisponível neste WSL; smoke local com `oem_mock` confirmou GETs OEM e POSTs em `/v1/metrics` e `/v1/logs`, encerrado por timeout.
   Notas: criado `docker-compose.yml` com app Go e mock FastAPI, configs locais em `configs/docker-compose/`, e wiring mínimo do runtime para coletar/exportar quando `OTEL_EXPORT_URL` estiver definido.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: investigado o boot anterior com `journalctl`, que mostrou pressão de memória sustentada antes do reinício sem registro de OOM killer; runtime passou a iniciar polling de incidentes junto com a coleta/exportação, Compose ganhou limites de memória e README documenta smoke curto com `timeout`.
