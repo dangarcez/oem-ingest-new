@@ -39,3 +39,22 @@ func TestRunVersion(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr.String())
 	}
 }
+
+func TestRunInvalidFlagReturnsError(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	err := run(context.Background(), []string{"--unknown"}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected invalid flag error")
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("expected empty stdout, got %q", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "flag provided but not defined") {
+		t.Fatalf("expected flag parser error, got %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "scaffold inicializado") ||
+		strings.Contains(stderr.String(), "scaffold inicializado") {
+		t.Fatalf("invalid flags should not execute the application; stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
