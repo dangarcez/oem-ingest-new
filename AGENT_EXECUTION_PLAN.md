@@ -572,7 +572,7 @@ Critérios de aceite:
 
 #### Tarefa 5.1 - Exportador OTLP de métricas incremental
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -1118,3 +1118,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/selfmetrics`, `go test -race ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas de compatibilidade com o legado na 4.4; adicionada cobertura para a lista obrigatória de métricas internas e para agregação determinística por site/tipo sem atributos de target individual.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.1 - Exportador OTLP de métricas incremental
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: exportador OTLP HTTP/protobuf de métricas implementado em `internal/exporter`, com `service.name=oemAPIService`, gauges, endpoint `/v1/metrics`, buffer incremental e retry preservando datapoints após falha.
