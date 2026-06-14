@@ -76,8 +76,11 @@ func FromServiceStatus(result collect.Result) Output {
 		if !ok {
 			continue
 		}
-		seriesID := buildSeriesID(targetID, result.Metadata.Keys, item)
-		attrs := BuildAttributes(result.Job.Target, result.Metadata, item)
+		keys := serviceStatusKeys(result, item)
+		metadata := result.Metadata
+		metadata.Keys = keys
+		seriesID := buildSeriesID(targetID, keys, item)
+		attrs := BuildAttributes(result.Job.Target, metadata, item)
 
 		value := float64(0)
 		body := "inativo"
@@ -174,6 +177,39 @@ func serviceStatusSupported(result collect.Result) bool {
 	default:
 		return false
 	}
+}
+
+func serviceStatusKeys(result collect.Result, item map[string]any) []string {
+	if len(result.Metadata.Keys) > 0 {
+		return result.Metadata.Keys
+	}
+
+	targetType := strings.TrimSpace(result.Job.Target.TypeName)
+	if targetType == "" {
+		targetType = strings.TrimSpace(result.LatestData.TargetTypeName)
+	}
+	groupName := resultMetricGroupName(result)
+
+	switch targetType {
+	case "rac_database":
+		if sameMetricGroup(groupName, "service_performance") {
+			return presentKeys(item, []string{"name", "dbname"})
+		}
+	case "oracle_pdb":
+		if sameMetricGroup(groupName, "DBService") {
+			return presentKeys(item, []string{"service_name", "instance"})
+		}
+	}
+	return nil
+}
+
+func presentKeys(item map[string]any, keys []string) []string {
+	for _, key := range keys {
+		if _, ok := item[key]; !ok {
+			return nil
+		}
+	}
+	return keys
 }
 
 func serviceActive(item map[string]any) (bool, bool) {

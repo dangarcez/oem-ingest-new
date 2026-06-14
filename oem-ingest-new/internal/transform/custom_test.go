@@ -288,13 +288,13 @@ func TestFromServiceStatusUsesDBTimeDelta(t *testing.T) {
 	}{
 		{
 			name: "positive DBTime_delta marks active service",
-			item: map[string]any{"service": "pix_rw", "DBTime_delta": json.Number("0.25")},
+			item: map[string]any{"service_name": "pix_rw", "instance": "pdb1", "DBTime_delta": json.Number("0.25")},
 			want: 1,
 			body: "ativo",
 		},
 		{
 			name: "zero DBTime_delta marks inactive service",
-			item: map[string]any{"service": "pix_ro", "DBTime_delta": 0},
+			item: map[string]any{"service_name": "pix_ro", "instance": "pdb2", "DBTime_delta": 0},
 			want: 0,
 			body: "inativo",
 		},
@@ -302,11 +302,13 @@ func TestFromServiceStatusUsesDBTimeDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := serviceStatusResult("rac_database", "service_performance", []string{"service"}, []map[string]any{tt.item})
+			result := serviceStatusResult("oracle_pdb", "DBService", []string{"service_name", "instance"}, []map[string]any{tt.item})
 
 			out := FromServiceStatus(result)
 
-			assertServiceStatusOutput(t, out, result, result.Job.Target.ID+"\x00"+tt.item["service"].(string), tt.want, tt.body)
+			wantSeriesID := result.Job.Target.ID + "\x00" + tt.item["service_name"].(string) + "\x00" + tt.item["instance"].(string)
+			assertServiceStatusOutput(t, out, result, wantSeriesID, tt.want, tt.body)
+			assertAttrsContain(t, out.Metrics[0].Attributes, Attributes{"name_": tt.item["service_name"], "_instance": tt.item["instance"]})
 		})
 	}
 }
@@ -320,19 +322,19 @@ func TestFromServiceStatusUsesStatusField(t *testing.T) {
 	}{
 		{
 			name: "Up status marks active service",
-			item: map[string]any{"service": "pdb_rw", "status": "Up"},
+			item: map[string]any{"name": "srv_rw", "dbname": "rac1", "status": "Up"},
 			want: 1,
 			body: "ativo",
 		},
 		{
 			name: "non Up status marks inactive service",
-			item: map[string]any{"service": "pdb_ro", "status": "Down"},
+			item: map[string]any{"name": "srv_ro", "dbname": "rac1", "status": "Down"},
 			want: 0,
 			body: "inativo",
 		},
 		{
 			name: "status keeps legacy precedence over DBTime_delta",
-			item: map[string]any{"service": "pdb_batch", "DBTime_delta": 10, "status": "Down"},
+			item: map[string]any{"name": "srv_batch", "dbname": "rac1", "DBTime_delta": 10, "status": "Down"},
 			want: 0,
 			body: "inativo",
 		},
@@ -340,11 +342,52 @@ func TestFromServiceStatusUsesStatusField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := serviceStatusResult("oracle_pdb", "DBService", []string{"service"}, []map[string]any{tt.item})
+			result := serviceStatusResult("rac_database", "service_performance", []string{"name", "dbname"}, []map[string]any{tt.item})
 
 			out := FromServiceStatus(result)
 
-			assertServiceStatusOutput(t, out, result, result.Job.Target.ID+"\x00"+tt.item["service"].(string), tt.want, tt.body)
+			wantSeriesID := result.Job.Target.ID + "\x00" + tt.item["name"].(string) + "\x00" + tt.item["dbname"].(string)
+			assertServiceStatusOutput(t, out, result, wantSeriesID, tt.want, tt.body)
+			assertAttrsContain(t, out.Metrics[0].Attributes, Attributes{"name_": tt.item["name"], "dbname": tt.item["dbname"]})
+		})
+	}
+}
+
+func TestFromServiceStatusInfersLegacyKeysWhenMetadataIsEmpty(t *testing.T) {
+	tests := []struct {
+		name         string
+		targetType   string
+		groupName    string
+		item         map[string]any
+		wantSeriesID string
+		wantAttrs    Attributes
+	}{
+		{
+			name:         "rac_database service_performance",
+			targetType:   "rac_database",
+			groupName:    "service_performance",
+			item:         map[string]any{"name": "SYS$USERS", "dbname": "rac1", "status": "Up"},
+			wantSeriesID: "target-1\x00SYS$USERS\x00rac1",
+			wantAttrs:    Attributes{"name_": "SYS$USERS", "dbname": "rac1"},
+		},
+		{
+			name:         "oracle_pdb DBService",
+			targetType:   "oracle_pdb",
+			groupName:    "DBService",
+			item:         map[string]any{"service_name": "pdb_rw", "instance": "pdb1", "DBTime_delta": 1},
+			wantSeriesID: "target-1\x00pdb_rw\x00pdb1",
+			wantAttrs:    Attributes{"name_": "pdb_rw", "_instance": "pdb1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := serviceStatusResult(tt.targetType, tt.groupName, nil, []map[string]any{tt.item})
+
+			out := FromServiceStatus(result)
+
+			assertServiceStatusOutput(t, out, result, tt.wantSeriesID, 1, "ativo")
+			assertAttrsContain(t, out.Metrics[0].Attributes, tt.wantAttrs)
 		})
 	}
 }
@@ -425,6 +468,12 @@ func assertServiceStatusOutput(t *testing.T, out Output, result collect.Result, 
 	if metric.Attributes["target_name"] != result.Job.Target.Name || metric.Attributes["target_type"] != result.Job.Target.TypeName {
 		t.Fatalf("metric attributes missing target tags: %#v", metric.Attributes)
 	}
+	if _, ok := metric.Attributes["DBTime_delta"]; ok {
+		t.Fatalf("metric attributes should not include calculation field DBTime_delta: %#v", metric.Attributes)
+	}
+	if _, ok := metric.Attributes["status"]; ok {
+		t.Fatalf("metric attributes should not include calculation field status: %#v", metric.Attributes)
+	}
 
 	log := out.Logs[0]
 	if log.MetricName != StringServiceStatusMetricName {
@@ -447,6 +496,15 @@ func assertServiceStatusOutput(t *testing.T, out Output, result collect.Result, 
 	}
 	if !reflect.DeepEqual(metric.Attributes, attrsWithoutMetric(log.Attributes)) {
 		t.Fatalf("metric/log attributes diverged: metric=%#v log=%#v", metric.Attributes, log.Attributes)
+	}
+}
+
+func assertAttrsContain(t *testing.T, got Attributes, want Attributes) {
+	t.Helper()
+	for key, value := range want {
+		if !reflect.DeepEqual(got[key], value) {
+			t.Fatalf("attribute %q = %#v, want %#v; all attrs=%#v", key, got[key], value, got)
+		}
 	}
 }
 

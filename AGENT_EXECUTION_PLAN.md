@@ -1100,3 +1100,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: implementada geração customizada de status de serviço em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `DBTime_delta`, `status`, valor ativo/inativo, prioridade legada e log textual contínuo.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.3 - `oem_service_status` e `oem_str_service_status`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/transform`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py`, `old_code/oem/otel/customexport.py` e fixtures do `oem_mock`; corrigida inferência de keys legadas quando metadata vier vazia para evitar colapso de séries de serviço; testes agora usam os campos reais `name`/`dbname` e `service_name`/`instance` e garantem que campos de cálculo não viram atributos.
