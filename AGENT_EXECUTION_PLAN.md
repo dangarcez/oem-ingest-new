@@ -443,7 +443,7 @@ Critérios de aceite:
 
 #### Tarefa 3.4 - Normalização de atributos
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.2, 3.3.
 
@@ -1046,3 +1046,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida contagem de datapoints para considerar valores de métrica não-key, evitando marcar coleta útil quando o payload tem apenas keys; 404 de metadata agora alimenta o contador de grupos indisponíveis; IDs/grupos normalizados pelo cache são reutilizados na chamada `latestData`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.4 - Normalização de atributos
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: implementada normalização de atributos em `internal/transform`, unindo tags do target com keys do item e reproduzindo os conflitos legados de `build_tags`/`_buildAttributes`, preservando tags externas.
