@@ -388,7 +388,7 @@ Critérios de aceite:
 
 #### Tarefa 3.1 - Scheduler de coletas
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 1.1.
 
@@ -1010,3 +1010,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/app`, `go test ./internal/config`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida proteção contra `OEM_VALIDATED_CONFIG_OUTPUT` apontando para o arquivo original por symlink/hardlink, preservando `configTargets.yaml`; adicionada cobertura de regressão para symlink.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.1 - Scheduler de coletas
+  Status: concluída
+  Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`
+  Notas: implementado scheduler em `internal/scheduler` com criação de jobs por site/target/grupo, frequências em minutos, jitter configurável, proteção contra sobreposição do mesmo job, shutdown por contexto/sinal e logs de registro/falha.
