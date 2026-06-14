@@ -325,7 +325,7 @@ Critérios de aceite:
 
 #### Tarefa 2.1 - Validação de IDs
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -974,3 +974,9 @@ Entradas:
   Status: concluída
   Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no mock; adicionada cobertura para `properties`, `latestData?limit=200`, detalhe de incidente e 404 de target ausente.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 2.1 - Validação de IDs
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: validação opcional de IDs implementada em `internal/validate`, com correção em memória por `name` + `typeName`, warnings para divergência/ausência/duplicidade e preservação da configuração original.
