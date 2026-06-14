@@ -92,6 +92,9 @@ versionados de configuracao:
 go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1
 ```
 
+O workflow de CI versionado em `../.github/workflows/ci.yml` executa estes
+checks, alem de `docker build` e um smoke test da imagem com `--help`.
+
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
 scaffold foi inicializado quando `OTEL_EXPORT_URL` nao esta definido. Quando
 `OTEL_EXPORT_URL` esta definido, a aplicacao carrega os arquivos de

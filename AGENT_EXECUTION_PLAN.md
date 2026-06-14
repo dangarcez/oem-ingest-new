@@ -724,7 +724,7 @@ Critérios de aceite:
 
 #### Tarefa 7.4 - CI
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3.
 
@@ -1220,3 +1220,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `go test -race ./integration`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; não foram encontrados bugs objetivos de produção na 7.3; corrigida lacuna de teste para validar conteúdo OTLP decodificado, incluindo `service.name`, nomes legados de métricas/logs e atributos normalizados relevantes.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.4 - CI
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
+  Notas: workflow GitHub Actions adicionado para testes Go, vet, integração com mock, build Docker e smoke da imagem; README documenta o CI e comandos locais.

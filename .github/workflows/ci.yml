@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "task/**"
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: oem-ingest-new
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: oem-ingest-new/go.mod
+          cache-dependency-path: oem-ingest-new/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Integration test with mock
+        run: go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: go
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t oem-ingest:ci ./oem-ingest-new
+
+      - name: Smoke image
+        run: docker run --rm oem-ingest:ci --help
