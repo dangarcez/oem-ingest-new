@@ -503,7 +503,7 @@ Critérios de aceite:
 
 #### Tarefa 4.2 - `oem_monitor_stus`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 4.1.
 
@@ -1082,3 +1082,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/collect ./internal/transform`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py` e `old_code/oem/otel/customexport.py`; não foram encontradas regressões objetivas de compatibilidade ou lacunas de teste bloqueantes na 4.1.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.2 - `oem_monitor_stus`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementada geração do gauge legado `oem_monitor_stus` em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `rac_database`, `oracle_database`, `oracle_pdb`, `host`, nome exportado e ramos sem coleta.
