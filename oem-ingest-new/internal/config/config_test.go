@@ -135,6 +135,22 @@ host:
 	}
 }
 
+func TestLoadVersionedExampleFiles(t *testing.T) {
+	cfg, err := Load(
+		filepath.Join("..", "..", "configs", "configTargets.example.yaml"),
+		filepath.Join("..", "..", "configs", "configMetrics.example.yaml"),
+	)
+	if err != nil {
+		t.Fatalf("Load returned error for versioned examples: %v", err)
+	}
+	if len(cfg.Sites) == 0 {
+		t.Fatal("expected at least one site in versioned target example")
+	}
+	if len(cfg.Metrics) == 0 {
+		t.Fatal("expected at least one target type in versioned metrics example")
+	}
+}
+
 func TestLoadTargetsMissingFile(t *testing.T) {
 	_, err := LoadTargets(filepath.Join(t.TempDir(), "missing.yaml"))
 	if err == nil {
@@ -188,6 +204,67 @@ func TestLoadTargetsTargetMissingTag(t *testing.T) {
 `)
 	_, err := LoadTargets(path)
 	assertErrorContains(t, err, "site[0].targets[0].tags.target_type")
+}
+
+func TestLoadTargetsAcceptsLegacyTargetNameNormalization(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "configTargets.yaml", `
+- name: oraemc
+  endpoint: http://localhost:8008
+  targets:
+    - id: "host-id"
+      name: "cadecrk01cl01vm03.intra.caixa.gov.br"
+      typeName: "host"
+      tags:
+        host: "cadecrk01cl01vm03"
+        target_name: "cadecrk01cl01vm03"
+        target_type: "host"
+    - id: "listener-id"
+      name: "LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br"
+      typeName: "oracle_listener"
+      tags:
+        oracle_listener: "cadecrk01cl01vm03_lstnr"
+        target_name: "cadecrk01cl01vm03_lstnr"
+        target_type: "oracle_listener"
+`)
+	targets, err := LoadTargets(path)
+	if err != nil {
+		t.Fatalf("LoadTargets returned error: %v", err)
+	}
+	if len(targets[0].Targets) != 2 {
+		t.Fatalf("unexpected targets: %#v", targets)
+	}
+}
+
+func TestLoadTargetsRejectsInconsistentTargetTypeTag(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "configTargets.yaml", `
+- name: oraemc
+  endpoint: http://localhost:8008
+  targets:
+    - id: "target-id"
+      name: "occp40bc"
+      typeName: "rac_database"
+      tags:
+        target_name: "occp40bc"
+        target_type: "oracle_database"
+`)
+	_, err := LoadTargets(path)
+	assertErrorContains(t, err, `site[0].targets[0].tags.target_type: esperado "rac_database"`)
+}
+
+func TestLoadTargetsRejectsInconsistentTargetNameTag(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "configTargets.yaml", `
+- name: oraemc
+  endpoint: http://localhost:8008
+  targets:
+    - id: "target-id"
+      name: "LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br"
+      typeName: "oracle_listener"
+      tags:
+        target_name: "LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br"
+        target_type: "oracle_listener"
+`)
+	_, err := LoadTargets(path)
+	assertErrorContains(t, err, `site[0].targets[0].tags.target_name: esperado "cadecrk01cl01vm03_lstnr"`)
 }
 
 func TestLoadMetricsMissingFreq(t *testing.T) {

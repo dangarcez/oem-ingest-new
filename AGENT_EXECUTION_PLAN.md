@@ -932,3 +932,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: loader YAML e leitura de variáveis de ambiente implementados em `internal/config`; exemplos adicionados em `configs/`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 0.2 - Configuração e defaults
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; corrigida validação de `tags.target_type` e `tags.target_name` com normalização compatível com o legado para `host` e `oracle_listener`; adicionada cobertura para exemplos versionados e tags inconsistentes.

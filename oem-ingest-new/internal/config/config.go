@@ -217,9 +217,27 @@ func validateTargets(sites []SiteConfig) error {
 			if strings.TrimSpace(target.Tags["target_type"]) == "" {
 				return fmt.Errorf("%s.tags.target_type: campo obrigatorio", targetPath)
 			}
+			if target.Tags["target_type"] != target.TypeName {
+				return fmt.Errorf("%s.tags.target_type: esperado %q, encontrado %q", targetPath, target.TypeName, target.Tags["target_type"])
+			}
+			if expectedName := expectedTargetNameTag(target); target.Tags["target_name"] != expectedName {
+				return fmt.Errorf("%s.tags.target_name: esperado %q, encontrado %q", targetPath, expectedName, target.Tags["target_name"])
+			}
 		}
 	}
 	return nil
+}
+
+func expectedTargetNameTag(target TargetConfig) string {
+	switch target.TypeName {
+	case "host":
+		return strings.Split(target.Name, ".")[0]
+	case "oracle_listener":
+		listenerName := strings.ReplaceAll(target.Name, "LISTENER_", "")
+		return strings.Split(listenerName, ".")[0] + "_lstnr"
+	default:
+		return target.Name
+	}
 }
 
 func validateMetrics(raw map[string][]rawMetricGroup) (MetricsConfig, error) {
