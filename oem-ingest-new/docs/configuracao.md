@@ -150,7 +150,7 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_USER` | vazio | Usuario de Basic Auth no OEM. Obrigatorio para coleta ou validacao opcional. |
 | `OEM_PASSWORD` | vazio | Senha direta de Basic Auth. Tem prioridade sobre `OEM_TOKEN`. |
 | `OEM_TOKEN` | vazio | Token legado usado para recuperar a senha. |
-| `OEM_AUTH_TOKEN_HASH_FILE` | vazio | Arquivo usado para calcular o SHA-256 hexadecimal do token legado. Obrigatorio com `OEM_TOKEN`. |
+| `OEM_AUTH_TOKEN_HASH_FILE` | vazio | Arquivo usado para calcular o SHA-256 hexadecimal do token legado. Obrigatorio quando `OEM_TOKEN` for a credencial usada, sem `OEM_PASSWORD`. |
 | `OTEL_EXPORT_URL` | vazio | URL base do endpoint OTLP HTTP. A aplicacao usa `/v1/metrics` e `/v1/logs`. |
 | `OEM_EXPORT_INTERVAL_SECONDS` | `60` | Intervalo de exportacao dos buffers OTLP, em segundos. |
 | `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Janela usada por `oem_monitor_response`, em minutos. |
@@ -175,7 +175,8 @@ export OEM_PASSWORD=senha
 Quando `OEM_PASSWORD` esta definido, ele e usado diretamente e `OEM_TOKEN` e
 ignorado.
 
-Para manter compatibilidade com tokens do Python legado:
+Para manter compatibilidade com tokens do Python legado, quando `OEM_PASSWORD`
+nao estiver definido:
 
 ```sh
 export OEM_USER=usuario
@@ -240,6 +241,25 @@ export OTEL_EXPORT_URL=http://localhost:4318
 go run ./cmd/oem-ingest
 ```
 
+Esse comando presume que o `endpoint` informado em `configTargets.yaml` aponta
+para um OEM acessivel e que `OTEL_EXPORT_URL` aponta para um endpoint OTLP HTTP
+acessivel. Para testar com os exemplos versionados sem OEM real nem collector
+externo, use o Docker Compose local:
+
+```sh
+cd oem-ingest-new
+
+docker compose up --build
+```
+
+Ou rode o teste de integracao com mock HTTP em memoria:
+
+```sh
+cd oem-ingest-new
+
+go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1
+```
+
 Para apenas validar e gerar um arquivo corrigido, sem iniciar coleta OTLP:
 
 ```sh
@@ -256,7 +276,8 @@ go run ./cmd/oem-ingest
 
 Sem `OTEL_EXPORT_URL`, o processo nao inicia o runtime de coleta/exportacao.
 Com `OEM_VALIDATE_CONFIG=true`, ele ainda executa a validacao de startup antes
-de encerrar.
+de encerrar. Essa validacao consulta os endpoints OEM configurados no arquivo de
+targets, portanto eles tambem precisam estar acessiveis.
 
 ## Erros comuns
 
@@ -270,4 +291,4 @@ de encerrar.
 - `OEM_USER: campo obrigatorio para autenticacao`: coleta ou validacao opcional
   foi iniciada sem usuario OEM.
 - `OEM_AUTH_TOKEN_HASH_FILE: campo obrigatorio ao usar OEM_TOKEN`: token legado
-  foi informado sem arquivo base para hash.
+  foi usado como credencial sem arquivo base para hash.

@@ -1250,3 +1250,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: criada documentação de configuração em `oem-ingest-new/docs/configuracao.md`, cobrindo `configTargets.yaml`, `configMetrics.yaml`, variáveis de ambiente, token legado e validação opcional.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.2 - Documentação de configuração
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida a documentação para deixar explícito que os exemplos de execução dependem de OEM/OTLP acessíveis, apontando Docker Compose/teste de integração para uso sem OEM real; refinada a regra do arquivo de hash quando `OEM_TOKEN` é a credencial ativa.
