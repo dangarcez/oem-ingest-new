@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -63,12 +64,17 @@ func Resolve(opts Options) (Credentials, error) {
 // FileSHA256Hex returns the SHA-256 hex digest used by the legacy Python token
 // algorithm.
 func FileSHA256Hex(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // DecodeLegacyToken decodes an OEM_TOKEN compatible with old_code/oem/tools/xisou.py.

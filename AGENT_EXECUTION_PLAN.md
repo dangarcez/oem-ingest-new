@@ -944,3 +944,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
   Notas: pacote `internal/auth` implementa Basic Auth, prioridade de `OEM_PASSWORD` sobre `OEM_TOKEN` e decodificação XOR/base64/hash compatível com `old_code/oem/tools/xisou.py`; README documenta a limitação do hash de arquivo em Go.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 0.3 - Autenticação Basic Auth e token legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; substituído hash de arquivo por leitura em streaming compatível com o legado e adicionada fixture estática do algoritmo Python para evitar cobertura apenas por roundtrip interno.

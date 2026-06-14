@@ -41,6 +41,9 @@ func TestLegacyTokenRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FileSHA256Hex returned error: %v", err)
 	}
+	if hashHex != "3e0ca2d57f033033ae20b758458ece78ae8038867fc205a447fe2a14ceca61c9" {
+		t.Fatalf("FileSHA256Hex = %q", hashHex)
+	}
 	token := encodeLegacyToken(t, hashHex, "Senha$123")
 
 	got, err := DecodeLegacyToken(hashHex, token)
@@ -61,6 +64,23 @@ func TestLegacyTokenRoundTrip(t *testing.T) {
 	}
 	if creds.Password != "Senha$123" {
 		t.Fatalf("Resolve password = %q", creds.Password)
+	}
+}
+
+func TestDecodeLegacyTokenMatchesPythonFixture(t *testing.T) {
+	const (
+		// Produced by old_code/oem/tools/xisou.py semantics for password
+		// "Senha$123" with SHA-256 hex of "legacy script bytes".
+		hashHex = "3e0ca2d57f033033ae20b758458ece78ae8038867fc205a447fe2a14ceca61c9"
+		token   = "YABeCwAWVQcE"
+	)
+
+	got, err := DecodeLegacyToken(hashHex, token)
+	if err != nil {
+		t.Fatalf("DecodeLegacyToken returned error: %v", err)
+	}
+	if got != "Senha$123" {
+		t.Fatalf("DecodeLegacyToken = %q", got)
 	}
 }
 
