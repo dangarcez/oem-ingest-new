@@ -261,6 +261,10 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 	if err != nil {
 		return nil, err
 	}
+	oemLimiter, err := oem.NewConcurrencyLimiter(env.MaxConcurrentRequests)
+	if err != nil {
+		return nil, err
+	}
 
 	state := &runtimeState{
 		cfg:                  cfg,
@@ -284,6 +288,7 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			Timeout:        env.HTTPTimeout,
 			ConnectTimeout: env.HTTPConnectTimeout,
 			MaxRetries:     env.HTTPMaxRetries,
+			Limiter:        oemLimiter,
 		})
 		if err != nil {
 			return nil, err
@@ -501,6 +506,10 @@ func targetInventoryFactory(env config.Env) (validate.TargetInventoryFactory, er
 	if err != nil {
 		return nil, err
 	}
+	oemLimiter, err := oem.NewConcurrencyLimiter(env.MaxConcurrentRequests)
+	if err != nil {
+		return nil, err
+	}
 
 	return func(site config.SiteConfig) (validate.TargetInventory, error) {
 		return oem.New(oem.Options{
@@ -509,6 +518,7 @@ func targetInventoryFactory(env config.Env) (validate.TargetInventoryFactory, er
 			Timeout:        env.HTTPTimeout,
 			ConnectTimeout: env.HTTPConnectTimeout,
 			MaxRetries:     env.HTTPMaxRetries,
+			Limiter:        oemLimiter,
 		})
 	}, nil
 }

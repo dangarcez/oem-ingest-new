@@ -25,8 +25,8 @@ O codigo fica organizado em pacotes internos com responsabilidades pequenas:
 - `internal/auth`: credenciais Basic Auth por `OEM_USER`/`OEM_PASSWORD` ou
   token legado `OEM_TOKEN` com XOR/base64/hash.
 - `internal/oem`: cliente HTTP para a API OEM, com Basic Auth, timeouts, retry
-  para GET, paginacao por `links.next`, endpoints tipados e contadores internos
-  de requests.
+  para GET, paginacao por `links.next`, limite compartilhado de concorrencia,
+  endpoints tipados e contadores internos de requests.
 - `internal/validate`: validacao opcional de configuracao contra a API OEM,
   corrigindo IDs em memoria, validando correlacoes e gerando um YAML corrigido
   sem sobrescrever o original.
@@ -100,6 +100,11 @@ Antes de consultar dados, o coletor busca metadata do grupo em
 metadata fica em cache em memoria por `targetId + metricGroupName`. Depois, cada
 job chama `/latestData?limit=200`, usando a paginacao do cliente OEM quando a
 API retorna `links.next`.
+
+As chamadas HTTP ao OEM passam por um limitador compartilhado configurado por
+`OEM_MAX_CONCURRENT_REQUESTS` (default 10). O limite e aplicado no cliente OEM,
+portanto cobre metadata, `latestData`, paginacao, validacao opcional e polling
+de incidentes, mesmo quando ha varios sites configurados.
 
 Uma coleta so atualiza o monitor de resposta do target quando retorna pelo
 menos um datapoint util, isto e, campos que nao sao keys. Esse estado alimenta
@@ -206,7 +211,8 @@ em memoria. O processo tambem nao usa `USE_TARGET_CONFIG`, `USE_TARGET_CACHE`,
 
 Cada job de coleta roda em sua goroutine e possui guarda contra sobreposicao. O
 runtime compartilha estruturas concorrentes com locks internos nos caches,
-exportadores, monitor de resposta e metricas internas.
+exportadores, monitor de resposta, metricas internas e no limitador global de
+requests OEM.
 
 No shutdown por contexto, SIGINT ou SIGTERM, o scheduler espera jobs ativos
 encerrarem, os pollers de incidentes param e o runtime tenta um flush final dos

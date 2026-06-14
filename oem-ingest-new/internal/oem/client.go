@@ -47,6 +47,8 @@ type Options struct {
 	InsecureSkipTLSVerify bool
 	MaxIdleConns          int
 	MaxIdleConnsPerHost   int
+	MaxConcurrentRequests int
+	Limiter               *ConcurrencyLimiter
 }
 
 // Client performs authenticated GET requests against one OEM endpoint.
@@ -56,6 +58,7 @@ type Client struct {
 	httpClient   *http.Client
 	maxRetries   int
 	retryBackoff time.Duration
+	limiter      *ConcurrencyLimiter
 	stats        clientStats
 }
 
@@ -68,6 +71,23 @@ type clientStats struct {
 type Stats struct {
 	RequestsTotal      uint64
 	RequestErrorsTotal uint64
+}
+
+// ConcurrencyLimiter bounds simultaneous OEM HTTP requests. A single limiter
+// can be shared by several clients to enforce a process-wide request cap.
+type ConcurrencyLimiter struct {
+	slots chan struct{}
+}
+
+// NewConcurrencyLimiter creates a limiter with max simultaneous requests.
+func NewConcurrencyLimiter(max int) (*ConcurrencyLimiter, error) {
+	if max < 0 {
+		return nil, errors.New("MaxConcurrentRequests nao pode ser negativo")
+	}
+	if max == 0 {
+		return nil, nil
+	}
+	return &ConcurrencyLimiter{slots: make(chan struct{}, max)}, nil
 }
 
 // HTTPError describes a non-2xx OEM response without exposing credentials.
@@ -94,6 +114,9 @@ func New(opts Options) (*Client, error) {
 	if opts.MaxRetries < 0 {
 		return nil, errors.New("MaxRetries nao pode ser negativo")
 	}
+	if opts.MaxConcurrentRequests < 0 {
+		return nil, errors.New("MaxConcurrentRequests nao pode ser negativo")
+	}
 
 	retryBackoff := opts.RetryBackoff
 	if retryBackoff == 0 {
@@ -104,6 +127,13 @@ func New(opts Options) (*Client, error) {
 	if httpClient == nil {
 		httpClient = newHTTPClient(opts)
 	}
+	limiter := opts.Limiter
+	if limiter == nil && opts.MaxConcurrentRequests > 0 {
+		limiter, err = NewConcurrencyLimiter(opts.MaxConcurrentRequests)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &Client{
 		endpoint:     endpoint,
@@ -111,6 +141,7 @@ func New(opts Options) (*Client, error) {
 		httpClient:   httpClient,
 		maxRetries:   opts.MaxRetries,
 		retryBackoff: retryBackoff,
+		limiter:      limiter,
 	}, nil
 }
 
@@ -340,13 +371,19 @@ func (c *Client) doGET(ctx context.Context, path string) (*http.Response, error)
 		}
 		req.Header.Set("Accept", "application/json")
 
+		release, err := c.acquireRequestSlot(ctx)
+		if err != nil {
+			return nil, err
+		}
 		atomic.AddUint64(&c.stats.requests, 1)
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
+			release()
 			atomic.AddUint64(&c.stats.errors, 1)
 			lastErr = fmt.Errorf("OEM GET %s falhou: %w", reqURL, err)
 			continue
 		}
+		resp.Body = releaseOnClose{ReadCloser: resp.Body, release: release}
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return resp, nil
@@ -368,6 +405,41 @@ func (c *Client) doGET(ctx context.Context, path string) (*http.Response, error)
 		}
 	}
 	return nil, lastErr
+}
+
+func (c *Client) acquireRequestSlot(ctx context.Context) (func(), error) {
+	if c.limiter == nil {
+		return func() {}, nil
+	}
+	return c.limiter.acquire(ctx)
+}
+
+func (l *ConcurrencyLimiter) acquire(ctx context.Context) (func(), error) {
+	if l == nil || l.slots == nil {
+		return func() {}, nil
+	}
+	select {
+	case l.slots <- struct{}{}:
+		var released atomic.Bool
+		return func() {
+			if released.CompareAndSwap(false, true) {
+				<-l.slots
+			}
+		}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+type releaseOnClose struct {
+	io.ReadCloser
+	release func()
+}
+
+func (r releaseOnClose) Close() error {
+	err := r.ReadCloser.Close()
+	r.release()
+	return err
 }
 
 func (c *Client) resolveURL(pathOrURL string) (string, error) {

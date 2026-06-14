@@ -55,7 +55,8 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_HTTP_TIMEOUT_SECONDS`.
 - `OEM_HTTP_CONNECT_TIMEOUT_SECONDS`.
 - `OEM_HTTP_MAX_RETRIES`.
-- `OEM_MAX_CONCURRENT_REQUESTS`.
+- `OEM_MAX_CONCURRENT_REQUESTS`: limite global de chamadas HTTP simultaneas ao
+  OEM no processo.
 - `OEM_LOG_LEVEL`.
 
 ### Autenticacao

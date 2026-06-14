@@ -1238,3 +1238,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: criada documentação de arquitetura em `oem-ingest-new/docs/arquitetura.md`, cobrindo componentes, fluxo config-validacao-coleta-transformacao-export, buffer incremental, incidentes e diferenças para o legado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.1 - Documentação de arquitetura
+  Status: concluída
+  Verificações: `go test ./internal/oem -run TestSharedConcurrencyLimiterCapsRequestsAcrossClients -count=1`, `go test ./internal/oem ./internal/app`, `go test -race ./internal/oem`, `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o uso de `OEM_MAX_CONCURRENT_REQUESTS`, que era lido/documentado mas não aplicado, adicionando limitador compartilhado de requests OEM para runtime e validação opcional; documentação de arquitetura e README atualizados para refletir o contrato.

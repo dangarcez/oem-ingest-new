@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -423,6 +424,86 @@ func TestInsecureTLSCanBeConfigured(t *testing.T) {
 	}
 	if _, err := client.API(context.Background()); err != nil {
 		t.Fatalf("API with insecure TLS returned error: %v", err)
+	}
+}
+
+func TestSharedConcurrencyLimiterCapsRequestsAcrossClients(t *testing.T) {
+	var active atomic.Int64
+	var maxActive atomic.Int64
+	entered := make(chan struct{}, 2)
+	releaseResponse := make(chan struct{})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		nowActive := active.Add(1)
+		for {
+			observed := maxActive.Load()
+			if nowActive <= observed || maxActive.CompareAndSwap(observed, nowActive) {
+				break
+			}
+		}
+		entered <- struct{}{}
+		<-releaseResponse
+		active.Add(-1)
+		writeJSON(t, w, map[string]any{"ok": true})
+	}))
+	defer server.Close()
+
+	limiter, err := NewConcurrencyLimiter(1)
+	if err != nil {
+		t.Fatalf("NewConcurrencyLimiter returned error: %v", err)
+	}
+	newLimitedClient := func() *Client {
+		t.Helper()
+		client, err := New(Options{
+			Endpoint:    server.URL,
+			Credentials: testCredentials(),
+			Limiter:     limiter,
+		})
+		if err != nil {
+			t.Fatalf("New returned error: %v", err)
+		}
+		return client
+	}
+	clientA := newLimitedClient()
+	clientB := newLimitedClient()
+
+	start := make(chan struct{})
+	errCh := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, client := range []*Client{clientA, clientB} {
+		client := client
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := client.API(context.Background())
+			errCh <- err
+		}()
+	}
+
+	close(start)
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("first request did not reach server")
+	}
+	select {
+	case <-entered:
+		t.Fatal("second request reached server before the shared limiter released the first")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(releaseResponse)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("API returned error: %v", err)
+		}
+	}
+	if maxActive.Load() != 1 {
+		t.Fatalf("max active requests = %d, want 1", maxActive.Load())
 	}
 }
 
