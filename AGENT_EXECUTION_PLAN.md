@@ -1214,3 +1214,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: adicionado teste de integração com `httptest` que carrega os exemplos de configuração, executa um ciclo de coleta/exportação e valida POSTs OTLP em `/v1/metrics` e `/v1/logs`; README documenta o comando local.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.3 - Teste de integração com mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `go test -race ./integration`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontrados bugs objetivos de produção na 7.3; corrigida lacuna de teste para validar conteúdo OTLP decodificado, incluindo `service.name`, nomes legados de métricas/logs e atributos normalizados relevantes.

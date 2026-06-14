@@ -19,6 +19,7 @@ import (
 
 	collectorlogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	collectormetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -79,6 +80,43 @@ func TestRuntimeIntegrationWithHTTPMockAndExampleConfigs(t *testing.T) {
 	if snapshot.logRecords == 0 {
 		t.Fatal("expected exported logs payload to contain records")
 	}
+	assertObserved(t, snapshot.metricServiceNames, "oemAPIService", "metrics resource service.name")
+	assertObserved(t, snapshot.logServiceNames, "oemAPIService", "logs resource service.name")
+	for _, name := range []string{
+		"oem_availability_status",
+		"oem_service_performance_dbtime_delta",
+		"oem_response_status",
+		"oem_instance_throughput_callspersec",
+		"oem_monitor_stus",
+		"oem_monitor_response",
+		"oem_service_status",
+		"oem_collector_targets_configured",
+	} {
+		assertObserved(t, snapshot.metricNames, name, "metric name")
+	}
+	assertMetricAttributes(t, snapshot, "oem_instance_throughput_callspersec", map[string]string{
+		"_instance":       "occp40bc3",
+		"target_name":     "occp40bc_occp40bc3",
+		"target_type":     "oracle_database",
+		"oracle_database": "occp40bc_occp40bc3",
+	})
+	assertMetricAttributes(t, snapshot, "oem_service_status", map[string]string{
+		"name_":       "svc_app",
+		"dbname":      "occp40bc",
+		"target_name": "occp40bc",
+		"target_type": "rac_database",
+	})
+	for _, name := range []string{
+		"oem_response_databasestatus",
+		"oem_service_performance_status",
+		"oem_str_service_status",
+	} {
+		assertLogMetric(t, snapshot, name)
+	}
+	assertLogAttributes(t, snapshot, "oem_str_service_status", map[string]string{
+		"name_":  "svc_app",
+		"dbname": "occp40bc",
+	}, "ativo")
 	for _, path := range []string{
 		"/em/api/targets/" + exampleRACID + "/metricGroups/Availability/latestData",
 		"/em/api/targets/" + exampleRACID + "/metricGroups/service_performance/latestData",
@@ -95,27 +133,44 @@ func TestRuntimeIntegrationWithHTTPMockAndExampleConfigs(t *testing.T) {
 }
 
 type integrationMock struct {
-	mu               sync.Mutex
-	cancel           context.CancelFunc
-	metricsPosts     int
-	logsPosts        int
-	metricDatapoints int
-	logRecords       int
-	latestData       map[string]int
-	decodeErrors     []string
+	mu                 sync.Mutex
+	cancel             context.CancelFunc
+	metricsPosts       int
+	logsPosts          int
+	metricDatapoints   int
+	logRecords         int
+	latestData         map[string]int
+	metricServiceNames map[string]int
+	logServiceNames    map[string]int
+	metricNames        map[string]int
+	metricAttributes   map[string][]map[string]string
+	logMetrics         map[string][]logObservation
+	decodeErrors       []string
 }
 
 type integrationSnapshot struct {
-	metricsPosts     int
-	logsPosts        int
-	metricDatapoints int
-	logRecords       int
-	latestData       map[string]int
-	decodeErrors     []string
+	metricsPosts       int
+	logsPosts          int
+	metricDatapoints   int
+	logRecords         int
+	latestData         map[string]int
+	metricServiceNames map[string]int
+	logServiceNames    map[string]int
+	metricNames        map[string]int
+	metricAttributes   map[string][]map[string]string
+	logMetrics         map[string][]logObservation
+	decodeErrors       []string
 }
 
 func newIntegrationMock() *integrationMock {
-	return &integrationMock{latestData: make(map[string]int)}
+	return &integrationMock{
+		latestData:         make(map[string]int),
+		metricServiceNames: make(map[string]int),
+		logServiceNames:    make(map[string]int),
+		metricNames:        make(map[string]int),
+		metricAttributes:   make(map[string][]map[string]string),
+		logMetrics:         make(map[string][]logObservation),
+	}
 }
 
 func (m *integrationMock) setCancel(cancel context.CancelFunc) {
@@ -133,12 +188,17 @@ func (m *integrationMock) snapshot() integrationSnapshot {
 		latestData[key] = value
 	}
 	return integrationSnapshot{
-		metricsPosts:     m.metricsPosts,
-		logsPosts:        m.logsPosts,
-		metricDatapoints: m.metricDatapoints,
-		logRecords:       m.logRecords,
-		latestData:       latestData,
-		decodeErrors:     append([]string(nil), m.decodeErrors...),
+		metricsPosts:       m.metricsPosts,
+		logsPosts:          m.logsPosts,
+		metricDatapoints:   m.metricDatapoints,
+		logRecords:         m.logRecords,
+		latestData:         latestData,
+		metricServiceNames: cloneStringCounts(m.metricServiceNames),
+		logServiceNames:    cloneStringCounts(m.logServiceNames),
+		metricNames:        cloneStringCounts(m.metricNames),
+		metricAttributes:   cloneMetricAttributes(m.metricAttributes),
+		logMetrics:         cloneLogMetrics(m.logMetrics),
+		decodeErrors:       append([]string(nil), m.decodeErrors...),
 	}
 }
 
@@ -195,13 +255,13 @@ func (m *integrationMock) recordLatestData(path string) {
 
 func (m *integrationMock) recordMetricsPost(r *http.Request) {
 	body, err := io.ReadAll(r.Body)
-	count := 0
+	decoded := decodedMetrics{}
 	if err != nil {
 		m.recordDecodeError("metrics", err)
 	} else if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-protobuf") {
 		m.recordDecodeError("metrics", fmt.Errorf("unexpected content type %q", r.Header.Get("Content-Type")))
 	} else {
-		count, err = countMetricDatapoints(body)
+		decoded, err = decodeMetricPayload(body)
 		if err != nil {
 			m.recordDecodeError("metrics", err)
 		}
@@ -209,7 +269,10 @@ func (m *integrationMock) recordMetricsPost(r *http.Request) {
 
 	m.mu.Lock()
 	m.metricsPosts++
-	m.metricDatapoints += count
+	m.metricDatapoints += decoded.datapoints
+	mergeCounts(m.metricServiceNames, decoded.serviceNames)
+	mergeCounts(m.metricNames, decoded.metricNames)
+	mergeMetricAttributes(m.metricAttributes, decoded.attributes)
 	shouldCancel := m.metricsPosts > 0 && m.logsPosts > 0 && m.cancel != nil
 	cancel := m.cancel
 	m.mu.Unlock()
@@ -220,13 +283,13 @@ func (m *integrationMock) recordMetricsPost(r *http.Request) {
 
 func (m *integrationMock) recordLogsPost(r *http.Request) {
 	body, err := io.ReadAll(r.Body)
-	count := 0
+	decoded := decodedLogs{}
 	if err != nil {
 		m.recordDecodeError("logs", err)
 	} else if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-protobuf") {
 		m.recordDecodeError("logs", fmt.Errorf("unexpected content type %q", r.Header.Get("Content-Type")))
 	} else {
-		count, err = countLogRecords(body)
+		decoded, err = decodeLogsPayload(body)
 		if err != nil {
 			m.recordDecodeError("logs", err)
 		}
@@ -234,7 +297,9 @@ func (m *integrationMock) recordLogsPost(r *http.Request) {
 
 	m.mu.Lock()
 	m.logsPosts++
-	m.logRecords += count
+	m.logRecords += decoded.records
+	mergeCounts(m.logServiceNames, decoded.serviceNames)
+	mergeLogMetrics(m.logMetrics, decoded.metrics)
 	shouldCancel := m.metricsPosts > 0 && m.logsPosts > 0 && m.cancel != nil
 	cancel := m.cancel
 	m.mu.Unlock()
@@ -249,34 +314,81 @@ func (m *integrationMock) recordDecodeError(signal string, err error) {
 	m.decodeErrors = append(m.decodeErrors, signal+": "+err.Error())
 }
 
-func countMetricDatapoints(body []byte) (int, error) {
+type decodedMetrics struct {
+	datapoints   int
+	serviceNames map[string]int
+	metricNames  map[string]int
+	attributes   map[string][]map[string]string
+}
+
+func decodeMetricPayload(body []byte) (decodedMetrics, error) {
 	var request collectormetricspb.ExportMetricsServiceRequest
 	if err := proto.Unmarshal(body, &request); err != nil {
-		return 0, err
+		return decodedMetrics{}, err
 	}
-	total := 0
+	decoded := decodedMetrics{
+		serviceNames: make(map[string]int),
+		metricNames:  make(map[string]int),
+		attributes:   make(map[string][]map[string]string),
+	}
 	for _, resource := range request.ResourceMetrics {
+		if serviceName := attributesMap(resource.GetResource().GetAttributes())["service.name"]; serviceName != "" {
+			decoded.serviceNames[serviceName]++
+		}
 		for _, scope := range resource.ScopeMetrics {
 			for _, metric := range scope.Metrics {
-				total += len(metric.GetGauge().DataPoints)
+				name := metric.GetName()
+				decoded.metricNames[name] += len(metric.GetGauge().DataPoints)
+				for _, point := range metric.GetGauge().DataPoints {
+					decoded.datapoints++
+					decoded.attributes[name] = append(decoded.attributes[name], attributesMap(point.GetAttributes()))
+				}
 			}
 		}
 	}
-	return total, nil
+	return decoded, nil
 }
 
-func countLogRecords(body []byte) (int, error) {
+type logObservation struct {
+	Body       string
+	Attributes map[string]string
+}
+
+type decodedLogs struct {
+	records      int
+	serviceNames map[string]int
+	metrics      map[string][]logObservation
+}
+
+func decodeLogsPayload(body []byte) (decodedLogs, error) {
 	var request collectorlogspb.ExportLogsServiceRequest
 	if err := proto.Unmarshal(body, &request); err != nil {
-		return 0, err
+		return decodedLogs{}, err
 	}
-	total := 0
+	decoded := decodedLogs{
+		serviceNames: make(map[string]int),
+		metrics:      make(map[string][]logObservation),
+	}
 	for _, resource := range request.ResourceLogs {
+		if serviceName := attributesMap(resource.GetResource().GetAttributes())["service.name"]; serviceName != "" {
+			decoded.serviceNames[serviceName]++
+		}
 		for _, scope := range resource.ScopeLogs {
-			total += len(scope.LogRecords)
+			for _, record := range scope.LogRecords {
+				decoded.records++
+				attrs := attributesMap(record.GetAttributes())
+				metricName := attrs["metric"]
+				if metricName == "" {
+					metricName = "<missing>"
+				}
+				decoded.metrics[metricName] = append(decoded.metrics[metricName], logObservation{
+					Body:       anyValueString(record.GetBody()),
+					Attributes: attrs,
+				})
+			}
 		}
 	}
-	return total, nil
+	return decoded, nil
 }
 
 func writeJSON(w http.ResponseWriter, body string) {
@@ -331,4 +443,147 @@ func (l testLogger) WarnContext(_ context.Context, msg string, args ...any) {
 
 func (l testLogger) ErrorContext(_ context.Context, msg string, args ...any) {
 	l.t.Logf("error: %s %v", msg, args)
+}
+
+func attributesMap(attrs []*commonpb.KeyValue) map[string]string {
+	out := make(map[string]string, len(attrs))
+	for _, attr := range attrs {
+		out[attr.GetKey()] = anyValueString(attr.GetValue())
+	}
+	return out
+}
+
+func anyValueString(value *commonpb.AnyValue) string {
+	if value == nil {
+		return ""
+	}
+	switch v := value.GetValue().(type) {
+	case *commonpb.AnyValue_StringValue:
+		return v.StringValue
+	case *commonpb.AnyValue_BoolValue:
+		if v.BoolValue {
+			return "true"
+		}
+		return "false"
+	case *commonpb.AnyValue_IntValue:
+		return fmt.Sprint(v.IntValue)
+	case *commonpb.AnyValue_DoubleValue:
+		return fmt.Sprint(v.DoubleValue)
+	case *commonpb.AnyValue_BytesValue:
+		return string(v.BytesValue)
+	default:
+		return ""
+	}
+}
+
+func cloneStringCounts(in map[string]int) map[string]int {
+	out := make(map[string]int, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+func cloneMetricAttributes(in map[string][]map[string]string) map[string][]map[string]string {
+	out := make(map[string][]map[string]string, len(in))
+	for key, attrs := range in {
+		out[key] = cloneAttributesList(attrs)
+	}
+	return out
+}
+
+func cloneLogMetrics(in map[string][]logObservation) map[string][]logObservation {
+	out := make(map[string][]logObservation, len(in))
+	for key, records := range in {
+		out[key] = make([]logObservation, 0, len(records))
+		for _, record := range records {
+			out[key] = append(out[key], logObservation{
+				Body:       record.Body,
+				Attributes: cloneAttributes(record.Attributes),
+			})
+		}
+	}
+	return out
+}
+
+func cloneAttributesList(in []map[string]string) []map[string]string {
+	out := make([]map[string]string, 0, len(in))
+	for _, attrs := range in {
+		out = append(out, cloneAttributes(attrs))
+	}
+	return out
+}
+
+func cloneAttributes(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+func mergeCounts(dst, src map[string]int) {
+	for key, value := range src {
+		dst[key] += value
+	}
+}
+
+func mergeMetricAttributes(dst, src map[string][]map[string]string) {
+	for name, attrs := range src {
+		dst[name] = append(dst[name], cloneAttributesList(attrs)...)
+	}
+}
+
+func mergeLogMetrics(dst, src map[string][]logObservation) {
+	for name, records := range src {
+		for _, record := range records {
+			dst[name] = append(dst[name], logObservation{
+				Body:       record.Body,
+				Attributes: cloneAttributes(record.Attributes),
+			})
+		}
+	}
+}
+
+func assertObserved(t *testing.T, counts map[string]int, key, label string) {
+	t.Helper()
+	if counts[key] == 0 {
+		t.Fatalf("expected %s %q; observed %#v", label, key, counts)
+	}
+}
+
+func assertMetricAttributes(t *testing.T, snapshot integrationSnapshot, metricName string, expected map[string]string) {
+	t.Helper()
+	for _, attrs := range snapshot.metricAttributes[metricName] {
+		if attributesContain(attrs, expected) {
+			return
+		}
+	}
+	t.Fatalf("expected metric %q with attributes %#v; observed %#v", metricName, expected, snapshot.metricAttributes[metricName])
+}
+
+func assertLogMetric(t *testing.T, snapshot integrationSnapshot, metricName string) {
+	t.Helper()
+	if len(snapshot.logMetrics[metricName]) == 0 {
+		t.Fatalf("expected log metric %q; observed %#v", metricName, snapshot.logMetrics)
+	}
+}
+
+func assertLogAttributes(t *testing.T, snapshot integrationSnapshot, metricName string, expected map[string]string, body string) {
+	t.Helper()
+	for _, record := range snapshot.logMetrics[metricName] {
+		if record.Body == body && attributesContain(record.Attributes, expected) {
+			return
+		}
+	}
+	t.Fatalf("expected log metric %q with body %q and attributes %#v; observed %#v", metricName, body, expected, snapshot.logMetrics[metricName])
+}
+
+func attributesContain(attrs, expected map[string]string) bool {
+	for key, value := range expected {
+		if attrs[key] != value {
+			return false
+		}
+	}
+	return true
 }
