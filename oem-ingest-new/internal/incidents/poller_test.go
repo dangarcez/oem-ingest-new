@@ -167,6 +167,109 @@ func TestPollOnceSkipsDuplicateIncidentID(t *testing.T) {
 	}
 }
 
+func TestCheckKnownIncidentsKeepsOpenIncidentTracked(t *testing.T) {
+	incident := oem.Incident{ID: "INC-1", Message: "open incident", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
+	client := &fakeIncidentClient{
+		pages: []oem.Page[oem.Incident]{
+			{Items: []oem.Incident{incident}},
+			{Items: []oem.Incident{incident}},
+		},
+		incidents: map[string]oem.Incident{
+			"INC-1": {ID: "INC-1", Status: "Open"},
+		},
+	}
+	sink := &recordingLogSink{}
+	poller, err := New(Options{Client: client, Logs: sink})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce() error = %v", err)
+	}
+
+	result, err := poller.CheckKnownIncidentsOnce(context.Background())
+	if err != nil {
+		t.Fatalf("CheckKnownIncidentsOnce() error = %v", err)
+	}
+	if result.Checked != 1 || result.Open != 1 || result.Removed != 0 {
+		t.Fatalf("CheckKnownIncidentsOnce() result = %#v, want one open incident kept", result)
+	}
+
+	again, err := poller.PollOnce(context.Background())
+	if err != nil {
+		t.Fatalf("second PollOnce() error = %v", err)
+	}
+	if again.New != 0 || again.Duplicates != 1 {
+		t.Fatalf("second PollOnce() result = %#v, want open incident still deduplicated", again)
+	}
+	if got := len(sink.recordsSnapshot()); got != 1 {
+		t.Fatalf("records len = %d, want open incident not exported again", got)
+	}
+	if got := client.incidentCallsSnapshot(); len(got) != 1 || got[0] != "INC-1" {
+		t.Fatalf("incident detail calls = %#v, want INC-1", got)
+	}
+}
+
+func TestCheckKnownIncidentsRemovesClosedIncident(t *testing.T) {
+	incident := oem.Incident{ID: "INC-1", Message: "closed incident", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
+	client := &fakeIncidentClient{
+		pages: []oem.Page[oem.Incident]{
+			{Items: []oem.Incident{incident}},
+		},
+		incidents: map[string]oem.Incident{
+			"INC-1": {ID: "INC-1", Status: "Closed"},
+		},
+	}
+	poller, err := New(Options{Client: client, Logs: &recordingLogSink{}})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce() error = %v", err)
+	}
+
+	result, err := poller.CheckKnownIncidentsOnce(context.Background())
+	if err != nil {
+		t.Fatalf("CheckKnownIncidentsOnce() error = %v", err)
+	}
+	if result.Checked != 1 || result.Closed != 1 || result.Removed != 1 {
+		t.Fatalf("CheckKnownIncidentsOnce() result = %#v, want one closed incident removed", result)
+	}
+	if got := countSeen(poller); got != 0 {
+		t.Fatalf("seen count = %d, want closed incident removed", got)
+	}
+}
+
+func TestCheckKnownIncidentsRemovesIncidentOnAPIError(t *testing.T) {
+	incident := oem.Incident{ID: "INC-1", Message: "incident with detail error", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
+	client := &fakeIncidentClient{
+		pages: []oem.Page[oem.Incident]{
+			{Items: []oem.Incident{incident}},
+		},
+		incidentErrors: map[string]error{
+			"INC-1": errors.New("OEM detail failed"),
+		},
+	}
+	poller, err := New(Options{Client: client, Logs: &recordingLogSink{}})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce() error = %v", err)
+	}
+
+	result, err := poller.CheckKnownIncidentsOnce(context.Background())
+	if err != nil {
+		t.Fatalf("CheckKnownIncidentsOnce() error = %v", err)
+	}
+	if result.Checked != 1 || result.Errors != 1 || result.Removed != 1 {
+		t.Fatalf("CheckKnownIncidentsOnce() result = %#v, want one error removal", result)
+	}
+	if got := countSeen(poller); got != 0 {
+		t.Fatalf("seen count = %d, want incident removed after detail error", got)
+	}
+}
+
 func TestRunPollsImmediatelyThenAtConfiguredInterval(t *testing.T) {
 	client := &fakeIncidentClient{
 		pages: []oem.Page[oem.Incident]{
@@ -210,6 +313,51 @@ func TestRunPollsImmediatelyThenAtConfiguredInterval(t *testing.T) {
 	}
 }
 
+func TestRunChecksKnownIncidentStatusAtConfiguredInterval(t *testing.T) {
+	incident := oem.Incident{ID: "INC-1", Message: "scheduled status check", Status: "Open", TimeCreated: "2026-06-14T12:00:00.000Z"}
+	client := &fakeIncidentClient{
+		pages: []oem.Page[oem.Incident]{
+			{Items: []oem.Incident{incident}},
+		},
+		incidents: map[string]oem.Incident{
+			"INC-1": {ID: "INC-1", Status: "Closed"},
+		},
+	}
+	poller, err := New(Options{
+		Client:              client,
+		Logs:                &recordingLogSink{},
+		PollInterval:        time.Hour,
+		StatusCheckInterval: 5 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- poller.Run(ctx)
+	}()
+
+	deadline := time.After(time.Second)
+	for {
+		if countSeen(poller) == 0 && len(client.incidentCallsSnapshot()) > 0 {
+			cancel()
+			break
+		}
+		select {
+		case <-deadline:
+			cancel()
+			t.Fatal("timed out waiting for scheduled incident status check")
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	if err := <-errCh; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}
+
 func TestNewAppliesLegacyDefaultsAndValidatesDependencies(t *testing.T) {
 	poller, err := New(Options{Client: &fakeIncidentClient{}, Logs: &recordingLogSink{}})
 	if err != nil {
@@ -221,6 +369,9 @@ func TestNewAppliesLegacyDefaultsAndValidatesDependencies(t *testing.T) {
 	if poller.ageWindowHours != DefaultAgeWindow {
 		t.Fatalf("ageWindowHours = %d, want %d", poller.ageWindowHours, DefaultAgeWindow)
 	}
+	if poller.statusCheckInterval != DefaultStatusCheckInterval {
+		t.Fatalf("statusCheckInterval = %s, want %s", poller.statusCheckInterval, DefaultStatusCheckInterval)
+	}
 
 	if _, err := New(Options{Logs: &recordingLogSink{}}); err == nil || !strings.Contains(err.Error(), "Client") {
 		t.Fatalf("New() without client error = %v, want client validation", err)
@@ -231,15 +382,21 @@ func TestNewAppliesLegacyDefaultsAndValidatesDependencies(t *testing.T) {
 	if _, err := New(Options{Client: &fakeIncidentClient{}, Logs: &recordingLogSink{}, PollInterval: -time.Second}); err == nil {
 		t.Fatal("New() with negative poll interval error = nil, want validation")
 	}
+	if _, err := New(Options{Client: &fakeIncidentClient{}, Logs: &recordingLogSink{}, StatusCheckInterval: -time.Second}); err == nil {
+		t.Fatal("New() with negative status check interval error = nil, want validation")
+	}
 	if _, err := New(Options{Client: &fakeIncidentClient{}, Logs: &recordingLogSink{}, AgeWindowHours: -1}); err == nil {
 		t.Fatal("New() with negative age window error = nil, want validation")
 	}
 }
 
 type fakeIncidentClient struct {
-	mu         sync.Mutex
-	pages      []oem.Page[oem.Incident]
-	ageWindows []int
+	mu             sync.Mutex
+	pages          []oem.Page[oem.Incident]
+	ageWindows     []int
+	incidents      map[string]oem.Incident
+	incidentErrors map[string]error
+	incidentIDs    []string
 }
 
 func (f *fakeIncidentClient) Incidents(_ context.Context, ageWindow int) (oem.Page[oem.Incident], error) {
@@ -254,10 +411,34 @@ func (f *fakeIncidentClient) Incidents(_ context.Context, ageWindow int) (oem.Pa
 	return page, nil
 }
 
+func (f *fakeIncidentClient) Incident(_ context.Context, id string) (oem.Incident, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.incidentIDs = append(f.incidentIDs, id)
+	if err := f.incidentErrors[id]; err != nil {
+		return oem.Incident{}, err
+	}
+	return f.incidents[id], nil
+}
+
 func (f *fakeIncidentClient) calls() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.ageWindows)
+}
+
+func (f *fakeIncidentClient) incidentCallsSnapshot() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, len(f.incidentIDs))
+	copy(out, f.incidentIDs)
+	return out
+}
+
+func countSeen(p *Poller) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.seen)
 }
 
 type recordingLogSink struct {

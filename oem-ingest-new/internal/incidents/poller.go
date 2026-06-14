@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	DefaultPollInterval = 5 * time.Minute
-	DefaultAgeWindow    = 1
-	incidentMetricName  = "oem_incident"
+	DefaultPollInterval        = 5 * time.Minute
+	DefaultStatusCheckInterval = time.Hour
+	DefaultAgeWindow           = 1
+	incidentMetricName         = "oem_incident"
 )
 
-// Client lists OEM incidents.
+// Client lists OEM incidents and retrieves incident details.
 type Client interface {
 	Incidents(context.Context, int) (oem.Page[oem.Incident], error)
+	Incident(context.Context, string) (oem.Incident, error)
 }
 
 // LogSink receives incident logs. LogsExporter satisfies this interface.
@@ -37,11 +39,12 @@ type Logger interface {
 
 // Options configures Poller.
 type Options struct {
-	Client         Client
-	Logs           LogSink
-	PollInterval   time.Duration
-	AgeWindowHours int
-	Logger         Logger
+	Client              Client
+	Logs                LogSink
+	PollInterval        time.Duration
+	StatusCheckInterval time.Duration
+	AgeWindowHours      int
+	Logger              Logger
 }
 
 // PollResult summarizes one incident polling cycle.
@@ -51,21 +54,31 @@ type PollResult struct {
 	Duplicates int
 }
 
+// CheckResult summarizes one status check cycle for known incidents.
+type CheckResult struct {
+	Checked int
+	Open    int
+	Closed  int
+	Errors  int
+	Removed int
+}
+
 // Poller periodically reads OEM incidents and converts new incidents into OTLP
 // log records.
 type Poller struct {
-	client         Client
-	logs           LogSink
-	pollInterval   time.Duration
-	ageWindowHours int
-	logger         Logger
+	client              Client
+	logs                LogSink
+	pollInterval        time.Duration
+	statusCheckInterval time.Duration
+	ageWindowHours      int
+	logger              Logger
 
 	mu   sync.Mutex
 	seen map[string]struct{}
 }
 
-// New creates a Poller with the legacy polling defaults: a 5 minute interval
-// and a 1 hour incident search window.
+// New creates a Poller with the legacy polling defaults: a 5 minute interval,
+// a 1 hour incident search window and a 1 hour status check interval.
 func New(opts Options) (*Poller, error) {
 	if opts.Client == nil {
 		return nil, errors.New("incidents: Client obrigatorio")
@@ -82,6 +95,14 @@ func New(opts Options) (*Poller, error) {
 		return nil, errors.New("incidents: PollInterval nao pode ser negativo")
 	}
 
+	statusCheckInterval := opts.StatusCheckInterval
+	if statusCheckInterval == 0 {
+		statusCheckInterval = DefaultStatusCheckInterval
+	}
+	if statusCheckInterval < 0 {
+		return nil, errors.New("incidents: StatusCheckInterval nao pode ser negativo")
+	}
+
 	ageWindowHours := opts.AgeWindowHours
 	if ageWindowHours == 0 {
 		ageWindowHours = DefaultAgeWindow
@@ -91,12 +112,13 @@ func New(opts Options) (*Poller, error) {
 	}
 
 	return &Poller{
-		client:         opts.Client,
-		logs:           opts.Logs,
-		pollInterval:   pollInterval,
-		ageWindowHours: ageWindowHours,
-		logger:         opts.Logger,
-		seen:           make(map[string]struct{}),
+		client:              opts.Client,
+		logs:                opts.Logs,
+		pollInterval:        pollInterval,
+		statusCheckInterval: statusCheckInterval,
+		ageWindowHours:      ageWindowHours,
+		logger:              opts.Logger,
+		seen:                make(map[string]struct{}),
 	}, nil
 }
 
@@ -115,14 +137,18 @@ func (p *Poller) Run(ctx context.Context) error {
 		return err
 	}
 
-	ticker := time.NewTicker(p.pollInterval)
-	defer ticker.Stop()
+	pollTicker := time.NewTicker(p.pollInterval)
+	defer pollTicker.Stop()
+	statusTicker := time.NewTicker(p.statusCheckInterval)
+	defer statusTicker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-pollTicker.C:
 			p.pollAndLog(ctx)
+		case <-statusTicker.C:
+			p.checkKnownAndLog(ctx)
 		}
 	}
 }
@@ -163,11 +189,62 @@ func (p *Poller) PollOnce(ctx context.Context) (PollResult, error) {
 	return result, nil
 }
 
+// CheckKnownIncidentsOnce checks details for incidents kept in memory. It
+// preserves the legacy behavior from oemalert.py: once the detail endpoint
+// fails or returns status Closed, the incident is removed from the in-memory
+// duplicate tracking set.
+func (p *Poller) CheckKnownIncidentsOnce(ctx context.Context) (CheckResult, error) {
+	if p == nil {
+		return CheckResult{}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return CheckResult{}, err
+	}
+
+	ids := p.seenIDsSnapshot()
+	result := CheckResult{Checked: len(ids)}
+	for _, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		incident, err := p.client.Incident(ctx, id)
+		if err != nil {
+			if ctx.Err() != nil {
+				return result, ctx.Err()
+			}
+			p.removeSeen(id)
+			result.Errors++
+			result.Removed++
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(incident.Status), "Closed") {
+			p.removeSeen(id)
+			result.Closed++
+			result.Removed++
+			continue
+		}
+		result.Open++
+	}
+
+	p.logStatusCheckSummary(ctx, result)
+	return result, nil
+}
+
 func (p *Poller) pollAndLog(ctx context.Context) {
 	_, err := p.PollOnce(ctx)
 	if err != nil {
 		if p.logger != nil && ctx.Err() == nil {
 			p.logger.WarnContext(ctx, "falha ao consultar incidentes OEM", "err", err)
+		}
+		return
+	}
+}
+
+func (p *Poller) checkKnownAndLog(ctx context.Context) {
+	_, err := p.CheckKnownIncidentsOnce(ctx)
+	if err != nil {
+		if p.logger != nil && ctx.Err() == nil {
+			p.logger.WarnContext(ctx, "falha ao verificar status de incidentes OEM", "err", err)
 		}
 		return
 	}
@@ -183,6 +260,22 @@ func (p *Poller) markSeen(id string) bool {
 	return true
 }
 
+func (p *Poller) removeSeen(id string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.seen, id)
+}
+
+func (p *Poller) seenIDsSnapshot() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	ids := make([]string, 0, len(p.seen))
+	for id := range p.seen {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 func (p *Poller) logPollSummary(ctx context.Context, result PollResult) {
 	if p.logger == nil {
 		return
@@ -192,6 +285,20 @@ func (p *Poller) logPollSummary(ctx context.Context, result PollResult) {
 		"incidents_new", result.New,
 		"incidents_duplicates", result.Duplicates,
 		"age_window_hours", p.ageWindowHours,
+	)
+}
+
+func (p *Poller) logStatusCheckSummary(ctx context.Context, result CheckResult) {
+	if p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "verificacao de status de incidentes OEM concluida",
+		"incidents_checked", result.Checked,
+		"incidents_open", result.Open,
+		"incidents_closed", result.Closed,
+		"incidents_errors", result.Errors,
+		"incidents_removed", result.Removed,
+		"status_check_interval", p.statusCheckInterval.String(),
 	)
 }
 

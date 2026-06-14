@@ -651,7 +651,7 @@ Critérios de aceite:
 
 #### Tarefa 6.2 - Monitoramento de fechamento de incidentes
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 6.1.
 
@@ -1166,3 +1166,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/incidents`, `go test ./internal/exporter`, `go test ./internal/oem`, `go test ./...`, `go vet ./...`, `go test -race ./internal/incidents ./internal/exporter ./internal/oem`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida severidade de incidentes para WARN no OTLP, preservando INFO como default dos logs textuais; incidentes decodificados do JSON real deixam de inventar atributos ausentes com zero/false; adicionada cobertura de regressão para severidade e atributos mínimos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 6.2 - Monitoramento de fechamento de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: poller de incidentes agora verifica periodicamente detalhes de incidentes conhecidos e remove da deduplicação em memória quando o detalhe falha ou retorna `status == Closed`, usando um único loop para evitar jobs/goroutines por incidente.
