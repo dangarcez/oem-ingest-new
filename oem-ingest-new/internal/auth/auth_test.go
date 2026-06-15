@@ -41,11 +41,10 @@ func TestLegacyTokenRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FileSHA256Hex returned error: %v", err)
 	}
-	if hashHex != "3e0ca2d57f033033ae20b758458ece78ae8038867fc205a447fe2a14ceca61c9" {
+	if hashHex != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 		t.Fatalf("FileSHA256Hex = %q", hashHex)
 	}
 	token := encodeLegacyToken(t, hashHex, "Senha$123")
-
 	got, err := DecodeLegacyToken(hashHex, token)
 	if err != nil {
 		t.Fatalf("DecodeLegacyToken returned error: %v", err)

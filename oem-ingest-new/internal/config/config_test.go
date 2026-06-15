@@ -29,6 +29,9 @@ func TestReadEnvDefaults(t *testing.T) {
 	if env.MonitorResponseTolerance != time.Duration(DefaultResponseToleranceMin)*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
 	}
+	if env.SchedulerJitter != time.Duration(DefaultSchedulerJitterSeconds)*time.Second {
+		t.Fatalf("SchedulerJitter = %s", env.SchedulerJitter)
+	}
 }
 
 func TestReadEnvOverrides(t *testing.T) {
@@ -48,6 +51,7 @@ func TestReadEnvOverrides(t *testing.T) {
 		"OEM_HTTP_CONNECT_TIMEOUT_SECONDS":       "3",
 		"OEM_HTTP_MAX_RETRIES":                   "4",
 		"OEM_MAX_CONCURRENT_REQUESTS":            "5",
+		"OEM_SCHEDULER_JITTER_SECONDS":           "12",
 		"OEM_LOG_LEVEL":                          "debug",
 	}
 
@@ -80,6 +84,9 @@ func TestReadEnvOverrides(t *testing.T) {
 	if env.HTTPMaxRetries != 4 || env.MaxConcurrentRequests != 5 || env.LogLevel != "debug" {
 		t.Fatalf("unexpected numeric/log values: %#v", env)
 	}
+	if env.SchedulerJitter != 12*time.Second {
+		t.Fatalf("SchedulerJitter = %s", env.SchedulerJitter)
+	}
 }
 
 func TestReadEnvInvalidBool(t *testing.T) {
@@ -91,6 +98,33 @@ func TestReadEnvInvalidBool(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "OEM_VALIDATE_CONFIG") {
 		t.Fatalf("expected OEM_VALIDATE_CONFIG error, got %v", err)
+	}
+}
+
+func TestReadEnvAllowsDisabledSchedulerJitter(t *testing.T) {
+	env, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_SCHEDULER_JITTER_SECONDS" {
+			return "0", true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	if env.SchedulerJitter != 0 {
+		t.Fatalf("SchedulerJitter = %s, want disabled", env.SchedulerJitter)
+	}
+}
+
+func TestReadEnvRejectsInvalidSchedulerJitter(t *testing.T) {
+	_, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_SCHEDULER_JITTER_SECONDS" {
+			return "-1", true
+		}
+		return "", false
+	})
+	if err == nil || !strings.Contains(err.Error(), "OEM_SCHEDULER_JITTER_SECONDS") {
+		t.Fatalf("expected OEM_SCHEDULER_JITTER_SECONDS error, got %v", err)
 	}
 }
 

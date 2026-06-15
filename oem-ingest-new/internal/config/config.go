@@ -13,16 +13,17 @@ import (
 )
 
 const (
-	DefaultTargetsPath           = "./configs/configTargets.yaml"
-	DefaultMetricsPath           = "./configs/configMetrics.yaml"
-	DefaultValidatedTargetsPath  = "./configs/configTargets.validated.yaml"
-	DefaultExportIntervalSeconds = 60
-	DefaultResponseToleranceMin  = 21
-	DefaultHTTPTimeoutSeconds    = 30
-	DefaultConnectTimeoutSeconds = 10
-	DefaultHTTPMaxRetries        = 3
-	DefaultMaxConcurrentRequests = 10
-	DefaultLogLevel              = "info"
+	DefaultTargetsPath            = "./configs/configTargets.yaml"
+	DefaultMetricsPath            = "./configs/configMetrics.yaml"
+	DefaultValidatedTargetsPath   = "./configs/configTargets.validated.yaml"
+	DefaultExportIntervalSeconds  = 60
+	DefaultResponseToleranceMin   = 21
+	DefaultHTTPTimeoutSeconds     = 30
+	DefaultConnectTimeoutSeconds  = 10
+	DefaultHTTPMaxRetries         = 3
+	DefaultMaxConcurrentRequests  = 10
+	DefaultSchedulerJitterSeconds = 60
+	DefaultLogLevel               = "info"
 )
 
 // Env contains process configuration read from environment variables.
@@ -42,6 +43,7 @@ type Env struct {
 	HTTPConnectTimeout       time.Duration
 	HTTPMaxRetries           int
 	MaxConcurrentRequests    int
+	SchedulerJitter          time.Duration
 	LogLevel                 string
 }
 
@@ -99,6 +101,7 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		HTTPConnectTimeout:       time.Duration(DefaultConnectTimeoutSeconds) * time.Second,
 		HTTPMaxRetries:           DefaultHTTPMaxRetries,
 		MaxConcurrentRequests:    DefaultMaxConcurrentRequests,
+		SchedulerJitter:          time.Duration(DefaultSchedulerJitterSeconds) * time.Second,
 		LogLevel:                 stringValue(lookup, "OEM_LOG_LEVEL", DefaultLogLevel),
 	}
 
@@ -122,6 +125,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.MaxConcurrentRequests, err = positiveIntValue(lookup, "OEM_MAX_CONCURRENT_REQUESTS", DefaultMaxConcurrentRequests); err != nil {
+		return Env{}, err
+	}
+	if env.SchedulerJitter, err = nonNegativeSecondsValue(lookup, "OEM_SCHEDULER_JITTER_SECONDS", DefaultSchedulerJitterSeconds); err != nil {
 		return Env{}, err
 	}
 
@@ -310,6 +316,14 @@ func minutesValue(lookup func(string) (string, bool), name string, fallback int)
 		return 0, err
 	}
 	return time.Duration(value) * time.Minute, nil
+}
+
+func nonNegativeSecondsValue(lookup func(string) (string, bool), name string, fallback int) (time.Duration, error) {
+	value, err := nonNegativeIntValue(lookup, name, fallback)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(value) * time.Second, nil
 }
 
 func positiveIntValue(lookup func(string) (string, bool), name string, fallback int) (int, error) {

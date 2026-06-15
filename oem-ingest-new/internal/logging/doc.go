@@ -1,2 +1,2 @@
-// Package logging will configure structured application logs.
+// Package logging configures structured application logs.
 package logging

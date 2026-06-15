@@ -31,6 +31,20 @@ func TestRunDoesNotRequireExternalServices(t *testing.T) {
 	}
 }
 
+func TestSchedulerOptionsUsesConfiguredJitter(t *testing.T) {
+	opts := schedulerOptions(config.Env{SchedulerJitter: 12 * time.Second}, nil)
+	if opts.Jitter != 12*time.Second {
+		t.Fatalf("Jitter = %s", opts.Jitter)
+	}
+}
+
+func TestSchedulerOptionsDisablesZeroJitter(t *testing.T) {
+	opts := schedulerOptions(config.Env{SchedulerJitter: 0}, nil)
+	if opts.Jitter >= 0 {
+		t.Fatalf("Jitter = %s, want negative duration to disable scheduler jitter", opts.Jitter)
+	}
+}
+
 func TestRunCollectsAndExportsWhenOTELExportURLConfigured(t *testing.T) {
 	tmp := t.TempDir()
 	targetsPath := filepath.Join(tmp, "configTargets.yaml")

@@ -158,10 +158,17 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_HTTP_CONNECT_TIMEOUT_SECONDS` | `10` | Timeout de conexao HTTP ao OEM, em segundos. |
 | `OEM_HTTP_MAX_RETRIES` | `3` | Numero de retries para GETs ao OEM. Pode ser `0`. |
 | `OEM_MAX_CONCURRENT_REQUESTS` | `10` | Limite global de chamadas HTTP simultaneas ao OEM no processo. |
-| `OEM_LOG_LEVEL` | `info` | Nivel de log do processo. |
+| `OEM_SCHEDULER_JITTER_SECONDS` | `60` | Jitter maximo aleatorio dos jobs de coleta, em segundos. Use `0` para desabilitar. |
+| `OEM_LOG_LEVEL` | `info` | Nivel minimo de log do processo. Aceita `debug`, `info`, `warn`/`warning` ou `error`, sem diferenciar maiusculas e minusculas. |
 
 Variaveis numericas de tempo e concorrencia aceitam inteiros positivos, exceto
-`OEM_HTTP_MAX_RETRIES`, que aceita inteiro maior ou igual a zero.
+`OEM_HTTP_MAX_RETRIES` e `OEM_SCHEDULER_JITTER_SECONDS`, que aceitam inteiro
+maior ou igual a zero.
+
+O jitter do scheduler e aplicado antes da primeira execucao periodica de cada
+job e tambem somado aos ciclos seguintes, sempre como um atraso aleatorio entre
+`0` e `OEM_SCHEDULER_JITTER_SECONDS`. A rodada inicial de coleta executada no
+startup nao usa esse jitter.
 
 ## Autenticacao
 

@@ -6,12 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"oem-ingest-new/internal/app"
+	"oem-ingest-new/internal/logging"
 )
 
 var version = "dev"
@@ -52,6 +52,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, nil))
+	logger, err := logging.NewTextLogger(stderr, os.Getenv("OEM_LOG_LEVEL"))
+	if err != nil {
+		return err
+	}
 	return app.Run(ctx, app.Options{Output: stdout, Logger: logger})
 }
