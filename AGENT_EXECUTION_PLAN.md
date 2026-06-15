@@ -791,7 +791,7 @@ Critérios de aceite:
 
 #### Tarefa 8.4 - Compatibilidade com legado
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.2, 6.1.
 
@@ -1268,3 +1268,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `docker compose config`, `timeout 90s docker compose up --build`, `docker compose down --remove-orphans`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; comparados `docs/operacao.md`, README, runtime, Dockerfile e Compose; o smoke real confirmou healthcheck do mock, GETs OEM/latestData/incidentes e POSTs OTLP de métricas/logs; não foram encontradas regressões objetivas de operação, compatibilidade com o legado ou lacunas obrigatórias de teste na 8.3.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.4 - Compatibilidade com legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: criado `oem-ingest-new/docs/compatibilidade_legado.md` documentando contrato legado mantido, incidentes, logs textuais, métricas customizadas e mudança intencional para exportação incremental; README atualizado com o novo documento.

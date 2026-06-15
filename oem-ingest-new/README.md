@@ -104,6 +104,8 @@ checks, alem de `docker build` e um smoke test da imagem com `--help`.
   validacao opcional.
 - `docs/operacao.md`: execucao local, Docker, Docker Compose, logs,
   troubleshooting e metricas internas.
+- `docs/compatibilidade_legado.md`: contrato de compatibilidade com o coletor
+  Python antigo e mudancas intencionais.
 
 Executar `go run ./cmd/oem-ingest` sem argumentos apenas confirma que o
 scaffold foi inicializado quando `OTEL_EXPORT_URL` nao esta definido. Quando
