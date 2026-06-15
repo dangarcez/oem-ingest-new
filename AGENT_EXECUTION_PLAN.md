@@ -825,7 +825,7 @@ Critérios de aceite:
 
 #### Tarefa 9.2 - Revisão de concorrência e shutdown
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3.
 
@@ -1292,3 +1292,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida lacuna da comparação para falhar quando logs OTLP não carregam atributo `metric` e para validar o timestamp OTLP de `oem_incident` com a correção legada de menos 3 horas; relatório de compatibilidade atualizado.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: 9.2 - Revisão de concorrência e shutdown
+  Status: concluída
+  Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: falhas em todas as coletas iniciais agora são warning recuperável para permitir retry pelo scheduler; shutdown mantém flush final com timeout e teste cobre retry de métricas pendentes após falha de exportação.

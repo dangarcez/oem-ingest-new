@@ -38,6 +38,8 @@ type Options struct {
 	TargetInventoryFactory validate.TargetInventoryFactory
 }
 
+const runtimeShutdownTimeout = 10 * time.Second
+
 type startupValidationResult struct {
 	IDs         validate.IDValidationResult
 	Correlation validate.CorrelationValidationResult
@@ -201,20 +203,20 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 	for {
 		select {
 		case <-runtimeCtx.Done():
-			schedulerErr := waitRuntimeStop(schedulerErrCh, 10*time.Second)
-			incidentErr := waitIncidentPollers(incidentErrCh, 10*time.Second)
-			state.flushWithTimeout(10 * time.Second)
+			schedulerErr := waitRuntimeStop(schedulerErrCh, runtimeShutdownTimeout)
+			incidentErr := waitIncidentPollers(incidentErrCh, runtimeShutdownTimeout)
+			state.flushWithTimeout(runtimeShutdownTimeout)
 			return firstRuntimeError(schedulerErr, incidentErr)
 		case err := <-schedulerErrCh:
 			if err == nil || isContextDone(err) {
 				cancelRuntime()
-				_ = waitIncidentPollers(incidentErrCh, 10*time.Second)
-				state.flushWithTimeout(10 * time.Second)
+				_ = waitIncidentPollers(incidentErrCh, runtimeShutdownTimeout)
+				state.flushWithTimeout(runtimeShutdownTimeout)
 				return nil
 			}
 			cancelRuntime()
-			_ = waitIncidentPollers(incidentErrCh, 10*time.Second)
-			state.flushWithTimeout(10 * time.Second)
+			_ = waitIncidentPollers(incidentErrCh, runtimeShutdownTimeout)
+			state.flushWithTimeout(runtimeShutdownTimeout)
 			return err
 		case err, ok := <-incidentErrCh:
 			if !ok {
@@ -225,8 +227,8 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 				continue
 			}
 			cancelRuntime()
-			_ = waitRuntimeStop(schedulerErrCh, 10*time.Second)
-			state.flushWithTimeout(10 * time.Second)
+			_ = waitRuntimeStop(schedulerErrCh, runtimeShutdownTimeout)
+			state.flushWithTimeout(runtimeShutdownTimeout)
 			return err
 		case <-ticker.C:
 			state.enqueueRuntimeMetrics(time.Now())
@@ -319,8 +321,13 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 
 func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []scheduler.Job) error {
 	var successes int
+	var failures int
 	for _, job := range jobs {
 		if err := s.collectAndBuffer(ctx, job); err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			failures++
 			if s.logger != nil && ctx.Err() == nil {
 				s.logger.WarnContext(ctx, "falha na coleta inicial", "job_id", job.ID, "target_name", job.Target.Name, "metric_group", job.MetricGroupName, "err", err)
 			}
@@ -328,8 +335,8 @@ func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []schedul
 		}
 		successes++
 	}
-	if successes == 0 {
-		return errors.New("nenhum job de coleta concluiu com sucesso")
+	if successes == 0 && failures > 0 && s.logger != nil && ctx.Err() == nil {
+		s.logger.WarnContext(ctx, "nenhuma coleta inicial concluiu com sucesso; scheduler continuara tentando", "jobs", len(jobs), "failures", failures)
 	}
 	return nil
 }
