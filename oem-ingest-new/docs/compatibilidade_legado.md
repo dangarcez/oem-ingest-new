@@ -180,12 +180,39 @@ OTLP, como estrutura de diretorios, arquivos `msgpack` de cache, dumps em
 `output/`, variaveis antigas de controle de cache e o mecanismo de scheduler do
 APScheduler.
 
-## Lacunas Conhecidas
+## Comparacao Com Mock
 
-A comparacao empirica completa contra o legado usando `oem_mock` ainda nao foi
-executada nesta tarefa. Ela esta prevista na tarefa 9.1 e deve registrar neste
-documento as divergencias intencionais ou abrir novas tarefas para divergencias
-nao intencionais.
+A tarefa 9.1 executou uma comparacao end-to-end do contrato de saida com o mock
+HTTP de integracao em `TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs`.
+Esse mock usa os exemplos do projeto e payloads representativos do `oem_mock`,
+mas tambem decodifica os protobufs OTLP para permitir comparar nomes, atributos
+e logs. O `oem_mock` Python continua sendo usado como smoke dos endpoints OEM e
+dos stubs `/v1/metrics` e `/v1/logs`, mas ele apenas aceita payload binario e nao
+inspeciona o conteudo OTLP.
+
+O cenario confirmou:
+
+- `service.name=oemAPIService` em metricas e logs;
+- nomes exportados em lowercase no formato legado, incluindo
+  `oem_availability_status`, `oem_response_status`,
+  `oem_instance_throughput_callspersec`, `oem_monitor_response`,
+  `oem_monitor_stus` e `oem_service_status`;
+- preservacao de tags externas como `sistema` e `torre`;
+- atributos principais e conflitos legados, incluindo `instance` para
+  `_instance` e `name` para `name_`;
+- logs textuais com atributo `metric`, body textual e severidade `INFO`;
+- `oem_str_service_status` como log textual continuo com body `ativo`;
+- incidentes como log `oem_incident`, severidade `WARN`, `message` no body,
+  atributos de target preservados e `timeCreated`/`timeUpdated` corrigidos em
+  menos 3 horas.
+
+Nao foram encontradas divergencias nao intencionais nesse cenario. As
+divergencias observadas permanecem as intencionais ja descritas neste documento:
+exportacao incremental de metricas, metricas internas `oem_collector_*`,
+validacao opcional de configuracao e ausencia de geracao de configuracao a
+partir de roots.
+
+## Lacunas Conhecidas
 
 O contrato de compatibilidade e a forma dos dados exportados. Diferencas
 operacionais documentadas acima sao intencionais e fazem parte da refatoracao.

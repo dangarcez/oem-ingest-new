@@ -26,45 +26,11 @@ import (
 const (
 	exampleRACID      = "240D79C7320E221DE06400144FFBE115"
 	exampleDatabaseID = "3107639B0159F1634DCC581E477241AA"
+	exampleIncidentID = "INC-LEGACY-1"
 )
 
 func TestRuntimeIntegrationWithHTTPMockAndExampleConfigs(t *testing.T) {
-	mock := newIntegrationMock()
-	server := httptest.NewServer(http.HandlerFunc(mock.handle))
-	defer server.Close()
-
-	tmp := t.TempDir()
-	root := projectRoot(t)
-	targetsPath := copyExampleConfig(t, root, tmp, "configTargets.example.yaml", map[string]string{
-		"http://localhost:8008": server.URL,
-	})
-	metricsPath := copyExampleConfig(t, root, tmp, "configMetrics.example.yaml", nil)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	mock.setCancel(cancel)
-
-	var output bytes.Buffer
-	err := app.Run(ctx, app.Options{
-		Output: &output,
-		LookupEnv: mapLookup(map[string]string{
-			"OEM_CONFIG_TARGETS":               targetsPath,
-			"OEM_CONFIG_METRICS":               metricsPath,
-			"OEM_USER":                         "user",
-			"OEM_PASSWORD":                     "secret",
-			"OTEL_EXPORT_URL":                  server.URL,
-			"OEM_EXPORT_INTERVAL_SECONDS":      "1",
-			"OEM_HTTP_MAX_RETRIES":             "0",
-			"OEM_HTTP_TIMEOUT_SECONDS":         "2",
-			"OEM_HTTP_CONNECT_TIMEOUT_SECONDS": "2",
-		}),
-		Logger: testLogger{t: t},
-	})
-	if err != nil {
-		t.Fatalf("Run returned error: %v", err)
-	}
-
-	snapshot := mock.snapshot()
+	snapshot, outputText := runRuntimeIntegrationWithHTTPMock(t)
 	if len(snapshot.decodeErrors) > 0 {
 		t.Fatalf("failed to decode OTLP payloads: %v", snapshot.decodeErrors)
 	}
@@ -127,9 +93,122 @@ func TestRuntimeIntegrationWithHTTPMockAndExampleConfigs(t *testing.T) {
 			t.Fatalf("expected at least one latestData call to %s; got %#v", path, snapshot.latestData)
 		}
 	}
-	if !strings.Contains(output.String(), "coleta iniciada com 4 jobs") {
-		t.Fatalf("expected startup message for example configs, got %q", output.String())
+	if !strings.Contains(outputText, "coleta iniciada com 4 jobs") {
+		t.Fatalf("expected startup message for example configs, got %q", outputText)
 	}
+}
+
+func TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs(t *testing.T) {
+	snapshot, _ := runRuntimeIntegrationWithHTTPMock(t)
+	if len(snapshot.decodeErrors) > 0 {
+		t.Fatalf("failed to decode OTLP payloads: %v", snapshot.decodeErrors)
+	}
+
+	assertObserved(t, snapshot.metricServiceNames, "oemAPIService", "metrics resource service.name")
+	assertObserved(t, snapshot.logServiceNames, "oemAPIService", "logs resource service.name")
+	assertObservedKeysLowercase(t, snapshot.metricNames, "metric names")
+	assertObservedLogMetricsLowercase(t, snapshot.logMetrics)
+
+	for _, name := range []string{
+		"oem_availability_status",
+		"oem_service_performance_dbtime_delta",
+		"oem_response_status",
+		"oem_instance_throughput_callspersec",
+		"oem_monitor_stus",
+		"oem_monitor_response",
+		"oem_service_status",
+	} {
+		assertObserved(t, snapshot.metricNames, name, "legacy-compatible metric name")
+	}
+
+	assertMetricAttributes(t, snapshot, "oem_availability_status", map[string]string{
+		"target_name": "occp40bc",
+		"target_type": "rac_database",
+		"sistema":     "siapx",
+		"torre":       "cartoes",
+	})
+	assertMetricAttributes(t, snapshot, "oem_instance_throughput_callspersec", map[string]string{
+		"_instance":    "occp40bc3",
+		"target_name":  "occp40bc_occp40bc3",
+		"target_type":  "oracle_database",
+		"machine_name": "cadecrk01cl01vm03",
+		"sistema":      "siapx",
+		"torre":        "cartoes",
+	})
+	assertMetricAttributes(t, snapshot, "oem_service_status", map[string]string{
+		"name_":       "svc_app",
+		"dbname":      "occp40bc",
+		"target_name": "occp40bc",
+		"target_type": "rac_database",
+		"sistema":     "siapx",
+	})
+
+	assertLogObservation(t, snapshot, "oem_response_databasestatus", "ACTIVE", "INFO", map[string]string{
+		"metric":      "oem_response_databasestatus",
+		"target_name": "occp40bc_occp40bc3",
+		"target_type": "oracle_database",
+	})
+	assertLogObservation(t, snapshot, "oem_service_performance_status", "Up", "INFO", map[string]string{
+		"metric": "oem_service_performance_status",
+		"name_":  "svc_app",
+		"dbname": "occp40bc",
+	})
+	assertLogObservation(t, snapshot, "oem_str_service_status", "ativo", "INFO", map[string]string{
+		"metric": "oem_str_service_status",
+		"name_":  "svc_app",
+		"dbname": "occp40bc",
+	})
+	assertLogObservation(t, snapshot, "oem_incident", "Database target is down", "WARN", map[string]string{
+		"metric":      "oem_incident",
+		"id":          exampleIncidentID,
+		"timeCreated": "2026-06-14T09:30:15.123Z",
+		"timeUpdated": "2026-06-14T09:45:16.789Z",
+		"target_id":   exampleRACID,
+		"target_name": "occp40bc",
+		"target_type": "rac_database",
+		"priority":    "High",
+	})
+}
+
+func runRuntimeIntegrationWithHTTPMock(t *testing.T) (integrationSnapshot, string) {
+	t.Helper()
+	mock := newIntegrationMock()
+	server := httptest.NewServer(http.HandlerFunc(mock.handle))
+	defer server.Close()
+
+	tmp := t.TempDir()
+	root := projectRoot(t)
+	targetsPath := copyExampleConfig(t, root, tmp, "configTargets.example.yaml", map[string]string{
+		"http://localhost:8008": server.URL,
+	})
+	metricsPath := copyExampleConfig(t, root, tmp, "configMetrics.example.yaml", nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	mock.setCancel(cancel)
+
+	var output bytes.Buffer
+	err := app.Run(ctx, app.Options{
+		Output: &output,
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":               targetsPath,
+			"OEM_CONFIG_METRICS":               metricsPath,
+			"OEM_USER":                         "user",
+			"OEM_PASSWORD":                     "secret",
+			"OTEL_EXPORT_URL":                  server.URL,
+			"OEM_EXPORT_INTERVAL_SECONDS":      "1",
+			"OEM_HTTP_MAX_RETRIES":             "0",
+			"OEM_HTTP_TIMEOUT_SECONDS":         "2",
+			"OEM_HTTP_CONNECT_TIMEOUT_SECONDS": "2",
+		}),
+		Logger: testLogger{t: t},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	snapshot := mock.snapshot()
+	return snapshot, output.String()
 }
 
 type integrationMock struct {
@@ -221,7 +300,9 @@ func (m *integrationMock) handle(w http.ResponseWriter, r *http.Request) {
 	case "/em/api":
 		writeJSON(w, `{"name":"oem-mock","version":"integration"}`)
 	case "/em/api/incidents/":
-		writeJSON(w, `{"items":[],"links":{}}`)
+		writeJSON(w, `{"items":[{"id":"`+exampleIncidentID+`","displayId":1001,"message":"Database target is down","targets":[{"id":"`+exampleRACID+`","name":"occp40bc","typeName":"rac_database","typeDisplayName":"Cluster Database"}],"timeCreated":"2026-06-14T12:30:15.123456Z","timeUpdated":"2026-06-14T12:45:16.789123Z","ageInHours":0.25,"isOpen":true,"status":"Open","owner":"SYSMAN","severity":"Critical","priority":"High"}],"links":{}}`)
+	case "/em/api/incidents/" + exampleIncidentID:
+		writeJSON(w, `{"id":"`+exampleIncidentID+`","status":"Open"}`)
 	case "/em/api/targets/" + exampleRACID + "/metricGroups/Availability":
 		writeJSON(w, `{"name":"Availability","keys":[],"metrics":[{"name":"Status","dataType":"NUMBER"}]}`)
 	case "/em/api/targets/" + exampleRACID + "/metricGroups/Availability/latestData":
@@ -350,8 +431,10 @@ func decodeMetricPayload(body []byte) (decodedMetrics, error) {
 }
 
 type logObservation struct {
-	Body       string
-	Attributes map[string]string
+	Body         string
+	SeverityText string
+	TimeUnixNano uint64
+	Attributes   map[string]string
 }
 
 type decodedLogs struct {
@@ -382,8 +465,10 @@ func decodeLogsPayload(body []byte) (decodedLogs, error) {
 					metricName = "<missing>"
 				}
 				decoded.metrics[metricName] = append(decoded.metrics[metricName], logObservation{
-					Body:       anyValueString(record.GetBody()),
-					Attributes: attrs,
+					Body:         anyValueString(record.GetBody()),
+					SeverityText: record.GetSeverityText(),
+					TimeUnixNano: record.GetTimeUnixNano(),
+					Attributes:   attrs,
 				})
 			}
 		}
@@ -498,8 +583,10 @@ func cloneLogMetrics(in map[string][]logObservation) map[string][]logObservation
 		out[key] = make([]logObservation, 0, len(records))
 		for _, record := range records {
 			out[key] = append(out[key], logObservation{
-				Body:       record.Body,
-				Attributes: cloneAttributes(record.Attributes),
+				Body:         record.Body,
+				SeverityText: record.SeverityText,
+				TimeUnixNano: record.TimeUnixNano,
+				Attributes:   cloneAttributes(record.Attributes),
 			})
 		}
 	}
@@ -538,8 +625,10 @@ func mergeLogMetrics(dst, src map[string][]logObservation) {
 	for name, records := range src {
 		for _, record := range records {
 			dst[name] = append(dst[name], logObservation{
-				Body:       record.Body,
-				Attributes: cloneAttributes(record.Attributes),
+				Body:         record.Body,
+				SeverityText: record.SeverityText,
+				TimeUnixNano: record.TimeUnixNano,
+				Attributes:   cloneAttributes(record.Attributes),
 			})
 		}
 	}
@@ -577,6 +666,34 @@ func assertLogAttributes(t *testing.T, snapshot integrationSnapshot, metricName 
 		}
 	}
 	t.Fatalf("expected log metric %q with body %q and attributes %#v; observed %#v", metricName, body, expected, snapshot.logMetrics[metricName])
+}
+
+func assertLogObservation(t *testing.T, snapshot integrationSnapshot, metricName, body, severity string, expected map[string]string) {
+	t.Helper()
+	for _, record := range snapshot.logMetrics[metricName] {
+		if record.Body == body && record.SeverityText == severity && attributesContain(record.Attributes, expected) {
+			return
+		}
+	}
+	t.Fatalf("expected log metric %q with body %q, severity %q and attributes %#v; observed %#v", metricName, body, severity, expected, snapshot.logMetrics[metricName])
+}
+
+func assertObservedKeysLowercase(t *testing.T, counts map[string]int, label string) {
+	t.Helper()
+	for key := range counts {
+		if key != strings.ToLower(key) {
+			t.Fatalf("%s contain non-lowercase key %q; observed %#v", label, key, counts)
+		}
+	}
+}
+
+func assertObservedLogMetricsLowercase(t *testing.T, logs map[string][]logObservation) {
+	t.Helper()
+	for key := range logs {
+		if key != strings.ToLower(key) {
+			t.Fatalf("log metric names contain non-lowercase key %q; observed %#v", key, logs)
+		}
+	}
 }
 
 func attributesContain(attrs, expected map[string]string) bool {

@@ -808,7 +808,7 @@ Critérios de aceite:
 
 #### Tarefa 9.1 - Comparação com legado usando mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3, 8.4.
 
@@ -1280,3 +1280,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; comparados `docs/compatibilidade_legado.md`, código de transformação/exportação/incidentes, `old_docs` e trechos legados; refinado o documento para explicitar precedência de atributos, tratamento de strings numéricas/booleanos, métrica `oem_incident`, intervalo de fechamento, lista de métricas internas e a lacuna pendente da comparação com mock na 9.1.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 9.1 - Comparação com legado usando mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./integration -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: adicionada comparação end-to-end do contrato legado com mock decodificador de OTLP, cobrindo nomes, lowercase, atributos principais, logs textuais, incidentes e divergências intencionais; relatório registrado em `docs/compatibilidade_legado.md`.
