@@ -80,6 +80,7 @@ export OEM_USER=usuario
 export OEM_PASSWORD=senha
 export OTEL_EXPORT_URL=http://localhost:4318
 export OEM_EXPORT_INTERVAL_SECONDS=60
+export OEM_SCHEDULER_JITTER_SECONDS=60
 
 go run ./cmd/oem-ingest
 ```
@@ -223,9 +224,13 @@ Warnings comuns:
 - `falha ao consultar incidentes OEM`: o polling de incidentes falhou naquele
   ciclo.
 
-Logs nao imprimem senha ou token. A variavel `OEM_LOG_LEVEL` faz parte da
-configuracao lida pelo processo; no estado atual, o entrypoint usa o handler de
-texto padrao do `slog`.
+Logs nao imprimem senha ou token. A variavel `OEM_LOG_LEVEL` define o nivel
+minimo emitido pelo processo e aceita `debug`, `info`, `warn`/`warning` ou
+`error`, sem diferenciar maiusculas e minusculas.
+
+No Docker Compose local, `OEM_LOG_LEVEL` vale apenas para o servico
+`oem-ingest`. O servico `oem-mock` usa `uvicorn` com nivel `warning` e access log
+desabilitado para evitar ruido de `INFO` do mock.
 
 ## Encerramento
 

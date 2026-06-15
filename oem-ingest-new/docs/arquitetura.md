@@ -42,7 +42,7 @@ O codigo fica organizado em pacotes internos com responsabilidades pequenas:
 - `internal/incidents`: polling de incidentes OEM, deduplicacao em memoria,
   conversao para logs OTLP e verificacao periodica de fechamento.
 - `internal/selfmetrics`: geracao das metricas internas `oem_collector_*`.
-- `internal/logging`: espaco reservado para convencoes de logging do processo.
+- `internal/logging`: configuracao do logger estruturado e parsing de nivel.
 
 ## Fluxo De Inicializacao
 
@@ -92,8 +92,9 @@ projeto.
 
 O scheduler cria um job para cada combinacao de site, target e grupo de metrica
 definida em `configMetrics.yaml` para o `typeName` do target. Cada job respeita
-`freq` em minutos, recebe jitter de ate 60 segundos por padrao e nao permite que
-duas execucoes do mesmo job rodem em paralelo.
+`freq` em minutos, recebe jitter configurado por
+`OEM_SCHEDULER_JITTER_SECONDS` (60 segundos por padrao) e nao permite que duas
+execucoes do mesmo job rodem em paralelo.
 
 Antes de consultar dados, o coletor busca metadata do grupo em
 `/metricGroups/{groupName}` para descobrir as keys e tipos das metricas. Essa

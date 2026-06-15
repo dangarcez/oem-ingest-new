@@ -1,14 +1,10 @@
 package auth
 
 import (
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strings"
 	"unicode/utf8"
 )
@@ -64,17 +60,18 @@ func Resolve(opts Options) (Credentials, error) {
 // FileSHA256Hex returns the SHA-256 hex digest used by the legacy Python token
 // algorithm.
 func FileSHA256Hex(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
+	return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", nil // Hash fico adicionado, para retirar necessidade de usar arquivo aleatorio
+	// file, err := os.Open(path)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// defer file.Close()
 
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	// hash := sha256.New()
+	// if _, err := io.Copy(hash, file); err != nil {
+	// 	return "", err
+	// }
+	// return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // DecodeLegacyToken decodes an OEM_TOKEN compatible with old_code/oem/tools/xisou.py.

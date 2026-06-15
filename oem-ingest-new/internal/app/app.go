@@ -191,7 +191,7 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 	state.enqueueRuntimeMetrics(time.Now())
 	state.flush(runtimeCtx)
 
-	runner := scheduler.New(scheduler.Options{Logger: opts.Logger})
+	runner := scheduler.New(schedulerOptions(env, opts.Logger))
 	schedulerErrCh := make(chan error, 1)
 	go func() {
 		schedulerErrCh <- runner.Run(runtimeCtx, jobs, state.collectAndBuffer)
@@ -559,6 +559,14 @@ func targetListerFactory(factory validate.TargetInventoryFactory) validate.Targe
 	return func(site config.SiteConfig) (validate.TargetLister, error) {
 		return factory(site)
 	}
+}
+
+func schedulerOptions(env config.Env, logger Logger) scheduler.Options {
+	jitter := env.SchedulerJitter
+	if jitter == 0 {
+		jitter = -1
+	}
+	return scheduler.Options{Logger: logger, Jitter: jitter}
 }
 
 func lookupEnv(lookup func(string) (string, bool)) func(string) (string, bool) {

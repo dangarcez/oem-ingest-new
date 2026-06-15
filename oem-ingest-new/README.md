@@ -62,7 +62,10 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_HTTP_MAX_RETRIES`.
 - `OEM_MAX_CONCURRENT_REQUESTS`: limite global de chamadas HTTP simultaneas ao
   OEM no processo.
-- `OEM_LOG_LEVEL`.
+- `OEM_SCHEDULER_JITTER_SECONDS`: jitter maximo dos jobs de coleta; `0`
+  desabilita.
+- `OEM_LOG_LEVEL`: nivel minimo de log (`debug`, `info`, `warn`/`warning` ou
+  `error`).
 
 ### Autenticacao
 
