@@ -222,7 +222,7 @@ Manter pequeno e documentado:
 
 #### Tarefa 0.1 - Criar scaffold Go
 
-Status: Pendente
+Status: Concluída
 
 Dependências: nenhuma.
 
@@ -242,7 +242,7 @@ Critérios de aceite:
 
 #### Tarefa 0.2 - Configuração e defaults
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -260,7 +260,7 @@ Critérios de aceite:
 
 #### Tarefa 0.3 - Autenticação Basic Auth e token legado
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -280,7 +280,7 @@ Critérios de aceite:
 
 #### Tarefa 1.1 - Cliente HTTP OEM
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 0.3.
 
@@ -305,7 +305,7 @@ Critérios de aceite:
 
 #### Tarefa 1.2 - Adaptar mock para testes locais
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -325,7 +325,7 @@ Critérios de aceite:
 
 #### Tarefa 2.1 - Validação de IDs
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -343,7 +343,7 @@ Critérios de aceite:
 
 #### Tarefa 2.2 - Validação de correlação e inclusão de relacionados
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 2.1.
 
@@ -368,7 +368,7 @@ Critérios de aceite:
 
 #### Tarefa 2.3 - Escrita de configuração corrigida
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 2.1, 2.2.
 
@@ -388,7 +388,7 @@ Critérios de aceite:
 
 #### Tarefa 3.1 - Scheduler de coletas
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 1.1.
 
@@ -407,7 +407,7 @@ Critérios de aceite:
 
 #### Tarefa 3.2 - Cache em memória de keys de metric group
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1.
 
@@ -425,7 +425,7 @@ Critérios de aceite:
 
 #### Tarefa 3.3 - Coleta latestData
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.1, 3.2.
 
@@ -443,7 +443,7 @@ Critérios de aceite:
 
 #### Tarefa 3.4 - Normalização de atributos
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.2, 3.3.
 
@@ -463,7 +463,7 @@ Critérios de aceite:
 
 #### Tarefa 3.5 - Normalização de métricas numéricas e logs textuais
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.2, 3.3, 3.4.
 
@@ -486,7 +486,7 @@ Critérios de aceite:
 
 #### Tarefa 4.1 - `oem_monitor_response`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.3, 3.5.
 
@@ -503,7 +503,7 @@ Critérios de aceite:
 
 #### Tarefa 4.2 - `oem_monitor_stus`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 4.1.
 
@@ -524,7 +524,7 @@ Critérios de aceite:
 
 #### Tarefa 4.3 - `oem_service_status` e `oem_str_service_status`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -545,7 +545,7 @@ Critérios de aceite:
 
 #### Tarefa 4.4 - Métricas internas `oem_collector_*`
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5, 4.1.
 
@@ -572,7 +572,7 @@ Critérios de aceite:
 
 #### Tarefa 5.1 - Exportador OTLP de métricas incremental
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -594,7 +594,7 @@ Critérios de aceite:
 
 #### Tarefa 5.2 - Exportador OTLP de logs
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 3.5.
 
@@ -613,7 +613,7 @@ Critérios de aceite:
 
 #### Tarefa 5.3 - Perfil e observabilidade do exportador
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.1, 5.2, 4.4.
 
@@ -632,7 +632,7 @@ Critérios de aceite:
 
 #### Tarefa 6.1 - Polling de incidentes
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.1, 5.2.
 
@@ -651,7 +651,7 @@ Critérios de aceite:
 
 #### Tarefa 6.2 - Monitoramento de fechamento de incidentes
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 6.1.
 
@@ -669,7 +669,7 @@ Critérios de aceite:
 
 #### Tarefa 7.1 - Dockerfile
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.1, 5.2, 6.1.
 
@@ -686,7 +686,7 @@ Critérios de aceite:
 
 #### Tarefa 7.2 - Docker Compose com app e mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 1.2, 7.1.
 
@@ -705,7 +705,7 @@ Critérios de aceite:
 
 #### Tarefa 7.3 - Teste de integração com mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.2.
 
@@ -724,7 +724,7 @@ Critérios de aceite:
 
 #### Tarefa 7.4 - CI
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3.
 
@@ -746,7 +746,7 @@ Critérios de aceite:
 
 #### Tarefa 8.1 - Documentação de arquitetura
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.1.
 
@@ -761,7 +761,7 @@ Critérios de aceite:
 
 #### Tarefa 8.2 - Documentação de configuração
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 0.2, 2.3.
 
@@ -776,7 +776,7 @@ Critérios de aceite:
 
 #### Tarefa 8.3 - Documentação operacional
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.2.
 
@@ -791,7 +791,7 @@ Critérios de aceite:
 
 #### Tarefa 8.4 - Compatibilidade com legado
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 5.2, 6.1.
 
@@ -808,7 +808,7 @@ Critérios de aceite:
 
 #### Tarefa 9.1 - Comparação com legado usando mock
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3, 8.4.
 
@@ -825,7 +825,7 @@ Critérios de aceite:
 
 #### Tarefa 9.2 - Revisão de concorrência e shutdown
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 7.3.
 
@@ -841,7 +841,7 @@ Critérios de aceite:
 
 #### Tarefa 9.3 - Release candidate
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 9.1, 9.2, 8.1, 8.2, 8.3, 8.4.
 
@@ -914,3 +914,405 @@ Entradas:
   Status: concluída
   Verificações: `git init`, criação de `.gitignore`, atualização do fluxo Git no plano
   Notas: repositório local inicializado para permitir branches, diffs e commits por tarefa.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.1 - Criar scaffold Go
+  Status: concluída
+  Verificações: `GOCACHE=/tmp/oem-go-build-cache go test ./...`, `GOCACHE=/tmp/oem-go-build-cache go vet ./...`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest --help`
+  Notas: scaffold Go criado em `oem-ingest-new`; branch `task/0.1-scaffold-go` criada e commit `769e254` registrado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 0.1 - Criar scaffold Go
+  Status: concluída
+  Verificações: `GOCACHE=/tmp/oem-go-build-cache go test ./...`, `GOCACHE=/tmp/oem-go-build-cache go vet ./...`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest --help`, `GOCACHE=/tmp/oem-go-build-cache go run ./cmd/oem-ingest`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões de compatibilidade com o legado no scaffold; adicionada cobertura para flag inválida e corrigida nota de progresso que ainda indicava bloqueio de commit.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.2 - Configuração e defaults
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: loader YAML e leitura de variáveis de ambiente implementados em `internal/config`; exemplos adicionados em `configs/`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 0.2 - Configuração e defaults
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; corrigida validação de `tags.target_type` e `tags.target_name` com normalização compatível com o legado para `host` e `oracle_listener`; adicionada cobertura para exemplos versionados e tags inconsistentes.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 0.3 - Autenticação Basic Auth e token legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: pacote `internal/auth` implementa Basic Auth, prioridade de `OEM_PASSWORD` sobre `OEM_TOKEN` e decodificação XOR/base64/hash compatível com `old_code/oem/tools/xisou.py`; README documenta a limitação do hash de arquivo em Go.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 0.3 - Autenticação Basic Auth e token legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; substituído hash de arquivo por leitura em streaming compatível com o legado e adicionada fixture estática do algoritmo Python para evitar cobertura apenas por roundtrip interno.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 1.1 - Cliente HTTP OEM
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: cliente OEM implementado em `internal/oem` com Basic Auth, timeouts, pool HTTP, TLS insecure configurável, retry de GET, paginação por `links.next` e contadores de requests/erros.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 1.1 - Cliente HTTP OEM
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; corrigida preservação de paths escapados para IDs/grupos OEM com caracteres especiais e paginação com `links.next` apenas em query string; incidentes agora preservam campos extras para compatibilidade futura com logs; README atualizado para refletir o cliente OEM implementado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 1.2 - Adaptar mock para testes locais
+  Status: concluída
+  Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: mock FastAPI agora responde `/em/api`, carrega fixtures por caminho absoluto do modulo e aceita payloads binarios em `/v1/metrics` e `/v1/logs`; adicionada documentacao local do mock.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 1.2 - Adaptar mock para testes locais
+  Status: concluída
+  Verificações: `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no mock; adicionada cobertura para `properties`, `latestData?limit=200`, detalhe de incidente e 404 de target ausente.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 2.1 - Validação de IDs
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: validação opcional de IDs implementada em `internal/validate`, com correção em memória por `name` + `typeName`, warnings para divergência/ausência/duplicidade e preservação da configuração original.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.1 - Validação de IDs
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./cmd/oem-ingest`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; ligada a validação opcional ao startup quando `OEM_VALIDATE_CONFIG=true`; corrigida normalização de IDs com whitespace e preservação do ID configurado quando a API retorna target sem ID; adicionada cobertura para startup, preservação do arquivo original e casos de ID inválido.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 2.2 - Validação de correlação e inclusão de relacionados
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementada expansão em memória de correlação para `rac_database` e `oracle_pdb`, com tags compatíveis com `processMapping.py`, uso de propriedades de `oracle_database` para `MachineName`/`DataGuardStatus` e preservação de targets avulsos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.2 - Validação de correlação e inclusão de relacionados
+  Status: concluída
+  Verificações: `go test ./internal/validate`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido merge de tags estruturais para não apagar metadados legados existentes quando a validação não consegue redescobrir propriedades ou ancestrais pela API; adicionada cobertura para falha em `TargetProperties`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 2.3 - Escrita de configuração corrigida
+  Status: concluída
+  Verificações: `go test ./internal/config`, `go test ./internal/app`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: validação opcional agora grava `OEM_VALIDATED_CONFIG_OUTPUT` em formato simplificado sem sobrescrever o arquivo original, preservando tags externas e registrando resumo de IDs corrigidos, targets adicionados, tags corrigidas e avisos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 2.3 - Escrita de configuração corrigida
+  Status: concluída
+  Verificações: `go test ./internal/app`, `go test ./internal/config`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida proteção contra `OEM_VALIDATED_CONFIG_OUTPUT` apontando para o arquivo original por symlink/hardlink, preservando `configTargets.yaml`; adicionada cobertura de regressão para symlink.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.1 - Scheduler de coletas
+  Status: concluída
+  Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`
+  Notas: implementado scheduler em `internal/scheduler` com criação de jobs por site/target/grupo, frequências em minutos, jitter configurável, proteção contra sobreposição do mesmo job, shutdown por contexto/sinal e logs de registro/falha.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.1 - Scheduler de coletas
+  Status: concluída
+  Verificações: `go test ./internal/scheduler`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o runner para aplicar `DefaultJitter` de 60s por padrão, preservando opção determinística com `Jitter: -1`; adicionada cobertura para esse contrato.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.2 - Cache em memória de keys de metric group
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: cache de metadados implementado em `internal/collect`, reutilizando keys por `targetId + metricGroupName`, preservando definições de métricas para transformação futura, permitindo grupos bodyless/custom sem keys e tratando 404 como grupo indisponível para o job.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.2 - Cache em memória de keys de metric group
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida coalescência de chamadas concorrentes de metadata para evitar múltiplos requests ao OEM no mesmo target/grupo; metadata bodyless/custom agora fica fora do cache OEM regular para não apagar keys reais nem herdar keys indevidas quando usa o mesmo grupo legado, como `Response`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.3 - Coleta latestData
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: coletor de `latestData` implementado em `internal/collect`, reutilizando metadata cache, paginação do cliente OEM, monitoramento de última coleta útil por target e contadores internos básicos para datapoints, erros e grupos indisponíveis.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.3 - Coleta latestData
+  Status: concluída
+  Verificações: `go test ./internal/collect`, `go test -race ./internal/collect`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida contagem de datapoints para considerar valores de métrica não-key, evitando marcar coleta útil quando o payload tem apenas keys; 404 de metadata agora alimenta o contador de grupos indisponíveis; IDs/grupos normalizados pelo cache são reutilizados na chamada `latestData`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.4 - Normalização de atributos
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`
+  Notas: implementada normalização de atributos em `internal/transform`, unindo tags do target com keys do item e reproduzindo os conflitos legados de `build_tags`/`_buildAttributes`, preservando tags externas.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.4 - Normalização de atributos
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para a ordem legada de colisões entre tags, keys, `service_name`, `name` e `instance`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 3.5 - Normalização de métricas numéricas e logs textuais
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: implementada transformação de `collect.Result` em gauges numéricos e logs textuais, com nomes lowercase, keys ignoradas, uso de `dataType` do OEM para números representados como string e cobertura com cenário similar ao mock.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 3.5 - Normalização de métricas numéricas e logs textuais
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida coerção de booleanos em métricas numéricas para preservar compatibilidade com o legado Python, que tratava `bool` como número; verificado nos fixtures do mock que strings numéricas reais estão cobertas por keys ou `dataType` textual.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.1 - `oem_monitor_response`
+  Status: concluída
+  Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: criada geração do gauge `oem_monitor_response` para todos os targets configurados, usando `ResponseMonitor`, tolerância configurável e comparação estrita compatível com o legado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.1 - `oem_monitor_response`
+  Status: concluída
+  Verificações: `go test ./internal/collect ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/collect ./internal/transform`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py` e `old_code/oem/otel/customexport.py`; não foram encontradas regressões objetivas de compatibilidade ou lacunas de teste bloqueantes na 4.1.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.2 - `oem_monitor_stus`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementada geração do gauge legado `oem_monitor_stus` em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `rac_database`, `oracle_database`, `oracle_pdb`, `host`, nome exportado e ramos sem coleta.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.2 - `oem_monitor_stus`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test -race ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
+  Notas: workspace estava limpo antes da revisão; corrigida regra de `oracle_pdb` para respeitar `State != OPEN` mesmo quando `Status` também existe, conforme o critério da tarefa; adicionada cobertura de regressão.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.3 - `oem_service_status` e `oem_str_service_status`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementada geração customizada de status de serviço em `internal/transform`, consultando `old_docs/5-exceções.md` e `old_code/script.py`; testes cobrem `DBTime_delta`, `status`, valor ativo/inativo, prioridade legada e log textual contínuo.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.3 - `oem_service_status` e `oem_str_service_status`
+  Status: concluída
+  Verificações: `go test ./internal/transform`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go test -race ./internal/transform`, `git diff --check`, `oem_mock/.venv/bin/python -m unittest discover -s oem_mock`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/5-exceções.md`, `old_code/script.py`, `old_code/oem/otel/customexport.py` e fixtures do `oem_mock`; corrigida inferência de keys legadas quando metadata vier vazia para evitar colapso de séries de serviço; testes agora usam os campos reais `name`/`dbname` e `service_name`/`instance` e garantem que campos de cálculo não viram atributos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 4.4 - Métricas internas `oem_collector_*`
+  Status: concluída
+  Verificações: `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: pacote `internal/selfmetrics` implementado com gauges `oem_collector_*`, agregação estável por site/tipo de target, contadores de OEM/coleta/exportação e testes de atualização/incremento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 4.4 - Métricas internas `oem_collector_*`
+  Status: concluída
+  Verificações: `go test ./internal/selfmetrics`, `go test -race ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas de compatibilidade com o legado na 4.4; adicionada cobertura para a lista obrigatória de métricas internas e para agregação determinística por site/tipo sem atributos de target individual.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.1 - Exportador OTLP de métricas incremental
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: exportador OTLP HTTP/protobuf de métricas implementado em `internal/exporter`, com `service.name=oemAPIService`, gauges, endpoint `/v1/metrics`, buffer incremental e retry preservando datapoints após falha.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.1 - Exportador OTLP de métricas incremental
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido isolamento do buffer para clonar atributos ao enfileirar datapoints e evitar mutação externa durante retry/export; exportador agora usa timeout HTTP padrão de 30s quando cliente não é injetado; adicionada cobertura para erro de transporte, mutação de atributos e datapoints adicionados durante um POST em andamento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.2 - Exportador OTLP de logs
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`
+  Notas: exportador OTLP HTTP/protobuf de logs implementado em `internal/exporter`, consultando `old_docs/4-processo_padrao.md`, `old_code/script.py` e `old_code/oem/otel/exportadorlogs.py`; mantém estado do último valor por série textual, reenvia mudanças/contínuas e preserva pendências para retry.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.2 - Exportador OTLP de logs
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test -race ./internal/exporter`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/script.py`, `old_code/oem/otel/exportadorlogs.py` e a cobertura do exportador de métricas; não foram encontradas regressões objetivas no código de produção; adicionada cobertura para preservar logs adicionados durante um POST em andamento para o próximo ciclo de exportação.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 5.3 - Perfil e observabilidade do exportador
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `go test -race ./internal/exporter`, `go test -race ./internal/selfmetrics`
+  Notas: exportadores OTLP agora registram duração, payload e contagem por batch via logger/observer opcionais; `selfmetrics.Registry` acumula datapoints/logs exportados, falhas, payload e duração sem logs por datapoint.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 5.3 - Perfil e observabilidade do exportador
+  Status: concluída
+  Verificações: `go test ./internal/exporter`, `go test ./internal/selfmetrics`, `go test -race ./internal/exporter ./internal/selfmetrics`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparada a implementação com `old_docs/4-processo_padrao.md`, `old_code/oem/otel/customexport.py` e `old_code/oem/otel/exportadorlogs.py`; não foram encontrados bugs objetivos de produção ou regressões de compatibilidade na 5.3; adicionada cobertura de regressão para observabilidade de falha do exportador de logs sem expor body/atributos do log.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 6.1 - Polling de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: implementado poller de incidentes em `internal/incidents`, consultando `old_code/oem/tools/oemalert.py` e `old_code/oem/otel/exportadorlogs.py`; novos incidentes são deduplicados por ID, convertidos em logs com `message` no body, atributos preservados e timestamp corrigido em -3h por compatibilidade legada.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 6.1 - Polling de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test ./internal/exporter`, `go test ./internal/oem`, `go test ./...`, `go vet ./...`, `go test -race ./internal/incidents ./internal/exporter ./internal/oem`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida severidade de incidentes para WARN no OTLP, preservando INFO como default dos logs textuais; incidentes decodificados do JSON real deixam de inventar atributos ausentes com zero/false; adicionada cobertura de regressão para severidade e atributos mínimos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 6.2 - Monitoramento de fechamento de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: poller de incidentes agora verifica periodicamente detalhes de incidentes conhecidos e remove da deduplicação em memória quando o detalhe falha ou retorna `status == Closed`, usando um único loop para evitar jobs/goroutines por incidente.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 6.2 - Monitoramento de fechamento de incidentes
+  Status: concluída
+  Verificações: `go test ./internal/incidents`, `go test -race ./internal/incidents`, `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `./oem_mock/.venv/bin/python -m unittest oem_mock/test_api.py`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o mock para `GET /em/api/incidents/{id}` retornar o incidente solicitado ou 404, evitando falso fechamento de todos os IDs pelo fixture estático; adicionada cobertura para reexportar um incidente depois de removido da deduplicação por fechamento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.1 - Dockerfile
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:dev .` indisponível por ausência do Docker CLI, `podman build -t oem-ingest:dev .`, `podman run --rm oem-ingest:dev --help`
+  Notas: Dockerfile multi-stage criado em `oem-ingest-new`, imagem runtime mínima não-root validada via Podman, exemplos de configuração copiados para `/app/configs` e caminho `/app/auth` documentado para `OEM_AUTH_TOKEN_HASH_FILE`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.1 - Dockerfile
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker build -t oem-ingest:review .` indisponível por Docker Desktop sem integração WSL, `podman build -t oem-ingest:review .`, `podman run --rm oem-ingest:review --help`, `podman run --rm oem-ingest:review --version`
+  Notas: workspace estava limpo antes da revisão; não foram encontradas regressões objetivas no Dockerfile; documentado o cuidado com `OEM_VALIDATED_CONFIG_OUTPUT` quando `/app/configs` for montado somente leitura.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`, parse YAML de `docker-compose.yml` e configs do Compose, `go run ./cmd/oem-ingest --help`, `podman build -t oem-ingest-compose:dev .`, `podman run --rm oem-ingest-compose:dev --help`; `docker compose` indisponível neste WSL; smoke local com `oem_mock` confirmou GETs OEM e POSTs em `/v1/metrics` e `/v1/logs`, encerrado por timeout.
+  Notas: criado `docker-compose.yml` com app Go e mock FastAPI, configs locais em `configs/docker-compose/`, e wiring mínimo do runtime para coletar/exportar quando `OTEL_EXPORT_URL` estiver definido.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: investigado o boot anterior com `journalctl`, que mostrou pressão de memória sustentada antes do reinício sem registro de OOM killer; runtime passou a iniciar polling de incidentes junto com a coleta/exportação, Compose ganhou limites de memória e README documenta smoke curto com `timeout`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.2 - Docker Compose com app e mock
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `git diff --check`, `docker compose up --build -d --remove-orphans`, `docker compose logs --no-color --tail=240`, `docker compose ps`, `docker compose down -v --remove-orphans`
+  Notas: workspace estava limpo antes da revisão; smoke real do Compose revelou loop de paginação em incidentes com `links.next` repetido e encerramento do container por codigo 137; cliente OEM agora detecta paginacao ciclica, o mock trata a pagina seguinte de incidentes como terminal e o Compose confirmou GETs OEM, POSTs OTLP de metricas/logs e containers ativos.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.3 - Teste de integração com mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: adicionado teste de integração com `httptest` que carrega os exemplos de configuração, executa um ciclo de coleta/exportação e valida POSTs OTLP em `/v1/metrics` e `/v1/logs`; README documenta o comando local.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.3 - Teste de integração com mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `go test -race ./integration`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; não foram encontrados bugs objetivos de produção na 7.3; corrigida lacuna de teste para validar conteúdo OTLP decodificado, incluindo `service.name`, nomes legados de métricas/logs e atributos normalizados relevantes.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 7.4 - CI
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
+  Notas: workflow GitHub Actions adicionado para testes Go, vet, integração com mock, build Docker e smoke da imagem; README documenta o CI e comandos locais.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 7.4 - CI
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`, parse YAML de `.github/workflows/ci.yml`, `docker build -t oem-ingest:ci ./oem-ingest-new`, `docker run --rm oem-ingest:ci --help`
+  Notas: workspace estava limpo antes da revisão; comparados workflow, README e critérios da tarefa 7.4; não foram encontradas regressões objetivas de CI, compatibilidade com o legado ou lacunas obrigatórias de teste.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.1 - Documentação de arquitetura
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: criada documentação de arquitetura em `oem-ingest-new/docs/arquitetura.md`, cobrindo componentes, fluxo config-validacao-coleta-transformacao-export, buffer incremental, incidentes e diferenças para o legado.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.1 - Documentação de arquitetura
+  Status: concluída
+  Verificações: `go test ./internal/oem -run TestSharedConcurrencyLimiterCapsRequestsAcrossClients -count=1`, `go test ./internal/oem ./internal/app`, `go test -race ./internal/oem`, `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigido o uso de `OEM_MAX_CONCURRENT_REQUESTS`, que era lido/documentado mas não aplicado, adicionando limitador compartilhado de requests OEM para runtime e validação opcional; documentação de arquitetura e README atualizados para refletir o contrato.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.2 - Documentação de configuração
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: criada documentação de configuração em `oem-ingest-new/docs/configuracao.md`, cobrindo `configTargets.yaml`, `configMetrics.yaml`, variáveis de ambiente, token legado e validação opcional.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.2 - Documentação de configuração
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida a documentação para deixar explícito que os exemplos de execução dependem de OEM/OTLP acessíveis, apontando Docker Compose/teste de integração para uso sem OEM real; refinada a regra do arquivo de hash quando `OEM_TOKEN` é a credencial ativa.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.3 - Documentação operacional
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `docker compose config`, `git diff --check`
+  Notas: criado `oem-ingest-new/docs/operacao.md` com execução local, Docker, Docker Compose, logs, troubleshooting e métricas internas; README passa a apontar para a documentação operacional.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.3 - Documentação operacional
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `docker compose config`, `timeout 90s docker compose up --build`, `docker compose down --remove-orphans`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparados `docs/operacao.md`, README, runtime, Dockerfile e Compose; o smoke real confirmou healthcheck do mock, GETs OEM/latestData/incidentes e POSTs OTLP de métricas/logs; não foram encontradas regressões objetivas de operação, compatibilidade com o legado ou lacunas obrigatórias de teste na 8.3.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 8.4 - Compatibilidade com legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: criado `oem-ingest-new/docs/compatibilidade_legado.md` documentando contrato legado mantido, incidentes, logs textuais, métricas customizadas e mudança intencional para exportação incremental; README atualizado com o novo documento.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 8.4 - Compatibilidade com legado
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; comparados `docs/compatibilidade_legado.md`, código de transformação/exportação/incidentes, `old_docs` e trechos legados; refinado o documento para explicitar precedência de atributos, tratamento de strings numéricas/booleanos, métrica `oem_incident`, intervalo de fechamento, lista de métricas internas e a lacuna pendente da comparação com mock na 9.1.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: 9.1 - Comparação com legado usando mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./integration -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: adicionada comparação end-to-end do contrato legado com mock decodificador de OTLP, cobrindo nomes, lowercase, atributos principais, logs textuais, incidentes e divergências intencionais; relatório registrado em `docs/compatibilidade_legado.md`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.1 - Comparação com legado usando mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida lacuna da comparação para falhar quando logs OTLP não carregam atributo `metric` e para validar o timestamp OTLP de `oem_incident` com a correção legada de menos 3 horas; relatório de compatibilidade atualizado.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: 9.2 - Revisão de concorrência e shutdown
+  Status: concluída
+  Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
+  Notas: falhas em todas as coletas iniciais agora são warning recuperável para permitir retry pelo scheduler; shutdown mantém flush final com timeout e teste cobre retry de métricas pendentes após falha de exportação.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.2 - Revisão de concorrência e shutdown
+  Status: concluída
+  Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenStartupAPIValidationTemporarilyFails|FailsFastWhenStartupAPIValidationReturnsUnauthorized|ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida falha rápida indevida quando o probe inicial `GET /em/api` recebe erro temporário, mantendo retry do runtime e preservando falha rápida para autenticação inválida; adicionada cobertura para 503 recuperável e 401 não recuperável.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: 9.3 - Release candidate
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker build -t oem-ingest:rc ./oem-ingest-new`, `docker run --rm oem-ingest:rc --help`, `docker compose up --build -d --remove-orphans`, `docker compose ps`, `docker compose logs --no-color --tail=240`, `docker compose down -v --remove-orphans`, `git diff --check`
+  Notas: README atualizado para estado de release candidate, sem pendências funcionais bloqueantes; Dockerfile, Compose, documentação e exemplos confirmados; smoke do Compose confirmou GETs OEM, polling de incidentes e POSTs OTLP fake de métricas/logs.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.3 - Release candidate
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `docker build -t oem-ingest:rc-review ./oem-ingest-new`, `docker run --rm oem-ingest:rc-review --help`, `docker compose up --build -d --remove-orphans`, `docker compose ps`, `docker compose logs --no-color --tail=260`, `docker compose down -v --remove-orphans`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; alinhado o workflow de CI ao README adicionando smoke de CLI para `--help` e `--version`; revisão confirmou build Docker e Compose com mock, incluindo GETs OEM/latestData, polling de incidentes e POSTs OTLP fake.

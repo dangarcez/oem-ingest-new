@@ -1,0 +1,8 @@
+rac_database:
+  - freq: 5
+    metric_group_name: Availability
+  - freq: 5
+    metric_group_name: service_performance
+oracle_database:
+  - freq: 5
+    metric_group_name: Response
