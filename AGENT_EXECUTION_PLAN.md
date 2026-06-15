@@ -1310,3 +1310,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker build -t oem-ingest:rc ./oem-ingest-new`, `docker run --rm oem-ingest:rc --help`, `docker compose up --build -d --remove-orphans`, `docker compose ps`, `docker compose logs --no-color --tail=240`, `docker compose down -v --remove-orphans`, `git diff --check`
   Notas: README atualizado para estado de release candidate, sem pendências funcionais bloqueantes; Dockerfile, Compose, documentação e exemplos confirmados; smoke do Compose confirmou GETs OEM, polling de incidentes e POSTs OTLP fake de métricas/logs.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.3 - Release candidate
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker compose config`, `docker build -t oem-ingest:rc-review ./oem-ingest-new`, `docker run --rm oem-ingest:rc-review --help`, `docker compose up --build -d --remove-orphans`, `docker compose ps`, `docker compose logs --no-color --tail=260`, `docker compose down -v --remove-orphans`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; alinhado o workflow de CI ao README adicionando smoke de CLI para `--help` e `--version`; revisão confirmou build Docker e Compose com mock, incluindo GETs OEM/latestData, polling de incidentes e POSTs OTLP fake.

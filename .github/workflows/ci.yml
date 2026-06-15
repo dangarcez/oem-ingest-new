@@ -37,6 +37,12 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: CLI help
+        run: go run ./cmd/oem-ingest --help
+
+      - name: CLI version
+        run: go run ./cmd/oem-ingest --version
+
       - name: Integration test with mock
         run: go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1
 
