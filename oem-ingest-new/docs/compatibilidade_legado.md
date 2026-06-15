@@ -33,10 +33,16 @@ coletado. A ordem e as reescritas de conflito seguem `build_tags` e
 `_buildAttributes` do legado:
 
 - `instance` vira `_instance`;
-- `service_name` vira `name` e depois `name_`;
+- `service_name` vira `name` e, pela regra seguinte, vira `name_`;
 - `name` vira `name_`;
 - `Username_machine` gera tambem `user` e `pod` a partir dos dois primeiros
   segmentos separados por `_`.
+
+Quando `service_name` e `name` existem no mesmo item, `service_name` tem
+precedencia porque o Python legado tambem sobrescrevia `name` antes de aplicar a
+reescrita para `name_`. Os nomes dos atributos preservam o casing vindo da
+configuracao/OEM; o lowercase obrigatorio se aplica aos nomes de metricas/logs
+exportados.
 
 Tags externas de configuracao, como `sistema`, `torre`, ambiente ou dono
 operacional, sao preservadas. As tags estruturais de targets mantem a
@@ -47,13 +53,17 @@ normalizacao legada de `processMapping.py`, incluindo `target_name`,
 
 Valores numericos nativos viram gauges. Quando a metadata do grupo informa
 `dataType` numerico, strings numericas tambem sao tratadas como numeros. Valores
-textuais viram logs com o texto no body e o atributo `metric` contendo o nome
-normalizado da metrica.
+booleanos seguem a compatibilidade do Python, onde `bool` tambem era tratado
+como numero. Sem metadata numerica, strings continuam sendo logs mesmo quando
+parecem conter um numero. Valores textuais viram logs com o texto no body e o
+atributo `metric` contendo o nome normalizado da metrica.
 
 Logs textuais mantem a regra do legado: a primeira ocorrencia de uma serie e
 enviada, valores iguais nao sao reenviados e valores alterados sao enviados
 novamente. Metricas textuais marcadas como continuas, como
 `oem_str_service_status`, sao sempre enfileiradas mesmo quando o valor nao muda.
+A deduplicacao usa o conjunto `metric + target + serie`, preservando series
+distintas do mesmo grupo.
 
 ## Metricas Customizadas
 
@@ -93,10 +103,11 @@ servicos de `rac_database/service_performance` e `oracle_pdb/DBService`:
 
 ## Incidentes
 
-Incidentes continuam sendo exportados como logs OTLP. O polling usa a janela de
-1 hora e roda a cada 5 minutos. Cada incidente novo e deduplicado em memoria
-pelo `id`, usa `message` como body do log e envia os demais campos como
-atributos.
+Incidentes continuam sendo exportados como logs OTLP com o nome normalizado
+`oem_incident`. O polling usa a janela de 1 hora e roda a cada 5 minutos. Cada
+incidente novo e deduplicado em memoria pelo `id`, usa `message` como body do
+log e envia os demais campos como atributos. O campo `message` nao e duplicado
+como atributo, seguindo o comportamento do logger legado.
 
 O novo coletor preserva o workaround legado de timestamp: `timeCreated` e
 `timeUpdated` sao exportados com 3 horas subtraidas. O timestamp do log tambem
@@ -108,9 +119,9 @@ serializado em JSON. Campos extras retornados pelo OEM tambem sao preservados
 quando nao colidem com atributos ja normalizados. Logs de incidente usam
 severidade WARN.
 
-A verificacao periodica de fechamento tambem foi mantida: o coletor consulta o
-detalhe de incidentes conhecidos e remove o `id` da deduplicacao quando o
-endpoint falha ou quando `status == Closed`.
+A verificacao periodica de fechamento tambem foi mantida. Por default, ela roda
+a cada 1 hora, consulta o detalhe de incidentes conhecidos e remove o `id` da
+deduplicacao quando o endpoint falha ou quando `status == Closed`.
 
 ## Mudancas Intencionais
 
@@ -137,14 +148,25 @@ em memoria, escreve um novo arquivo em `OEM_VALIDATED_CONFIG_OUTPUT` e preserva
 o arquivo original.
 
 Metricas internas da aplicacao sao novas e usam o prefixo `oem_collector_*`.
-Elas descrevem o proprio coletor, como targets configurados, requests OEM,
-datapoints exportados, falhas de exportacao e tamanho de payload.
+Elas descrevem o proprio coletor e hoje incluem:
+
+- `oem_collector_targets_configured`;
+- `oem_collector_targets_active`;
+- `oem_collector_targets_inactive`;
+- `oem_collector_oem_requests_total`;
+- `oem_collector_oem_request_errors_total`;
+- `oem_collector_datapoints_collected_total`;
+- `oem_collector_datapoints_exported_total`;
+- `oem_collector_logs_exported_total`;
+- `oem_collector_export_failures_total`;
+- `oem_collector_export_payload_bytes`;
+- `oem_collector_export_duration_seconds`.
 
 ## Autenticacao Legada
 
 Basic Auth continua sendo o mecanismo de autenticacao contra o OEM. A senha pode
 vir diretamente de `OEM_PASSWORD` ou de `OEM_TOKEN`, que preserva o algoritmo
-legado de XOR/base64 URL-safe com SHA-256 de arquivo.
+legado de XOR/base64 URL-safe com o SHA-256 hexadecimal de um arquivo.
 
 No Python, o arquivo usado no hash era o arquivo fonte do script em execucao. No
 Go, esse arquivo deve ser informado explicitamente por
@@ -157,6 +179,13 @@ O novo projeto nao preserva detalhes internos do Python que nao afetam a saida
 OTLP, como estrutura de diretorios, arquivos `msgpack` de cache, dumps em
 `output/`, variaveis antigas de controle de cache e o mecanismo de scheduler do
 APScheduler.
+
+## Lacunas Conhecidas
+
+A comparacao empirica completa contra o legado usando `oem_mock` ainda nao foi
+executada nesta tarefa. Ela esta prevista na tarefa 9.1 e deve registrar neste
+documento as divergencias intencionais ou abrir novas tarefas para divergencias
+nao intencionais.
 
 O contrato de compatibilidade e a forma dos dados exportados. Diferencas
 operacionais documentadas acima sao intencionais e fazem parte da refatoracao.
