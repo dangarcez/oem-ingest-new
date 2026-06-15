@@ -1286,3 +1286,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./integration -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
   Notas: adicionada comparação end-to-end do contrato legado com mock decodificador de OTLP, cobrindo nomes, lowercase, atributos principais, logs textuais, incidentes e divergências intencionais; relatório registrado em `docs/compatibilidade_legado.md`.
+- Data: 2026-06-14
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.1 - Comparação com legado usando mock
+  Status: concluída
+  Verificações: `go test ./integration -run TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida lacuna da comparação para falhar quando logs OTLP não carregam atributo `metric` e para validar o timestamp OTLP de `oem_incident` com a correção legada de menos 3 horas; relatório de compatibilidade atualizado.

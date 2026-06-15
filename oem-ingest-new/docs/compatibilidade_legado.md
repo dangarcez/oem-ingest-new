@@ -204,7 +204,8 @@ O cenario confirmou:
 - `oem_str_service_status` como log textual continuo com body `ativo`;
 - incidentes como log `oem_incident`, severidade `WARN`, `message` no body,
   atributos de target preservados e `timeCreated`/`timeUpdated` corrigidos em
-  menos 3 horas.
+  menos 3 horas, incluindo o timestamp OTLP do log baseado em `timeCreated`
+  corrigido.
 
 Nao foram encontradas divergencias nao intencionais nesse cenario. As
 divergencias observadas permanecem as intencionais ja descritas neste documento:

@@ -158,7 +158,7 @@ func TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs(t *testing.T
 		"name_":  "svc_app",
 		"dbname": "occp40bc",
 	})
-	assertLogObservation(t, snapshot, "oem_incident", "Database target is down", "WARN", map[string]string{
+	incidentLog := assertLogObservation(t, snapshot, "oem_incident", "Database target is down", "WARN", map[string]string{
 		"metric":      "oem_incident",
 		"id":          exampleIncidentID,
 		"timeCreated": "2026-06-14T09:30:15.123Z",
@@ -168,6 +168,7 @@ func TestLegacyCompatibilityComparisonWithHTTPMockAndExampleConfigs(t *testing.T
 		"target_type": "rac_database",
 		"priority":    "High",
 	})
+	assertLogTimestamp(t, incidentLog, "2026-06-14T09:30:15.123456Z", "incident log timestamp")
 }
 
 func runRuntimeIntegrationWithHTTPMock(t *testing.T) (integrationSnapshot, string) {
@@ -668,14 +669,28 @@ func assertLogAttributes(t *testing.T, snapshot integrationSnapshot, metricName 
 	t.Fatalf("expected log metric %q with body %q and attributes %#v; observed %#v", metricName, body, expected, snapshot.logMetrics[metricName])
 }
 
-func assertLogObservation(t *testing.T, snapshot integrationSnapshot, metricName, body, severity string, expected map[string]string) {
+func assertLogObservation(t *testing.T, snapshot integrationSnapshot, metricName, body, severity string, expected map[string]string) logObservation {
 	t.Helper()
 	for _, record := range snapshot.logMetrics[metricName] {
 		if record.Body == body && record.SeverityText == severity && attributesContain(record.Attributes, expected) {
-			return
+			return record
 		}
 	}
 	t.Fatalf("expected log metric %q with body %q, severity %q and attributes %#v; observed %#v", metricName, body, severity, expected, snapshot.logMetrics[metricName])
+	return logObservation{}
+}
+
+func assertLogTimestamp(t *testing.T, record logObservation, want string, label string) {
+	t.Helper()
+	expected, err := time.Parse(time.RFC3339Nano, want)
+	if err != nil {
+		t.Fatalf("invalid expected timestamp %q: %v", want, err)
+	}
+	expectedNano := uint64(expected.UnixNano())
+	if record.TimeUnixNano != expectedNano {
+		observed := time.Unix(0, int64(record.TimeUnixNano)).UTC().Format(time.RFC3339Nano)
+		t.Fatalf("%s = %d (%s), want %d (%s)", label, record.TimeUnixNano, observed, expectedNano, expected.UTC().Format(time.RFC3339Nano))
+	}
 }
 
 func assertObservedKeysLowercase(t *testing.T, counts map[string]int, label string) {
@@ -690,6 +705,9 @@ func assertObservedKeysLowercase(t *testing.T, counts map[string]int, label stri
 func assertObservedLogMetricsLowercase(t *testing.T, logs map[string][]logObservation) {
 	t.Helper()
 	for key := range logs {
+		if key == "<missing>" {
+			t.Fatalf("logs contain records without metric attribute; observed %#v", logs[key])
+		}
 		if key != strings.ToLower(key) {
 			t.Fatalf("log metric names contain non-lowercase key %q; observed %#v", key, logs)
 		}
