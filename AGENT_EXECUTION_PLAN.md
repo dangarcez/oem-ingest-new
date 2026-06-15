@@ -1298,3 +1298,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `git diff --check`
   Notas: falhas em todas as coletas iniciais agora são warning recuperável para permitir retry pelo scheduler; shutdown mantém flush final com timeout e teste cobre retry de métricas pendentes após falha de exportação.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: revisão técnica da tarefa 9.2 - Revisão de concorrência e shutdown
+  Status: concluída
+  Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenStartupAPIValidationTemporarilyFails|FailsFastWhenStartupAPIValidationReturnsUnauthorized|ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
+  Notas: workspace estava limpo antes da revisão; corrigida falha rápida indevida quando o probe inicial `GET /em/api` recebe erro temporário, mantendo retry do runtime e preservando falha rápida para autenticação inválida; adicionada cobertura para 503 recuperável e 401 não recuperável.

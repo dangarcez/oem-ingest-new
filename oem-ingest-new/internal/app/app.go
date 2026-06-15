@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -296,7 +297,17 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			return nil, err
 		}
 		if _, err := client.API(ctx); err != nil {
-			return nil, fmt.Errorf("validar conexao OEM %q: %w", site.Endpoint, err)
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
+			if !isRecoverableStartupAPIError(err) {
+				return nil, fmt.Errorf("validar conexao OEM %q: %w", site.Endpoint, err)
+			}
+			if logger != nil {
+				logger.WarnContext(ctx, "falha temporaria ao validar conexao OEM; runtime continuara tentando", "endpoint", site.Endpoint, "err", err)
+			}
+		} else if logger != nil {
+			logger.InfoContext(ctx, "conexao OEM validada", "endpoint", site.Endpoint)
 		}
 		state.clientsByEndpoint[site.Endpoint] = client
 		state.collectorsByEndpoint[site.Endpoint] = collect.NewCollector(client, collect.CollectorOptions{
@@ -312,11 +323,25 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			return nil, err
 		}
 		state.incidentPollers = append(state.incidentPollers, poller)
-		if logger != nil {
-			logger.InfoContext(ctx, "conexao OEM validada", "endpoint", site.Endpoint)
-		}
 	}
 	return state, nil
+}
+
+func isRecoverableStartupAPIError(err error) bool {
+	var httpErr *oem.HTTPError
+	if !errors.As(err, &httpErr) {
+		return true
+	}
+	switch httpErr.StatusCode {
+	case http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []scheduler.Job) error {

@@ -240,6 +240,175 @@ host:
 	}
 }
 
+func TestRunContinuesWhenStartupAPIValidationTemporarilyFails(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: t1
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var apiCalls atomic.Int32
+	var metricsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			apiCalls.Add(1)
+			http.Error(w, "oem temporarily unavailable", http.StatusServiceUnavailable)
+		case "/em/api/targets/t1/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/t1/metricGroups/Load/latestData":
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/em/api/incidents/":
+			fmt.Fprint(w, `{"items":[]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			if cancel != nil {
+				time.AfterFunc(10*time.Millisecond, cancel)
+			}
+		case "/v1/logs":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+			return
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	cancel = stop
+	defer stop()
+
+	logger := &appRecordingLogger{}
+	err = Run(ctx, Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":          targetsPath,
+			"OEM_CONFIG_METRICS":          metricsPath,
+			"OEM_USER":                    "user",
+			"OEM_PASSWORD":                "secret",
+			"OTEL_EXPORT_URL":             server.URL,
+			"OEM_HTTP_MAX_RETRIES":        "0",
+			"OEM_EXPORT_INTERVAL_SECONDS": "60",
+		}),
+		Logger: logger,
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if apiCalls.Load() == 0 {
+		t.Fatal("expected startup API validation to be attempted")
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected collection/export to continue after temporary API validation failure")
+	}
+	if !logger.containsWarning("runtime continuara tentando") {
+		t.Fatalf("expected recoverable API validation warning, got %#v", logger.warningsSnapshot())
+	}
+}
+
+func TestRunFailsFastWhenStartupAPIValidationReturnsUnauthorized(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: t1
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var metricsPosts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/em/api" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/v1/metrics" {
+			metricsPosts.Add(1)
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	err = Run(context.Background(), Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":   targetsPath,
+			"OEM_CONFIG_METRICS":   metricsPath,
+			"OEM_USER":             "user",
+			"OEM_PASSWORD":         "secret",
+			"OTEL_EXPORT_URL":      server.URL,
+			"OEM_HTTP_MAX_RETRIES": "0",
+		}),
+		Logger: &appRecordingLogger{},
+	})
+	if err == nil || !strings.Contains(err.Error(), "validar conexao OEM") || !strings.Contains(err.Error(), "HTTP 401") {
+		t.Fatalf("expected unauthorized startup validation error, got %v", err)
+	}
+	if metricsPosts.Load() != 0 {
+		t.Fatalf("metrics POSTs = %d, want no runtime export after unauthorized startup validation", metricsPosts.Load())
+	}
+}
+
 func TestRunContinuesWhenInitialCollectionsFail(t *testing.T) {
 	tmp := t.TempDir()
 	targetsPath := filepath.Join(tmp, "configTargets.yaml")
