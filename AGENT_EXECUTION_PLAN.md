@@ -841,7 +841,7 @@ Critérios de aceite:
 
 #### Tarefa 9.3 - Release candidate
 
-Status: Pendente
+Status: Concluída
 
 Dependências: 9.1, 9.2, 8.1, 8.2, 8.3, 8.4.
 
@@ -1304,3 +1304,9 @@ Entradas:
   Status: concluída
   Verificações: `go test ./internal/app -run 'TestRun(ContinuesWhenStartupAPIValidationTemporarilyFails|FailsFastWhenStartupAPIValidationReturnsUnauthorized|ContinuesWhenInitialCollectionsFail|RetriesPendingMetricsDuringFinalFlush)$' -count=1`, `go test -race ./internal/app -count=1`, `go test ./internal/scheduler ./internal/exporter ./internal/incidents ./internal/oem -count=1`, `go test ./...`, `go vet ./...`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `git diff --check`
   Notas: workspace estava limpo antes da revisão; corrigida falha rápida indevida quando o probe inicial `GET /em/api` recebe erro temporário, mantendo retry do runtime e preservando falha rápida para autenticação inválida; adicionada cobertura para 503 recuperável e 401 não recuperável.
+- Data: 2026-06-15
+  Agent: Codex
+  Tarefa: 9.3 - Release candidate
+  Status: concluída
+  Verificações: `go test ./...`, `go vet ./...`, `go test ./integration -run TestRuntimeIntegrationWithHTTPMockAndExampleConfigs -count=1`, `docker compose config`, `go run ./cmd/oem-ingest --help`, `go run ./cmd/oem-ingest --version`, `./oem_mock/.venv/bin/python -m unittest discover -s oem_mock`, `docker build -t oem-ingest:rc ./oem-ingest-new`, `docker run --rm oem-ingest:rc --help`, `docker compose up --build -d --remove-orphans`, `docker compose ps`, `docker compose logs --no-color --tail=240`, `docker compose down -v --remove-orphans`, `git diff --check`
+  Notas: README atualizado para estado de release candidate, sem pendências funcionais bloqueantes; Dockerfile, Compose, documentação e exemplos confirmados; smoke do Compose confirmou GETs OEM, polling de incidentes e POSTs OTLP fake de métricas/logs.

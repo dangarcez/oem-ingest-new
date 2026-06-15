@@ -4,11 +4,12 @@ Coletor em Go para consumir metricas da API do Oracle Enterprise Manager (OEM)
 e exportar dados em OTLP para um OpenTelemetry Collector.
 
 Este diretorio contem o novo projeto. O codigo legado permanece fora daqui, em
-`../old_code`, apenas como referencia de compatibilidade para tarefas futuras.
+`../old_code`, apenas como referencia de compatibilidade.
 
-## Estado atual
+## Release candidate
 
-O projeto atual define:
+O projeto esta em estado de release candidate local. O escopo implementado
+inclui:
 
 - modulo Go em `oem-ingest-new`;
 - comando `cmd/oem-ingest`;
@@ -27,6 +28,10 @@ O projeto atual define:
 - exportacao OTLP HTTP/protobuf incremental de metricas e logs;
 - polling de incidentes OEM como logs OTLP;
 - Dockerfile e Docker Compose local com o `oem_mock`.
+
+Antes de promover uma imagem para ambiente real, execute os checks finais da
+secao [Comandos](#comandos) e valide a conectividade com o OEM e com o endpoint
+OTLP do ambiente alvo.
 
 ## Configuracao
 
@@ -170,3 +175,16 @@ Para uma verificacao curta em WSL, prefira limitar a execucao:
 timeout 90s docker compose up --build
 docker compose down
 ```
+
+## Pendencias conhecidas
+
+Nao ha pendencias funcionais bloqueantes registradas para este release
+candidate. Antes da promocao operacional, ainda devem ser validados no ambiente
+real:
+
+- credenciais e conectividade com cada endpoint OEM configurado;
+- aceitacao dos payloads OTLP pelo collector de destino;
+- politica operacional para usar o YAML validado gerado por
+  `OEM_VALIDATE_CONFIG=true`;
+- arquivo base correto para `OEM_AUTH_TOKEN_HASH_FILE` quando tokens legados ja
+  existentes forem reutilizados.
