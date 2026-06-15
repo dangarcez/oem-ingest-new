@@ -45,6 +45,7 @@ type Env struct {
 	MaxConcurrentRequests    int
 	SchedulerJitter          time.Duration
 	LogLevel                 string
+	TLSVerify                bool
 }
 
 // SiteConfig represents one OEM site from configTargets.yaml.
@@ -102,10 +103,13 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		HTTPMaxRetries:           DefaultHTTPMaxRetries,
 		MaxConcurrentRequests:    DefaultMaxConcurrentRequests,
 		SchedulerJitter:          time.Duration(DefaultSchedulerJitterSeconds) * time.Second,
-		LogLevel:                 stringValue(lookup, "OEM_LOG_LEVEL", DefaultLogLevel),
+		TLSVerify:                true,
 	}
 
 	var err error
+	if env.LogLevel, err = logLevelValue(lookup, "OEM_LOG_LEVEL", DefaultLogLevel); err != nil {
+		return Env{}, err
+	}
 	if env.ValidateConfig, err = boolValue(lookup, "OEM_VALIDATE_CONFIG", false); err != nil {
 		return Env{}, err
 	}
@@ -128,6 +132,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.SchedulerJitter, err = nonNegativeSecondsValue(lookup, "OEM_SCHEDULER_JITTER_SECONDS", DefaultSchedulerJitterSeconds); err != nil {
+		return Env{}, err
+	}
+	if env.TLSVerify, err = boolValue(lookup, "OEM_TLS_VERIFY", true); err != nil {
 		return Env{}, err
 	}
 
@@ -299,6 +306,25 @@ func boolValue(lookup func(string) (string, bool), name string, fallback bool) (
 		return false, nil
 	default:
 		return false, fmt.Errorf("%s: use true ou false", name)
+	}
+}
+
+func logLevelValue(lookup func(string) (string, bool), name, fallback string) (string, error) {
+	value, ok := lookup(name)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fallback, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "debug":
+		return "debug", nil
+	case "info":
+		return "info", nil
+	case "warn", "warning":
+		return "warn", nil
+	case "error":
+		return "error", nil
+	default:
+		return "", fmt.Errorf("%s: use debug, info, warn ou error", name)
 	}
 }
 

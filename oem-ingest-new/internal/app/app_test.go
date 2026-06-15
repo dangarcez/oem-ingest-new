@@ -31,6 +31,67 @@ func TestRunDoesNotRequireExternalServices(t *testing.T) {
 	}
 }
 
+func TestRunRejectsInvalidConfiguredLogLevel(t *testing.T) {
+	var output, logs bytes.Buffer
+
+	err := Run(context.Background(), Options{
+		Output:    &output,
+		LogOutput: &logs,
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_LOG_LEVEL": "verbose",
+		}),
+	})
+	if err == nil || !strings.Contains(err.Error(), "OEM_LOG_LEVEL") {
+		t.Fatalf("expected OEM_LOG_LEVEL error, got %v", err)
+	}
+	if output.Len() != 0 || logs.Len() != 0 {
+		t.Fatalf("expected no output before app starts; output=%q logs=%q", output.String(), logs.String())
+	}
+}
+
+func TestRunUsesConfiguredLogLevelForDefaultLogger(t *testing.T) {
+	tests := []struct {
+		name    string
+		level   string
+		wantLog bool
+	}{
+		{name: "info emits validation summary", level: "INFO", wantLog: true},
+		{name: "error filters validation summary", level: "ERROR", wantLog: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetsPath := writeTargetsFile(t, "configured-id")
+			validatedPath := filepath.Join(t.TempDir(), "validated", "configTargets.yaml")
+			var output, logs bytes.Buffer
+
+			err := Run(context.Background(), Options{
+				Output:    &output,
+				LogOutput: &logs,
+				LookupEnv: mapLookup(map[string]string{
+					"OEM_VALIDATE_CONFIG":         "true",
+					"OEM_CONFIG_TARGETS":          targetsPath,
+					"OEM_VALIDATED_CONFIG_OUTPUT": validatedPath,
+					"OEM_LOG_LEVEL":               tt.level,
+				}),
+				TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+					return appFakeTargetLister{
+						targets: []oem.Target{{ID: "configured-id", Name: "cdbp51bc", TypeName: "rac_database"}},
+					}, nil
+				},
+			})
+			if err != nil {
+				t.Fatalf("Run returned error: %v", err)
+			}
+
+			hasSummaryLog := strings.Contains(logs.String(), "configuracao validada escrita")
+			if hasSummaryLog != tt.wantLog {
+				t.Fatalf("summary log presence = %t, want %t; logs=%q", hasSummaryLog, tt.wantLog, logs.String())
+			}
+		})
+	}
+}
+
 func TestSchedulerOptionsUsesConfiguredJitter(t *testing.T) {
 	opts := schedulerOptions(config.Env{SchedulerJitter: 12 * time.Second}, nil)
 	if opts.Jitter != 12*time.Second {
@@ -719,6 +780,48 @@ func TestRunValidationUsesCredentialsWhenFactoryIsNotInjected(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "OEM_USER") {
 		t.Fatalf("expected credentials error, got %v", err)
+	}
+}
+
+func TestTargetInventoryFactoryCanDisableTLSVerification(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "user" || pass != "secret" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path != "/em/api/targets" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"items":[{"id":"target-1","name":"db1","typeName":"oracle_database"}]}`)
+	}))
+	defer server.Close()
+
+	env, err := config.ReadEnv(mapLookup(map[string]string{
+		"OEM_USER":       "user",
+		"OEM_PASSWORD":   "secret",
+		"OEM_TLS_VERIFY": "false",
+	}))
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	factory, err := targetInventoryFactory(env)
+	if err != nil {
+		t.Fatalf("targetInventoryFactory returned error: %v", err)
+	}
+	inventory, err := factory(config.SiteConfig{Endpoint: server.URL})
+	if err != nil {
+		t.Fatalf("factory returned error: %v", err)
+	}
+
+	targets, err := inventory.ListTargets(context.Background())
+	if err != nil {
+		t.Fatalf("ListTargets with OEM_TLS_VERIFY=false returned error: %v", err)
+	}
+	if len(targets.Items) != 1 || targets.Items[0].ID != "target-1" {
+		t.Fatalf("unexpected targets: %#v", targets.Items)
 	}
 }
 

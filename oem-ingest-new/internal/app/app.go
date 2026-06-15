@@ -17,6 +17,7 @@ import (
 	"oem-ingest-new/internal/config"
 	"oem-ingest-new/internal/exporter"
 	"oem-ingest-new/internal/incidents"
+	"oem-ingest-new/internal/logging"
 	"oem-ingest-new/internal/oem"
 	"oem-ingest-new/internal/scheduler"
 	"oem-ingest-new/internal/selfmetrics"
@@ -34,6 +35,7 @@ type Logger interface {
 // Options holds process-level dependencies for the application entry point.
 type Options struct {
 	Output                 io.Writer
+	LogOutput              io.Writer
 	LookupEnv              func(string) (string, bool)
 	Logger                 Logger
 	TargetInventoryFactory validate.TargetInventoryFactory
@@ -59,6 +61,12 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
+	logger, err := loggerFromOptions(env, opts)
+	if err != nil {
+		return err
+	}
+	opts.Logger = logger
+
 	var validatedSites []config.SiteConfig
 	if env.ValidateConfig {
 		result, err := validateStartupTargets(ctx, env, opts)
@@ -95,6 +103,16 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 	return nil
+}
+
+func loggerFromOptions(env config.Env, opts Options) (Logger, error) {
+	if opts.Logger != nil {
+		return opts.Logger, nil
+	}
+	if opts.LogOutput == nil {
+		return nil, nil
+	}
+	return logging.NewTextLogger(opts.LogOutput, env.LogLevel)
 }
 
 func validateStartupTargets(ctx context.Context, env config.Env, opts Options) (startupValidationResult, error) {
@@ -286,12 +304,13 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			continue
 		}
 		client, err := oem.New(oem.Options{
-			Endpoint:       site.Endpoint,
-			Credentials:    credentials,
-			Timeout:        env.HTTPTimeout,
-			ConnectTimeout: env.HTTPConnectTimeout,
-			MaxRetries:     env.HTTPMaxRetries,
-			Limiter:        oemLimiter,
+			Endpoint:              site.Endpoint,
+			Credentials:           credentials,
+			Timeout:               env.HTTPTimeout,
+			ConnectTimeout:        env.HTTPConnectTimeout,
+			MaxRetries:            env.HTTPMaxRetries,
+			InsecureSkipTLSVerify: !env.TLSVerify,
+			Limiter:               oemLimiter,
 		})
 		if err != nil {
 			return nil, err
@@ -545,12 +564,13 @@ func targetInventoryFactory(env config.Env) (validate.TargetInventoryFactory, er
 
 	return func(site config.SiteConfig) (validate.TargetInventory, error) {
 		return oem.New(oem.Options{
-			Endpoint:       site.Endpoint,
-			Credentials:    credentials,
-			Timeout:        env.HTTPTimeout,
-			ConnectTimeout: env.HTTPConnectTimeout,
-			MaxRetries:     env.HTTPMaxRetries,
-			Limiter:        oemLimiter,
+			Endpoint:              site.Endpoint,
+			Credentials:           credentials,
+			Timeout:               env.HTTPTimeout,
+			ConnectTimeout:        env.HTTPConnectTimeout,
+			MaxRetries:            env.HTTPMaxRetries,
+			InsecureSkipTLSVerify: !env.TLSVerify,
+			Limiter:               oemLimiter,
 		})
 	}, nil
 }

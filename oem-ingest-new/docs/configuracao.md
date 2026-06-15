@@ -157,6 +157,7 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_HTTP_TIMEOUT_SECONDS` | `30` | Timeout total das chamadas HTTP ao OEM, em segundos. |
 | `OEM_HTTP_CONNECT_TIMEOUT_SECONDS` | `10` | Timeout de conexao HTTP ao OEM, em segundos. |
 | `OEM_HTTP_MAX_RETRIES` | `3` | Numero de retries para GETs ao OEM. Pode ser `0`. |
+| `OEM_TLS_VERIFY` | `true` | Valida o certificado TLS do endpoint OEM. Use `false` somente para ambientes com certificado interno/self-signed. |
 | `OEM_MAX_CONCURRENT_REQUESTS` | `10` | Limite global de chamadas HTTP simultaneas ao OEM no processo. |
 | `OEM_SCHEDULER_JITTER_SECONDS` | `60` | Jitter maximo aleatorio dos jobs de coleta, em segundos. Use `0` para desabilitar. |
 | `OEM_LOG_LEVEL` | `info` | Nivel minimo de log do processo. Aceita `debug`, `info`, `warn`/`warning` ou `error`, sem diferenciar maiusculas e minusculas. |

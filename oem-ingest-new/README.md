@@ -60,6 +60,8 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_HTTP_TIMEOUT_SECONDS`.
 - `OEM_HTTP_CONNECT_TIMEOUT_SECONDS`.
 - `OEM_HTTP_MAX_RETRIES`.
+- `OEM_TLS_VERIFY`: `true` por padrao; use `false` somente para OEM com
+  certificado interno/self-signed.
 - `OEM_MAX_CONCURRENT_REQUESTS`: limite global de chamadas HTTP simultaneas ao
   OEM no processo.
 - `OEM_SCHEDULER_JITTER_SECONDS`: jitter maximo dos jobs de coleta; `0`
