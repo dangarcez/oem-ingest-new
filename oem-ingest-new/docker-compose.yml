@@ -44,7 +44,9 @@ services:
   #     OEM_HTTP_MAX_RETRIES: "3"
   #     OEM_TLS_VERIFY: "true"
   #     OEM_SCHEDULER_JITTER_SECONDS: "180"
+  #     OEM_DIAGNOSTICS_INTERVAL_SECONDS: "60"
   #     OEM_EXPORT_INTERVAL_SECONDS: "120"
+  #     OTEL_EXPORT_TIMEOUT_SECONDS: "10"
   #     OTEL_EXPORT_URL: http://host.docker.internal:10054 #http://oem-mock:8008 também funciona
   #     OEM_LOG_LEVEL: WARN
   #   volumes:

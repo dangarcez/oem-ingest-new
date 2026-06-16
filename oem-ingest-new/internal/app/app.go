@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"oem-ingest-new/internal/auth"
@@ -201,23 +202,40 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 			return err
 		}
 	}
+	state.logRuntimeStarted(runtimeCtx, len(jobs))
 
-	if err := state.runInitialCollections(runtimeCtx, jobs); err != nil {
-		return err
-	}
-	state.pollIncidentsOnce(runtimeCtx)
+	initialErrCh := make(chan error, 1)
+	go func() {
+		initialErrCh <- state.runInitialCollections(runtimeCtx, jobs)
+	}()
 	state.enqueueRuntimeMetrics(time.Now())
 	state.flush(runtimeCtx)
+	if env.DiagnosticsInterval > 0 {
+		state.logDiagnostics(runtimeCtx, len(jobs))
+	}
 
-	runner := scheduler.New(schedulerOptions(env, opts.Logger))
-	schedulerErrCh := make(chan error, 1)
-	go func() {
-		schedulerErrCh <- runner.Run(runtimeCtx, jobs, state.collectAndBuffer)
-	}()
+	var schedulerErrCh <-chan error
+	startScheduler := func() {
+		if schedulerErrCh != nil {
+			return
+		}
+		runner := scheduler.New(schedulerOptions(env, opts.Logger))
+		ch := make(chan error, 1)
+		schedulerErrCh = ch
+		go func() {
+			ch <- runner.Run(runtimeCtx, jobs, state.collectAndBuffer)
+		}()
+	}
 	incidentErrCh := state.startIncidentPollers(runtimeCtx)
 
 	ticker := time.NewTicker(env.ExportInterval)
 	defer ticker.Stop()
+	var diagnosticsC <-chan time.Time
+	if env.DiagnosticsInterval > 0 {
+		diagnosticsTicker := time.NewTicker(env.DiagnosticsInterval)
+		defer diagnosticsTicker.Stop()
+		diagnosticsC = diagnosticsTicker.C
+	}
 
 	for {
 		select {
@@ -249,9 +267,20 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 			_ = waitRuntimeStop(schedulerErrCh, runtimeShutdownTimeout)
 			state.flushWithTimeout(runtimeShutdownTimeout)
 			return err
+		case err := <-initialErrCh:
+			initialErrCh = nil
+			if err != nil && !isContextDone(err) {
+				cancelRuntime()
+				_ = waitIncidentPollers(incidentErrCh, runtimeShutdownTimeout)
+				state.flushWithTimeout(runtimeShutdownTimeout)
+				return err
+			}
+			startScheduler()
 		case <-ticker.C:
 			state.enqueueRuntimeMetrics(time.Now())
 			state.flush(runtimeCtx)
+		case <-diagnosticsC:
+			state.logDiagnostics(runtimeCtx, len(jobs))
 		}
 	}
 }
@@ -268,16 +297,19 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 	}
 
 	selfMetrics := selfmetrics.NewRegistry()
+	exportHTTPClient := &http.Client{Timeout: env.OTELExportTimeout}
 	metricsExporter, err := exporter.NewMetricsExporter(env.OTELExportURL, exporter.MetricsExporterOptions{
-		Logger:   logger,
-		Observer: selfMetrics,
+		HTTPClient: exportHTTPClient,
+		Logger:     logger,
+		Observer:   selfMetrics,
 	})
 	if err != nil {
 		return nil, err
 	}
 	logsExporter, err := exporter.NewLogsExporter(env.OTELExportURL, exporter.LogsExporterOptions{
-		Logger:   logger,
-		Observer: selfMetrics,
+		HTTPClient: exportHTTPClient,
+		Logger:     logger,
+		Observer:   selfMetrics,
 	})
 	if err != nil {
 		return nil, err
@@ -319,10 +351,13 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, ctxErr
 			}
-			if !isRecoverableStartupAPIError(err) {
+			if isAcceptedStartupAPIError(err) {
+				if logger != nil {
+					logger.InfoContext(ctx, "conexao OEM validada", "endpoint", site.Endpoint, "http_status", http.StatusNotFound)
+				}
+			} else if !isRecoverableStartupAPIError(err) {
 				return nil, fmt.Errorf("validar conexao OEM %q: %w", site.Endpoint, err)
-			}
-			if logger != nil {
+			} else if logger != nil {
 				logger.WarnContext(ctx, "falha temporaria ao validar conexao OEM; runtime continuara tentando", "endpoint", site.Endpoint, "err", err)
 			}
 		} else if logger != nil {
@@ -346,6 +381,11 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 	return state, nil
 }
 
+func isAcceptedStartupAPIError(err error) bool {
+	var httpErr *oem.HTTPError
+	return errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound
+}
+
 func isRecoverableStartupAPIError(err error) bool {
 	var httpErr *oem.HTTPError
 	if !errors.As(err, &httpErr) {
@@ -364,23 +404,63 @@ func isRecoverableStartupAPIError(err error) bool {
 }
 
 func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []scheduler.Job) error {
-	var successes int
-	var failures int
-	for _, job := range jobs {
-		if err := s.collectAndBuffer(ctx, job); err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
-			}
-			failures++
-			if s.logger != nil && ctx.Err() == nil {
-				s.logger.WarnContext(ctx, "falha na coleta inicial", "job_id", job.ID, "target_name", job.Target.Name, "metric_group", job.MetricGroupName, "err", err)
-			}
-			continue
-		}
-		successes++
+	workers := s.env.MaxConcurrentRequests
+	if workers <= 0 {
+		workers = 1
 	}
-	if successes == 0 && failures > 0 && s.logger != nil && ctx.Err() == nil {
-		s.logger.WarnContext(ctx, "nenhuma coleta inicial concluiu com sucesso; scheduler continuara tentando", "jobs", len(jobs), "failures", failures)
+	if workers > len(jobs) {
+		workers = len(jobs)
+	}
+	if s.logger != nil && ctx.Err() == nil {
+		s.logger.InfoContext(ctx, "coleta inicial iniciada", "jobs", len(jobs), "workers", workers)
+	}
+
+	var successes atomic.Int64
+	var failures atomic.Int64
+	jobsCh := make(chan scheduler.Job)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobsCh {
+				if err := s.collectAndBuffer(ctx, job); err != nil {
+					if ctx.Err() != nil {
+						return
+					}
+					failures.Add(1)
+					if s.logger != nil {
+						s.logger.WarnContext(ctx, "falha na coleta inicial", "job_id", job.ID, "target_name", job.Target.Name, "metric_group", job.MetricGroupName, "err", err)
+					}
+					continue
+				}
+				successes.Add(1)
+			}
+		}()
+	}
+
+	for _, job := range jobs {
+		select {
+		case <-ctx.Done():
+			close(jobsCh)
+			wg.Wait()
+			return ctx.Err()
+		case jobsCh <- job:
+		}
+	}
+	close(jobsCh)
+	wg.Wait()
+
+	successCount := int(successes.Load())
+	failureCount := int(failures.Load())
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	if successCount == 0 && failureCount > 0 && s.logger != nil {
+		s.logger.WarnContext(ctx, "nenhuma coleta inicial concluiu com sucesso; scheduler continuara tentando", "jobs", len(jobs), "failures", failureCount)
+	}
+	if s.logger != nil {
+		s.logger.InfoContext(ctx, "coleta inicial concluida", "jobs", len(jobs), "successes", successCount, "failures", failureCount, "workers", workers)
 	}
 	return nil
 }
@@ -462,12 +542,67 @@ func (s *runtimeState) enqueueRuntimeMetrics(observedAt time.Time) {
 }
 
 func (s *runtimeState) flush(ctx context.Context) {
-	if _, err := s.metricsExporter.Export(ctx); err != nil && s.logger != nil && ctx.Err() == nil {
-		s.logger.WarnContext(ctx, "falha ao exportar metricas pendentes", "err", err)
+	if result, err := s.metricsExporter.Export(ctx); err != nil && s.logger != nil && ctx.Err() == nil {
+		s.logger.WarnContext(ctx, "falha ao exportar metricas pendentes",
+			"endpoint", s.metricsExporter.Endpoint(),
+			"datapoints", result.Datapoints,
+			"payload_bytes", result.PayloadBytes,
+			"pending_metrics", s.metricsExporter.Pending(),
+			"err", err,
+		)
 	}
-	if _, err := s.logsExporter.Export(ctx); err != nil && s.logger != nil && ctx.Err() == nil {
-		s.logger.WarnContext(ctx, "falha ao exportar logs pendentes", "err", err)
+	if result, err := s.logsExporter.Export(ctx); err != nil && s.logger != nil && ctx.Err() == nil {
+		s.logger.WarnContext(ctx, "falha ao exportar logs pendentes",
+			"endpoint", s.logsExporter.Endpoint(),
+			"logs", result.Logs,
+			"payload_bytes", result.PayloadBytes,
+			"pending_logs", s.logsExporter.Pending(),
+			"err", err,
+		)
 	}
+}
+
+func (s *runtimeState) logRuntimeStarted(ctx context.Context, jobs int) {
+	if s == nil || s.logger == nil {
+		return
+	}
+	s.logger.InfoContext(ctx, "runtime de coleta iniciado",
+		"jobs", jobs,
+		"sites", len(s.cfg.Sites),
+		"oem_endpoints", len(s.clientsByEndpoint),
+		"otel_metrics_endpoint", s.metricsExporter.Endpoint(),
+		"otel_logs_endpoint", s.logsExporter.Endpoint(),
+		"export_interval", s.env.ExportInterval,
+		"otel_export_timeout", s.env.OTELExportTimeout,
+		"scheduler_jitter", s.env.SchedulerJitter,
+		"diagnostics_interval", s.env.DiagnosticsInterval,
+	)
+}
+
+func (s *runtimeState) logDiagnostics(ctx context.Context, jobs int) {
+	if s == nil || s.logger == nil || ctx.Err() != nil {
+		return
+	}
+	oemStats := s.oemStats()
+	collectorStats := s.collectorStats()
+	exporterStats := s.selfMetrics.SnapshotStats()
+	s.logger.InfoContext(ctx, "diagnostico runtime",
+		"jobs", jobs,
+		"sites", len(s.cfg.Sites),
+		"oem_endpoints", len(s.clientsByEndpoint),
+		"pending_metrics", s.metricsExporter.Pending(),
+		"pending_logs", s.logsExporter.Pending(),
+		"oem_requests_total", oemStats.RequestsTotal,
+		"oem_request_errors_total", oemStats.RequestErrorsTotal,
+		"datapoints_collected_total", collectorStats.DatapointsCollectedTotal,
+		"collection_errors_total", collectorStats.CollectionErrorsTotal,
+		"unavailable_groups_total", collectorStats.UnavailableGroupsTotal,
+		"datapoints_exported_total", exporterStats.DatapointsExportedTotal,
+		"logs_exported_total", exporterStats.LogsExportedTotal,
+		"export_failures_total", exporterStats.ExportFailuresTotal,
+		"last_export_payload_bytes", exporterStats.ExportPayloadBytes,
+		"last_export_duration_seconds", exporterStats.ExportDurationSeconds,
+	)
 }
 
 func (s *runtimeState) flushWithTimeout(timeout time.Duration) {
@@ -502,6 +637,9 @@ func isContextDone(err error) bool {
 }
 
 func waitRuntimeStop(errCh <-chan error, timeout time.Duration) error {
+	if errCh == nil {
+		return nil
+	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 

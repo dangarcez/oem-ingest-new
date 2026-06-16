@@ -13,17 +13,18 @@ import (
 )
 
 const (
-	DefaultTargetsPath            = "./configs/configTargets.yaml"
-	DefaultMetricsPath            = "./configs/configMetrics.yaml"
-	DefaultValidatedTargetsPath   = "./configs/configTargets.validated.yaml"
-	DefaultExportIntervalSeconds  = 60
-	DefaultResponseToleranceMin   = 21
-	DefaultHTTPTimeoutSeconds     = 30
-	DefaultConnectTimeoutSeconds  = 10
-	DefaultHTTPMaxRetries         = 3
-	DefaultMaxConcurrentRequests  = 10
-	DefaultSchedulerJitterSeconds = 60
-	DefaultLogLevel               = "info"
+	DefaultTargetsPath              = "./configs/configTargets.yaml"
+	DefaultMetricsPath              = "./configs/configMetrics.yaml"
+	DefaultValidatedTargetsPath     = "./configs/configTargets.validated.yaml"
+	DefaultExportIntervalSeconds    = 60
+	DefaultResponseToleranceMin     = 21
+	DefaultHTTPTimeoutSeconds       = 30
+	DefaultConnectTimeoutSeconds    = 10
+	DefaultOTELExportTimeoutSeconds = 30
+	DefaultHTTPMaxRetries           = 3
+	DefaultMaxConcurrentRequests    = 10
+	DefaultSchedulerJitterSeconds   = 60
+	DefaultLogLevel                 = "info"
 )
 
 // Env contains process configuration read from environment variables.
@@ -37,6 +38,7 @@ type Env struct {
 	Token                    string
 	AuthTokenHashFile        string
 	OTELExportURL            string
+	OTELExportTimeout        time.Duration
 	ExportInterval           time.Duration
 	MonitorResponseTolerance time.Duration
 	HTTPTimeout              time.Duration
@@ -46,6 +48,7 @@ type Env struct {
 	SchedulerJitter          time.Duration
 	LogLevel                 string
 	TLSVerify                bool
+	DiagnosticsInterval      time.Duration
 }
 
 // SiteConfig represents one OEM site from configTargets.yaml.
@@ -96,6 +99,7 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		Token:                    stringValue(lookup, "OEM_TOKEN", ""),
 		AuthTokenHashFile:        stringValue(lookup, "OEM_AUTH_TOKEN_HASH_FILE", ""),
 		OTELExportURL:            stringValue(lookup, "OTEL_EXPORT_URL", ""),
+		OTELExportTimeout:        time.Duration(DefaultOTELExportTimeoutSeconds) * time.Second,
 		ExportInterval:           time.Duration(DefaultExportIntervalSeconds) * time.Second,
 		MonitorResponseTolerance: time.Duration(DefaultResponseToleranceMin) * time.Minute,
 		HTTPTimeout:              time.Duration(DefaultHTTPTimeoutSeconds) * time.Second,
@@ -114,6 +118,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.ExportInterval, err = secondsValue(lookup, "OEM_EXPORT_INTERVAL_SECONDS", DefaultExportIntervalSeconds); err != nil {
+		return Env{}, err
+	}
+	if env.OTELExportTimeout, err = secondsValue(lookup, "OTEL_EXPORT_TIMEOUT_SECONDS", DefaultOTELExportTimeoutSeconds); err != nil {
 		return Env{}, err
 	}
 	if env.MonitorResponseTolerance, err = minutesValue(lookup, "OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES", DefaultResponseToleranceMin); err != nil {
@@ -135,6 +142,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.TLSVerify, err = boolValue(lookup, "OEM_TLS_VERIFY", true); err != nil {
+		return Env{}, err
+	}
+	if env.DiagnosticsInterval, err = nonNegativeSecondsValue(lookup, "OEM_DIAGNOSTICS_INTERVAL_SECONDS", 0); err != nil {
 		return Env{}, err
 	}
 
