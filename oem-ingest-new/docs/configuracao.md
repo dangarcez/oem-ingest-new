@@ -152,18 +152,21 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_TOKEN` | vazio | Token legado usado para recuperar a senha. |
 | `OEM_AUTH_TOKEN_HASH_FILE` | vazio | Arquivo usado para calcular o SHA-256 hexadecimal do token legado. Obrigatorio quando `OEM_TOKEN` for a credencial usada, sem `OEM_PASSWORD`. |
 | `OTEL_EXPORT_URL` | vazio | URL base do endpoint OTLP HTTP. A aplicacao usa `/v1/metrics` e `/v1/logs`. |
+| `OTEL_EXPORT_TIMEOUT_SECONDS` | `30` | Timeout total dos POSTs OTLP HTTP para metricas e logs, em segundos. |
 | `OEM_EXPORT_INTERVAL_SECONDS` | `60` | Intervalo de exportacao dos buffers OTLP, em segundos. |
 | `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Janela usada por `oem_monitor_response`, em minutos. |
 | `OEM_HTTP_TIMEOUT_SECONDS` | `30` | Timeout total das chamadas HTTP ao OEM, em segundos. |
 | `OEM_HTTP_CONNECT_TIMEOUT_SECONDS` | `10` | Timeout de conexao HTTP ao OEM, em segundos. |
 | `OEM_HTTP_MAX_RETRIES` | `3` | Numero de retries para GETs ao OEM. Pode ser `0`. |
+| `OEM_TLS_VERIFY` | `true` | Valida o certificado TLS do endpoint OEM. Use `false` somente para ambientes com certificado interno/self-signed. |
 | `OEM_MAX_CONCURRENT_REQUESTS` | `10` | Limite global de chamadas HTTP simultaneas ao OEM no processo. |
 | `OEM_SCHEDULER_JITTER_SECONDS` | `60` | Jitter maximo aleatorio dos jobs de coleta, em segundos. Use `0` para desabilitar. |
+| `OEM_DIAGNOSTICS_INTERVAL_SECONDS` | `0` | Intervalo para logar um resumo operacional com buffers, coletas, requests OEM e exportacoes. Use `0` para desabilitar. |
 | `OEM_LOG_LEVEL` | `info` | Nivel minimo de log do processo. Aceita `debug`, `info`, `warn`/`warning` ou `error`, sem diferenciar maiusculas e minusculas. |
 
 Variaveis numericas de tempo e concorrencia aceitam inteiros positivos, exceto
-`OEM_HTTP_MAX_RETRIES` e `OEM_SCHEDULER_JITTER_SECONDS`, que aceitam inteiro
-maior ou igual a zero.
+`OEM_HTTP_MAX_RETRIES`, `OEM_SCHEDULER_JITTER_SECONDS` e
+`OEM_DIAGNOSTICS_INTERVAL_SECONDS`, que aceitam inteiro maior ou igual a zero.
 
 O jitter do scheduler e aplicado antes da primeira execucao periodica de cada
 job e tambem somado aos ciclos seguintes, sempre como um atraso aleatorio entre

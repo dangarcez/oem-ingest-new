@@ -228,6 +228,15 @@ Logs nao imprimem senha ou token. A variavel `OEM_LOG_LEVEL` define o nivel
 minimo emitido pelo processo e aceita `debug`, `info`, `warn`/`warning` ou
 `error`, sem diferenciar maiusculas e minusculas.
 
+Para troubleshooting de ambiente, defina `OEM_LOG_LEVEL=info` e
+`OEM_DIAGNOSTICS_INTERVAL_SECONDS=60`. O log `diagnostico runtime` mostra
+quantos jobs/endpoints estao ativos, quantos itens estao pendentes nos buffers
+OTLP, requests/erros OEM, coletas realizadas, grupos indisponiveis e falhas de
+exportacao. Se `OTEL_EXPORT_URL` estiver errado, os warnings de exportacao
+incluem o endpoint final (`/v1/metrics` ou `/v1/logs`), tamanho do lote e
+quantidade ainda pendente no buffer. Para falhar mais rapido durante testes de
+rede, reduza `OTEL_EXPORT_TIMEOUT_SECONDS`.
+
 No Docker Compose local, `OEM_LOG_LEVEL` vale apenas para o servico
 `oem-ingest`. O servico `oem-mock` usa `uvicorn` com nivel `warning` e access log
 desabilitado para evitar ruido de `INFO` do mock.

@@ -26,11 +26,20 @@ func TestReadEnvDefaults(t *testing.T) {
 	if env.ExportInterval != time.Duration(DefaultExportIntervalSeconds)*time.Second {
 		t.Fatalf("ExportInterval = %s", env.ExportInterval)
 	}
+	if env.OTELExportTimeout != time.Duration(DefaultOTELExportTimeoutSeconds)*time.Second {
+		t.Fatalf("OTELExportTimeout = %s", env.OTELExportTimeout)
+	}
 	if env.MonitorResponseTolerance != time.Duration(DefaultResponseToleranceMin)*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
 	}
 	if env.SchedulerJitter != time.Duration(DefaultSchedulerJitterSeconds)*time.Second {
 		t.Fatalf("SchedulerJitter = %s", env.SchedulerJitter)
+	}
+	if env.DiagnosticsInterval != 0 {
+		t.Fatalf("DiagnosticsInterval = %s, want disabled", env.DiagnosticsInterval)
+	}
+	if !env.TLSVerify {
+		t.Fatal("TLSVerify should default to true")
 	}
 }
 
@@ -45,6 +54,7 @@ func TestReadEnvOverrides(t *testing.T) {
 		"OEM_TOKEN":                              "token",
 		"OEM_AUTH_TOKEN_HASH_FILE":               "/tmp/hash-source",
 		"OTEL_EXPORT_URL":                        "http://collector:4318",
+		"OTEL_EXPORT_TIMEOUT_SECONDS":            "6",
 		"OEM_EXPORT_INTERVAL_SECONDS":            "15",
 		"OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES": "7",
 		"OEM_HTTP_TIMEOUT_SECONDS":               "20",
@@ -53,6 +63,8 @@ func TestReadEnvOverrides(t *testing.T) {
 		"OEM_MAX_CONCURRENT_REQUESTS":            "5",
 		"OEM_SCHEDULER_JITTER_SECONDS":           "12",
 		"OEM_LOG_LEVEL":                          "debug",
+		"OEM_TLS_VERIFY":                         "false",
+		"OEM_DIAGNOSTICS_INTERVAL_SECONDS":       "9",
 	}
 
 	env, err := ReadEnv(func(key string) (string, bool) {
@@ -75,6 +87,9 @@ func TestReadEnvOverrides(t *testing.T) {
 	if env.ExportInterval != 15*time.Second {
 		t.Fatalf("ExportInterval = %s", env.ExportInterval)
 	}
+	if env.OTELExportTimeout != 6*time.Second {
+		t.Fatalf("OTELExportTimeout = %s", env.OTELExportTimeout)
+	}
 	if env.MonitorResponseTolerance != 7*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
 	}
@@ -87,17 +102,29 @@ func TestReadEnvOverrides(t *testing.T) {
 	if env.SchedulerJitter != 12*time.Second {
 		t.Fatalf("SchedulerJitter = %s", env.SchedulerJitter)
 	}
+	if env.DiagnosticsInterval != 9*time.Second {
+		t.Fatalf("DiagnosticsInterval = %s", env.DiagnosticsInterval)
+	}
+	if env.TLSVerify {
+		t.Fatal("TLSVerify should be false when OEM_TLS_VERIFY=false")
+	}
 }
 
 func TestReadEnvInvalidBool(t *testing.T) {
-	_, err := ReadEnv(func(key string) (string, bool) {
-		if key == "OEM_VALIDATE_CONFIG" {
-			return "yes", true
-		}
-		return "", false
-	})
-	if err == nil || !strings.Contains(err.Error(), "OEM_VALIDATE_CONFIG") {
-		t.Fatalf("expected OEM_VALIDATE_CONFIG error, got %v", err)
+	tests := []string{"OEM_VALIDATE_CONFIG", "OEM_TLS_VERIFY"}
+
+	for _, envName := range tests {
+		t.Run(envName, func(t *testing.T) {
+			_, err := ReadEnv(func(key string) (string, bool) {
+				if key == envName {
+					return "yes", true
+				}
+				return "", false
+			})
+			if err == nil || !strings.Contains(err.Error(), envName) {
+				t.Fatalf("expected %s error, got %v", envName, err)
+			}
+		})
 	}
 }
 
@@ -116,15 +143,48 @@ func TestReadEnvAllowsDisabledSchedulerJitter(t *testing.T) {
 	}
 }
 
-func TestReadEnvRejectsInvalidSchedulerJitter(t *testing.T) {
-	_, err := ReadEnv(func(key string) (string, bool) {
-		if key == "OEM_SCHEDULER_JITTER_SECONDS" {
-			return "-1", true
+func TestReadEnvRejectsInvalidNonNegativeSeconds(t *testing.T) {
+	tests := []string{"OEM_SCHEDULER_JITTER_SECONDS", "OEM_DIAGNOSTICS_INTERVAL_SECONDS"}
+
+	for _, envName := range tests {
+		t.Run(envName, func(t *testing.T) {
+			_, err := ReadEnv(func(key string) (string, bool) {
+				if key == envName {
+					return "-1", true
+				}
+				return "", false
+			})
+			if err == nil || !strings.Contains(err.Error(), envName) {
+				t.Fatalf("expected %s error, got %v", envName, err)
+			}
+		})
+	}
+}
+
+func TestReadEnvNormalizesLogLevel(t *testing.T) {
+	env, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_LOG_LEVEL" {
+			return "WARNING", true
 		}
 		return "", false
 	})
-	if err == nil || !strings.Contains(err.Error(), "OEM_SCHEDULER_JITTER_SECONDS") {
-		t.Fatalf("expected OEM_SCHEDULER_JITTER_SECONDS error, got %v", err)
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	if env.LogLevel != "warn" {
+		t.Fatalf("LogLevel = %q, want warn", env.LogLevel)
+	}
+}
+
+func TestReadEnvRejectsInvalidLogLevel(t *testing.T) {
+	_, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_LOG_LEVEL" {
+			return "verbose", true
+		}
+		return "", false
+	})
+	if err == nil || !strings.Contains(err.Error(), "OEM_LOG_LEVEL") {
+		t.Fatalf("expected OEM_LOG_LEVEL error, got %v", err)
 	}
 }
 

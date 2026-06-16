@@ -55,15 +55,20 @@ Variaveis de ambiente suportadas nesta fase:
   sem sobrescrever o arquivo original.
 - `OEM_USER`, `OEM_PASSWORD`, `OEM_TOKEN`, `OEM_AUTH_TOKEN_HASH_FILE`.
 - `OTEL_EXPORT_URL`.
+- `OTEL_EXPORT_TIMEOUT_SECONDS`.
 - `OEM_EXPORT_INTERVAL_SECONDS`.
 - `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
 - `OEM_HTTP_TIMEOUT_SECONDS`.
 - `OEM_HTTP_CONNECT_TIMEOUT_SECONDS`.
 - `OEM_HTTP_MAX_RETRIES`.
+- `OEM_TLS_VERIFY`: `true` por padrao; use `false` somente para OEM com
+  certificado interno/self-signed.
 - `OEM_MAX_CONCURRENT_REQUESTS`: limite global de chamadas HTTP simultaneas ao
   OEM no processo.
 - `OEM_SCHEDULER_JITTER_SECONDS`: jitter maximo dos jobs de coleta; `0`
   desabilita.
+- `OEM_DIAGNOSTICS_INTERVAL_SECONDS`: intervalo para logar um resumo operacional
+  de buffers, coletas e exportacoes; `0` desabilita.
 - `OEM_LOG_LEVEL`: nivel minimo de log (`debug`, `info`, `warn`/`warning` ou
   `error`).
 

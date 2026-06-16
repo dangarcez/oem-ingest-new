@@ -31,6 +31,67 @@ func TestRunDoesNotRequireExternalServices(t *testing.T) {
 	}
 }
 
+func TestRunRejectsInvalidConfiguredLogLevel(t *testing.T) {
+	var output, logs bytes.Buffer
+
+	err := Run(context.Background(), Options{
+		Output:    &output,
+		LogOutput: &logs,
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_LOG_LEVEL": "verbose",
+		}),
+	})
+	if err == nil || !strings.Contains(err.Error(), "OEM_LOG_LEVEL") {
+		t.Fatalf("expected OEM_LOG_LEVEL error, got %v", err)
+	}
+	if output.Len() != 0 || logs.Len() != 0 {
+		t.Fatalf("expected no output before app starts; output=%q logs=%q", output.String(), logs.String())
+	}
+}
+
+func TestRunUsesConfiguredLogLevelForDefaultLogger(t *testing.T) {
+	tests := []struct {
+		name    string
+		level   string
+		wantLog bool
+	}{
+		{name: "info emits validation summary", level: "INFO", wantLog: true},
+		{name: "error filters validation summary", level: "ERROR", wantLog: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetsPath := writeTargetsFile(t, "configured-id")
+			validatedPath := filepath.Join(t.TempDir(), "validated", "configTargets.yaml")
+			var output, logs bytes.Buffer
+
+			err := Run(context.Background(), Options{
+				Output:    &output,
+				LogOutput: &logs,
+				LookupEnv: mapLookup(map[string]string{
+					"OEM_VALIDATE_CONFIG":         "true",
+					"OEM_CONFIG_TARGETS":          targetsPath,
+					"OEM_VALIDATED_CONFIG_OUTPUT": validatedPath,
+					"OEM_LOG_LEVEL":               tt.level,
+				}),
+				TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+					return appFakeTargetLister{
+						targets: []oem.Target{{ID: "configured-id", Name: "cdbp51bc", TypeName: "rac_database"}},
+					}, nil
+				},
+			})
+			if err != nil {
+				t.Fatalf("Run returned error: %v", err)
+			}
+
+			hasSummaryLog := strings.Contains(logs.String(), "configuracao validada escrita")
+			if hasSummaryLog != tt.wantLog {
+				t.Fatalf("summary log presence = %t, want %t; logs=%q", hasSummaryLog, tt.wantLog, logs.String())
+			}
+		})
+	}
+}
+
 func TestSchedulerOptionsUsesConfiguredJitter(t *testing.T) {
 	opts := schedulerOptions(config.Env{SchedulerJitter: 12 * time.Second}, nil)
 	if opts.Jitter != 12*time.Second {
@@ -333,13 +394,14 @@ host:
 	logger := &appRecordingLogger{}
 	err = Run(ctx, Options{
 		LookupEnv: mapLookup(map[string]string{
-			"OEM_CONFIG_TARGETS":          targetsPath,
-			"OEM_CONFIG_METRICS":          metricsPath,
-			"OEM_USER":                    "user",
-			"OEM_PASSWORD":                "secret",
-			"OTEL_EXPORT_URL":             server.URL,
-			"OEM_HTTP_MAX_RETRIES":        "0",
-			"OEM_EXPORT_INTERVAL_SECONDS": "60",
+			"OEM_CONFIG_TARGETS":               targetsPath,
+			"OEM_CONFIG_METRICS":               metricsPath,
+			"OEM_USER":                         "user",
+			"OEM_PASSWORD":                     "secret",
+			"OTEL_EXPORT_URL":                  server.URL,
+			"OEM_HTTP_MAX_RETRIES":             "0",
+			"OEM_EXPORT_INTERVAL_SECONDS":      "60",
+			"OEM_DIAGNOSTICS_INTERVAL_SECONDS": "60",
 		}),
 		Logger: logger,
 	})
@@ -354,6 +416,113 @@ host:
 	}
 	if !logger.containsWarning("runtime continuara tentando") {
 		t.Fatalf("expected recoverable API validation warning, got %#v", logger.warningsSnapshot())
+	}
+}
+
+func TestRunAcceptsStartupAPIValidationNotFound(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: t1
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var apiCalls atomic.Int32
+	var metricsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			apiCalls.Add(1)
+			http.NotFound(w, r)
+		case "/em/api/targets/t1/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/t1/metricGroups/Load/latestData":
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/em/api/incidents/":
+			fmt.Fprint(w, `{"items":[]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			if cancel != nil {
+				time.AfterFunc(10*time.Millisecond, cancel)
+			}
+		case "/v1/logs":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+			return
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	cancel = stop
+	defer stop()
+
+	logger := &appRecordingLogger{}
+	err = Run(ctx, Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":               targetsPath,
+			"OEM_CONFIG_METRICS":               metricsPath,
+			"OEM_USER":                         "user",
+			"OEM_PASSWORD":                     "secret",
+			"OTEL_EXPORT_URL":                  server.URL,
+			"OEM_HTTP_MAX_RETRIES":             "0",
+			"OEM_EXPORT_INTERVAL_SECONDS":      "60",
+			"OEM_DIAGNOSTICS_INTERVAL_SECONDS": "60",
+		}),
+		Logger: logger,
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if apiCalls.Load() == 0 {
+		t.Fatal("expected startup API validation to be attempted")
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected collection/export to continue after /em/api returned 404")
+	}
+	if logger.containsWarning("runtime continuara tentando") {
+		t.Fatalf("404 should be accepted as a successful connection check, got warnings %#v", logger.warningsSnapshot())
+	}
+	if !logger.containsInfo("diagnostico runtime") {
+		t.Fatalf("expected runtime diagnostics log, got %#v", logger.infos)
 	}
 }
 
@@ -609,6 +778,7 @@ host:
 	cancel = stop
 	defer stop()
 
+	logger := &appRecordingLogger{}
 	err = Run(ctx, Options{
 		LookupEnv: mapLookup(map[string]string{
 			"OEM_CONFIG_TARGETS":          targetsPath,
@@ -619,13 +789,114 @@ host:
 			"OEM_HTTP_MAX_RETRIES":        "0",
 			"OEM_EXPORT_INTERVAL_SECONDS": "60",
 		}),
-		Logger: &appRecordingLogger{},
+		Logger: logger,
 	})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
 	if metricsPosts.Load() != 2 {
 		t.Fatalf("metrics POSTs = %d, want failed initial export plus final flush retry", metricsPosts.Load())
+	}
+	if !logger.containsWarning("falha ao exportar metricas pendentes") {
+		t.Fatalf("expected enriched pending metrics export warning, got %#v", logger.warningsSnapshot())
+	}
+}
+
+func TestRunExportsRuntimeMetricsBeforeInitialCollectionFinishes(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: t1
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var metricsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			fmt.Fprint(w, `{"name":"mock","version":"test"}`)
+		case "/em/api/targets/t1/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/t1/metricGroups/Load/latestData":
+			time.Sleep(2 * time.Second)
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			if cancel != nil {
+				cancel()
+			}
+		case "/v1/logs":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+			return
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	cancel = stop
+	defer stop()
+
+	started := time.Now()
+	err = Run(ctx, Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_CONFIG_TARGETS":          targetsPath,
+			"OEM_CONFIG_METRICS":          metricsPath,
+			"OEM_USER":                    "user",
+			"OEM_PASSWORD":                "secret",
+			"OTEL_EXPORT_URL":             server.URL,
+			"OEM_HTTP_MAX_RETRIES":        "0",
+			"OEM_EXPORT_INTERVAL_SECONDS": "60",
+			"OEM_MAX_CONCURRENT_REQUESTS": "1",
+		}),
+		Logger: &appRecordingLogger{},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected runtime self metrics to be exported before slow initial collection finishes")
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("Run took %s; initial collection appears to be blocking startup export", elapsed)
 	}
 }
 
@@ -719,6 +990,48 @@ func TestRunValidationUsesCredentialsWhenFactoryIsNotInjected(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "OEM_USER") {
 		t.Fatalf("expected credentials error, got %v", err)
+	}
+}
+
+func TestTargetInventoryFactoryCanDisableTLSVerification(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "user" || pass != "secret" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path != "/em/api/targets" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"items":[{"id":"target-1","name":"db1","typeName":"oracle_database"}]}`)
+	}))
+	defer server.Close()
+
+	env, err := config.ReadEnv(mapLookup(map[string]string{
+		"OEM_USER":       "user",
+		"OEM_PASSWORD":   "secret",
+		"OEM_TLS_VERIFY": "false",
+	}))
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	factory, err := targetInventoryFactory(env)
+	if err != nil {
+		t.Fatalf("targetInventoryFactory returned error: %v", err)
+	}
+	inventory, err := factory(config.SiteConfig{Endpoint: server.URL})
+	if err != nil {
+		t.Fatalf("factory returned error: %v", err)
+	}
+
+	targets, err := inventory.ListTargets(context.Background())
+	if err != nil {
+		t.Fatalf("ListTargets with OEM_TLS_VERIFY=false returned error: %v", err)
+	}
+	if len(targets.Items) != 1 || targets.Items[0].ID != "target-1" {
+		t.Fatalf("unexpected targets: %#v", targets.Items)
 	}
 }
 
@@ -825,6 +1138,23 @@ func (r *appRecordingLogger) containsWarning(part string) bool {
 		}
 	}
 	return false
+}
+
+func (r *appRecordingLogger) containsInfo(part string) bool {
+	for _, info := range r.infosSnapshot() {
+		if strings.Contains(info, part) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *appRecordingLogger) infosSnapshot() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]string, len(r.infos))
+	copy(out, r.infos)
+	return out
 }
 
 func (r *appRecordingLogger) warningsSnapshot() []string {

@@ -20,9 +20,6 @@
         rac_database: occp40bc
         target_name: occp40bc_occp40bc3
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
     - id: 222F3F2BAC58D57596CE3191F29C787E
       name: cadecrk01cl01vm03.intra.caixa.gov.br
       typeName: host
@@ -48,9 +45,6 @@
         rac_database: occp40bc
         target_name: occp40bc_occp40bc1
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm01.intra.caixa.gov.br
     - id: 32389351CAE76EF77608BE6E4214A63D
       name: cadecrk01cl01vm01.intra.caixa.gov.br
       typeName: host
@@ -76,18 +70,15 @@
         rac_database: occp40bc
         target_name: occp40bc_occp40bc2
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm02.intra.caixa.gov.br
     - id: 4DA580CF40B750221ED26CCADE11EFF0
       name: cadecrk01cl01vm02.intra.caixa.gov.br
       typeName: host
       tags:
         host: cadecrk01cl01vm02
+        random: random
         target_name: cadecrk01cl01vm02
         target_type: host
-        random: random
-    - id: 4DA580CF40B750221ED26CCADE11EFF0
+    - id: 1C26C3E5842BE719951B2C24F55D4BA5
       name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
       typeName: oracle_listener
       tags:
@@ -101,7 +92,7 @@
         rac_database: occs40bc
         target_name: occs40bc
         target_type: rac_database
-    - id: A2624D2E24EAB8B63D9EC68F36FA8FA7
+    - id: 4F93B731025C2B09B2B15242F8E75023
       name: occs40bc_occs40bc2
       typeName: oracle_database
       tags:
@@ -112,9 +103,6 @@
         rac_database: occs40bc
         target_name: occs40bc_occs40bc2
         target_type: oracle_database
-      dg_role: Primary
-      listener_name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
-      machine_name: dadecrk01cl01vm02.intra.caixa.gov.br
     - id: 24106991E97B7446E06400144FFBE115
       name: cdbp51bc_sys
       typeName: oracle_dbsys
@@ -148,12 +136,10 @@
         machine_name: cadecrk01cl01vm02
         oracle_database: cdbp51bc_cdbp51bc2
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbp51bc_CDBP51BCPDB001
         rac_database: cdbp51bc
         target_name: cdbp51bc_cdbp51bc2
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm02.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm02.intra.caixa.gov.br
     - id: 2410FA509A1922CBE06400144FFB0AE4
       name: cdbp51bc_cdbp51bc1
       typeName: oracle_database
@@ -163,12 +149,10 @@
         machine_name: cadecrk01cl01vm01
         oracle_database: cdbp51bc_cdbp51bc1
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbp51bc_CDBP51BCPDB001
         rac_database: cdbp51bc
         target_name: cdbp51bc_cdbp51bc1
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm01.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm01.intra.caixa.gov.br
     - id: 2410FA509A1A22CBE06400144FFB0AE4
       name: cdbp51bc_cdbp51bc3
       typeName: oracle_database
@@ -178,12 +162,10 @@
         machine_name: cadecrk01cl01vm03
         oracle_database: cdbp51bc_cdbp51bc3
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbp51bc_CDBP51BCPDB001
         rac_database: cdbp51bc
         target_name: cdbp51bc_cdbp51bc3
         target_type: oracle_database
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
     - id: 384FEA1AFA2C325FE06400144FFB0AE4
       name: cdbs51bc
       typeName: rac_database
@@ -210,12 +192,10 @@
         machine_name: dadecrk01cl01vm01
         oracle_database: cdbs51bc_cdbs51bc1
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbs51bc_CDBP51BCPDB001
         rac_database: cdbs51bc
         target_name: cdbs51bc_cdbs51bc1
         target_type: oracle_database
-      dg_role: Primary
-      listener_name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
-      machine_name: dadecrk01cl01vm01.intra.caixa.gov.br
     - id: 384FEA1AFA2A325FE06400144FFB0AE4
       name: cdbs51bc_cdbs51bc2
       typeName: oracle_database
@@ -225,18 +205,20 @@
         machine_name: dadecrk01cl01vm02
         oracle_database: cdbs51bc_cdbs51bc2
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbs51bc_CDBP51BCPDB001
         rac_database: cdbs51bc
         target_name: cdbs51bc_cdbs51bc2
         target_type: oracle_database
-      dg_role: Primary
-      listener_name: LISTENER_dadecrk01cl01vm02.intra.caixa.gov.br
-      machine_name: dadecrk01cl01vm02.intra.caixa.gov.br
     - id: 384FEA1AFA2B325FE06400144FFB0AE4
       name: cdbs51bc_cdbs51bc3
       typeName: oracle_database
       tags:
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbs51bc_cdbs51bc3
         oracle_dbsys: cdbp51bc_sys
+        oracle_pdb: cdbs51bc_CDBP51BCPDB001
         rac_database: cdbs51bc
         target_name: cdbs51bc_cdbs51bc3
         target_type: oracle_database
@@ -265,9 +247,6 @@
         rac_database: occs40bc
         target_name: occs40bc_occs40bc1
         target_type: oracle_database
-      dg_role: Primary
-      listener_name: LISTENER_dadecrk01cl01vm01.intra.caixa.gov.br
-      machine_name: dadecrk01cl01vm01.intra.caixa.gov.br
     - id: E9163A6AC6B60DD53BDF1208FD3019D8
       name: dadecrk01cl01vm01.intra.caixa.gov.br
       typeName: host
@@ -293,9 +272,6 @@
         rac_database: occs40bc
         target_name: occs40bc_occs40bc3
         target_type: oracle_database
-      dg_role: Primary
-      listener_name: LISTENER_dadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: dadecrk01cl01vm03.intra.caixa.gov.br
     - id: D271E225533E456ECBDFD5F18DBBE8D1
       name: dadecrk01cl01vm03.intra.caixa.gov.br
       typeName: host
@@ -314,924 +290,806 @@
       name: cdbp06ng_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: cdbp06ng_sys
         target_name: cdbp06ng_sys
         target_type: oracle_dbsys
-        oracle_dbsys: cdbp06ng_sys
     - id: C5F51796171B5671431A5B08B678933F
       name: cdbp06ng
       typeName: rac_database
       tags:
+        oracle_dbsys: cdbp06ng_sys
+        rac_database: cdbp06ng
         target_name: cdbp06ng
         target_type: rac_database
-        rac_database: cdbp06ng
-        oracle_dbsys: cdbp06ng_sys
     - id: AEA437C9FFAF08C798588BCF6725A745
       name: cdbp06ng_CDBP06NGPDB001
       typeName: oracle_pdb
       tags:
+        oracle_dbsys: cdbp06ng_sys
+        oracle_pdb: cdbp06ng_CDBP06NGPDB001
+        rac_database: cdbp06ng
         target_name: cdbp06ng_CDBP06NGPDB001
         target_type: oracle_pdb
-        oracle_pdb: cdbp06ng_CDBP06NGPDB001
-        oracle_dbsys: cdbp06ng_sys
-        rac_database: cdbp06ng
     - id: 3BF0A1A22732251CE2EE97C3CE668FBB
       name: cdbp06ng_cdbp06ng2
       typeName: oracle_database
       tags:
-        target_name: cdbp06ng_cdbp06ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp06ng_cdbp06ng2
         oracle_dbsys: cdbp06ng_sys
+        oracle_pdb: cdbp06ng_CDBP06NGPDB001
         rac_database: cdbp06ng
+        target_name: cdbp06ng_cdbp06ng2
+        target_type: oracle_database
     - id: 67D19238FD429FB1D99B76A9421FFA9C
       name: cdbp06ng_cdbp06ng3
       typeName: oracle_database
       tags:
-        target_name: cdbp06ng_cdbp06ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp06ng_cdbp06ng3
         oracle_dbsys: cdbp06ng_sys
+        oracle_pdb: cdbp06ng_CDBP06NGPDB001
         rac_database: cdbp06ng
+        target_name: cdbp06ng_cdbp06ng3
+        target_type: oracle_database
     - id: E5041BBC1A9015568CFAFA21B1D67442
       name: cdbp06ng_cdbp06ng1
       typeName: oracle_database
       tags:
-        target_name: cdbp06ng_cdbp06ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp06ng_cdbp06ng1
         oracle_dbsys: cdbp06ng_sys
+        oracle_pdb: cdbp06ng_CDBP06NGPDB001
         rac_database: cdbp06ng
+        target_name: cdbp06ng_cdbp06ng1
+        target_type: oracle_database
     - id: 2E9DCBAAED9B05BD4525D98AAC93C775
       name: cdbp11bc_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: cdbp11bc_sys
         target_name: cdbp11bc_sys
         target_type: oracle_dbsys
-        oracle_dbsys: cdbp11bc_sys
     - id: 8DA8572FBB07A2A2EC7558B12662E141
       name: cdbp11bc
       typeName: rac_database
       tags:
+        oracle_dbsys: cdbp11bc_sys
+        rac_database: cdbp11bc
         target_name: cdbp11bc
         target_type: rac_database
-        rac_database: cdbp11bc
-        oracle_dbsys: cdbp11bc_sys
     - id: 790B9B57B73C14A12DE11C1788B3CC54
       name: cdbp11bc_CDBP11BCPDB002
       typeName: oracle_pdb
       tags:
+        oracle_dbsys: cdbp11bc_sys
+        oracle_pdb: cdbp11bc_CDBP11BCPDB002
+        rac_database: cdbp11bc
         target_name: cdbp11bc_CDBP11BCPDB002
         target_type: oracle_pdb
-        oracle_pdb: cdbp11bc_CDBP11BCPDB002
-        oracle_dbsys: cdbp11bc_sys
-        rac_database: cdbp11bc
     - id: 991CC4D4E8BBA4C2B1000409611A1ED4
       name: cdbp11bc_CDBP11BCPDB001
       typeName: oracle_pdb
       tags:
+        oracle_dbsys: cdbp11bc_sys
+        oracle_pdb: cdbp11bc_CDBP11BCPDB001
+        rac_database: cdbp11bc
         target_name: cdbp11bc_CDBP11BCPDB001
         target_type: oracle_pdb
-        oracle_pdb: cdbp11bc_CDBP11BCPDB001
-        oracle_dbsys: cdbp11bc_sys
-        rac_database: cdbp11bc
     - id: 52ACE3C91979F53F2412DEE91593CCBB
       name: cdbp11bc_cdbp11bc1
       typeName: oracle_database
       tags:
-        target_name: cdbp11bc_cdbp11bc1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp11bc_cdbp11bc1
         oracle_dbsys: cdbp11bc_sys
+        oracle_pdb: cdbp11bc_CDBP11BCPDB001
         rac_database: cdbp11bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp11bc_cdbp11bc1
+        target_type: oracle_database
     - id: 69D2D69C226E7AC85FEDF334EFEA7DB8
       name: cdbp11bc_cdbp11bc2
       typeName: oracle_database
       tags:
-        target_name: cdbp11bc_cdbp11bc2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp11bc_cdbp11bc2
         oracle_dbsys: cdbp11bc_sys
+        oracle_pdb: cdbp11bc_CDBP11BCPDB001
         rac_database: cdbp11bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp11bc_cdbp11bc2
+        target_type: oracle_database
     - id: 7ADDE9D98F9D6438EBEB6C892517D044
       name: cdbp11bc_cdbp11bc3
       typeName: oracle_database
       tags:
-        target_name: cdbp11bc_cdbp11bc3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp11bc_cdbp11bc3
         oracle_dbsys: cdbp11bc_sys
+        oracle_pdb: cdbp11bc_CDBP11BCPDB001
         rac_database: cdbp11bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp11bc_cdbp11bc3
+        target_type: oracle_database
     - id: 90D577B50CFBBB86FF86763643664A35
       name: occp07bc_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: occp07bc_sys
         target_name: occp07bc_sys
         target_type: oracle_dbsys
-        oracle_dbsys: occp07bc_sys
     - id: 7510B5257224D8AB7A39FEC0769CADC6
       name: occp07bc
       typeName: rac_database
       tags:
+        oracle_dbsys: occp07bc_sys
+        rac_database: occp07bc
         target_name: occp07bc
         target_type: rac_database
-        rac_database: occp07bc
-        oracle_dbsys: occp07bc_sys
     - id: 2950B764460E40EC4A17EA1522EC62C0
       name: occs07bc
       typeName: rac_database
       tags:
+        oracle_dbsys: occp07bc_sys
+        rac_database: occs07bc
         target_name: occs07bc
         target_type: rac_database
-        rac_database: occs07bc
-        oracle_dbsys: occp07bc_sys
     - id: 2B40EBC24B9C95B1BBA9152C5F141DC8
       name: occp07bc_occp07bc4
       typeName: oracle_database
       tags:
-        target_name: occp07bc_occp07bc4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp07bc_occp07bc4
         oracle_dbsys: occp07bc_sys
         rac_database: occp07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp07bc_occp07bc4
+        target_type: oracle_database
     - id: 583601E681DA464C40DBC775960E03CB
       name: occp07bc_occp07bc2
       typeName: oracle_database
       tags:
-        target_name: occp07bc_occp07bc2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp07bc_occp07bc2
         oracle_dbsys: occp07bc_sys
         rac_database: occp07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp07bc_occp07bc2
+        target_type: oracle_database
     - id: 781E66765E0C3DD64270E154A5BA1DA9
       name: occp07bc_occp07bc1
       typeName: oracle_database
       tags:
-        target_name: occp07bc_occp07bc1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp07bc_occp07bc1
         oracle_dbsys: occp07bc_sys
         rac_database: occp07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp07bc_occp07bc1
+        target_type: oracle_database
     - id: 79E0C4BC2DBA0F20D3F1640D4BE5C241
       name: occp07bc_occp07bc3
       typeName: oracle_database
       tags:
-        target_name: occp07bc_occp07bc3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp07bc_occp07bc3
         oracle_dbsys: occp07bc_sys
         rac_database: occp07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp07bc_occp07bc3
+        target_type: oracle_database
     - id: 0537F8EAE1A61C7506F2F2B1B77B6FC0
       name: occs07bc_occs07bc4
       typeName: oracle_database
       tags:
-        target_name: occs07bc_occs07bc4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs07bc_occs07bc4
         oracle_dbsys: occp07bc_sys
         rac_database: occs07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs07bc_occs07bc4
+        target_type: oracle_database
     - id: 15DD43457E0044CBCD47FE4DDCE0A043
       name: occs07bc_occs07bc3
       typeName: oracle_database
       tags:
-        target_name: occs07bc_occs07bc3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs07bc_occs07bc3
         oracle_dbsys: occp07bc_sys
         rac_database: occs07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs07bc_occs07bc3
+        target_type: oracle_database
     - id: A5E7EF657C089C279FCD42D3C1257443
       name: occs07bc_occs07bc1
       typeName: oracle_database
       tags:
-        target_name: occs07bc_occs07bc1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs07bc_occs07bc1
         oracle_dbsys: occp07bc_sys
         rac_database: occs07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs07bc_occs07bc1
+        target_type: oracle_database
     - id: B16B8C77786B0E1D70A74997A3BCC0F8
       name: occs07bc_occs07bc2
       typeName: oracle_database
       tags:
-        target_name: occs07bc_occs07bc2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs07bc_occs07bc2
         oracle_dbsys: occp07bc_sys
         rac_database: occs07bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs07bc_occs07bc2
+        target_type: oracle_database
     - id: AD18A8208E7676022DC76ED2CA9FEC18
       name: occs04ng_1_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: occs04ng_1_sys
         target_name: occs04ng_1_sys
         target_type: oracle_dbsys
-        oracle_dbsys: occs04ng_1_sys
     - id: 2C769EB8D26F539AE06400144FFB0AE4
       name: occp04ng
       typeName: rac_database
       tags:
+        oracle_dbsys: occs04ng_1_sys
+        rac_database: occp04ng
         target_name: occp04ng
         target_type: rac_database
-        rac_database: occp04ng
-        oracle_dbsys: occs04ng_1_sys
     - id: 9CEE010BDAB2C0A1F0828AD5A442D9B7
       name: occs04ng_1
       typeName: rac_database
       tags:
+        oracle_dbsys: occs04ng_1_sys
+        rac_database: occs04ng_1
         target_name: occs04ng_1
         target_type: rac_database
-        rac_database: occs04ng_1
-        oracle_dbsys: occs04ng_1_sys
     - id: 2C769EB8D26B539AE06400144FFB0AE4
       name: occp04ng_occp04ng1
       typeName: oracle_database
       tags:
-        target_name: occp04ng_occp04ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp04ng_occp04ng1
         oracle_dbsys: occs04ng_1_sys
         rac_database: occp04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp04ng_occp04ng1
+        target_type: oracle_database
     - id: 2C769EB8D26C539AE06400144FFB0AE4
       name: occp04ng_occp04ng2
       typeName: oracle_database
       tags:
-        target_name: occp04ng_occp04ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp04ng_occp04ng2
         oracle_dbsys: occs04ng_1_sys
         rac_database: occp04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp04ng_occp04ng2
+        target_type: oracle_database
     - id: 2C769EB8D26D539AE06400144FFB0AE4
       name: occp04ng_occp04ng3
       typeName: oracle_database
       tags:
-        target_name: occp04ng_occp04ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp04ng_occp04ng3
         oracle_dbsys: occs04ng_1_sys
         rac_database: occp04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp04ng_occp04ng3
+        target_type: oracle_database
     - id: 2C769EB8D26E539AE06400144FFB0AE4
       name: occp04ng_occp04ng4
       typeName: oracle_database
       tags:
-        target_name: occp04ng_occp04ng4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp04ng_occp04ng4
         oracle_dbsys: occs04ng_1_sys
         rac_database: occp04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp04ng_occp04ng4
+        target_type: oracle_database
     - id: 2A2CA16190BFAB8949F8DAC2E9B7309F
       name: occs04ng_occs04ng4
       typeName: oracle_database
       tags:
-        target_name: occs04ng_occs04ng4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs04ng_occs04ng4
         oracle_dbsys: occs04ng_1_sys
-        rac_database: occs04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        rac_database: occs04ng_1
+        target_name: occs04ng_occs04ng4
+        target_type: oracle_database
     - id: B115EE75611716CC9BD77A7D6BBF19C1
       name: occs04ng_occs04ng2
       typeName: oracle_database
       tags:
-        target_name: occs04ng_occs04ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs04ng_occs04ng2
         oracle_dbsys: occs04ng_1_sys
-        rac_database: occs04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        rac_database: occs04ng_1
+        target_name: occs04ng_occs04ng2
+        target_type: oracle_database
     - id: C5DE1FD29C6229100FB5D7617B41B011
       name: occs04ng_occs04ng1
       typeName: oracle_database
       tags:
-        target_name: occs04ng_occs04ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs04ng_occs04ng1
         oracle_dbsys: occs04ng_1_sys
-        rac_database: occs04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        rac_database: occs04ng_1
+        target_name: occs04ng_occs04ng1
+        target_type: oracle_database
     - id: D74C9D19D38135E71E24144B886C795B
       name: occs04ng_occs04ng3
       typeName: oracle_database
       tags:
-        target_name: occs04ng_occs04ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs04ng_occs04ng3
         oracle_dbsys: occs04ng_1_sys
-        rac_database: occs04ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        rac_database: occs04ng_1
+        target_name: occs04ng_occs04ng3
+        target_type: oracle_database
     - id: D70A79B14177E3DB9657E03AB07A75AC
       name: occp32ng_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: occp32ng_sys
         target_name: occp32ng_sys
         target_type: oracle_dbsys
-        oracle_dbsys: occp32ng_sys
     - id: F7B38B4A420430D00C90B7FC13A1E52E
       name: occp32ng
       typeName: rac_database
       tags:
+        oracle_dbsys: occp32ng_sys
+        rac_database: occp32ng
         target_name: occp32ng
         target_type: rac_database
-        rac_database: occp32ng
-        oracle_dbsys: occp32ng_sys
     - id: 672D00F84BE7B821EE30A208C5C8432C
       name: occp32ng_occp32ng4
       typeName: oracle_database
       tags:
-        target_name: occp32ng_occp32ng4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp32ng_occp32ng4
         oracle_dbsys: occp32ng_sys
         rac_database: occp32ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp32ng_occp32ng4
+        target_type: oracle_database
     - id: C60E9BAAC5D2AB50CD729746A727B52D
       name: occp32ng_occp32ng1
       typeName: oracle_database
       tags:
-        target_name: occp32ng_occp32ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp32ng_occp32ng1
         oracle_dbsys: occp32ng_sys
         rac_database: occp32ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp32ng_occp32ng1
+        target_type: oracle_database
     - id: D7F06FA2E1646D167F3D757A542EE310
       name: occp32ng_occp32ng3
       typeName: oracle_database
       tags:
-        target_name: occp32ng_occp32ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp32ng_occp32ng3
         oracle_dbsys: occp32ng_sys
         rac_database: occp32ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp32ng_occp32ng3
+        target_type: oracle_database
     - id: EDC13E43193639135AA7FC499DD6D5EC
       name: occp32ng_occp32ng2
       typeName: oracle_database
       tags:
-        target_name: occp32ng_occp32ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp32ng_occp32ng2
         oracle_dbsys: occp32ng_sys
         rac_database: occp32ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp32ng_occp32ng2
+        target_type: oracle_database
     - id: 5EE0C226C55D6D050BDFB1C8C63B1873
       name: occp50bc
       typeName: rac_database
       tags:
+        rac_database: occp50bc
         target_name: occp50bc
         target_type: rac_database
-        rac_database: occp50bc
     - id: 6BFDC953D515F67F4799A8EFFACF3C64
       name: occs50bc_1
       typeName: rac_database
       tags:
+        rac_database: occs50bc_1
         target_name: occs50bc_1
         target_type: rac_database
-        rac_database: occs50bc_1
     - id: 9D70F97FAEC1BFA9DA441733E2D49E8C
       name: occp50bc_occp50bc2
       typeName: oracle_database
       tags:
-        target_name: occp50bc_occp50bc2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp50bc_occp50bc2
         rac_database: occp50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp50bc_occp50bc2
+        target_type: oracle_database
     - id: D0FC7B7826B580AA2B27BDA618479B59
       name: occp50bc_occp50bc1
       typeName: oracle_database
       tags:
-        target_name: occp50bc_occp50bc1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp50bc_occp50bc1
         rac_database: occp50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp50bc_occp50bc1
+        target_type: oracle_database
     - id: D2CC050B21DCD5FE8882305AA6C3CC77
       name: occp50bc_occp50bc3
       typeName: oracle_database
       tags:
-        target_name: occp50bc_occp50bc3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp50bc_occp50bc3
         rac_database: occp50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp50bc_occp50bc3
+        target_type: oracle_database
     - id: 157C948E4CAEB8D1AE7B087F3B378A4B
       name: occs50bc_occs50bc1
       typeName: oracle_database
       tags:
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
+        oracle_database: occs50bc_occs50bc1
+        rac_database: occs50bc_1
         target_name: occs50bc_occs50bc1
         target_type: oracle_database
-        oracle_database: occs50bc_occs50bc1
-        rac_database: occs50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
     - id: 181EC176DC266858882C0EEFE7536E7E
       name: occs50bc_occs50bc3
       typeName: oracle_database
       tags:
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
+        oracle_database: occs50bc_occs50bc3
+        rac_database: occs50bc_1
         target_name: occs50bc_occs50bc3
         target_type: oracle_database
-        oracle_database: occs50bc_occs50bc3
-        rac_database: occs50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
     - id: E73EEB73D9A14DCA8F46366000C449BB
       name: occs50bc_occs50bc2
       typeName: oracle_database
       tags:
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
+        oracle_database: occs50bc_occs50bc2
+        rac_database: occs50bc_1
         target_name: occs50bc_occs50bc2
         target_type: oracle_database
-        oracle_database: occs50bc_occs50bc2
-        rac_database: occs50bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
     - id: 35272DD225A97500E06400144FFBE115
       name: occp12bc
       typeName: rac_database
       tags:
+        rac_database: occp12bc
         target_name: occp12bc
         target_type: rac_database
-        rac_database: occp12bc
     - id: 35272DD225A57500E06400144FFBE115
       name: occp12bc_occp12bc1
       typeName: oracle_database
       tags:
-        target_name: occp12bc_occp12bc1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp12bc_occp12bc1
         rac_database: occp12bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp12bc_occp12bc1
+        target_type: oracle_database
     - id: 35272DD225A67500E06400144FFBE115
       name: occp12bc_occp12bc2
       typeName: oracle_database
       tags:
-        target_name: occp12bc_occp12bc2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp12bc_occp12bc2
         rac_database: occp12bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp12bc_occp12bc2
+        target_type: oracle_database
     - id: 35272DD225A77500E06400144FFBE115
       name: occp12bc_occp12bc3
       typeName: oracle_database
       tags:
-        target_name: occp12bc_occp12bc3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp12bc_occp12bc3
         rac_database: occp12bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp12bc_occp12bc3
+        target_type: oracle_database
     - id: 35272DD225A87500E06400144FFBE115
       name: occp12bc_occp12bc4
       typeName: oracle_database
       tags:
-        target_name: occp12bc_occp12bc4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp12bc_occp12bc4
         rac_database: occp12bc
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp12bc_occp12bc4
+        target_type: oracle_database
     - id: E2A0832BAA37BFA1C39A87264AD391F6
       name: occp41ng_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: occp41ng_sys
         target_name: occp41ng_sys
         target_type: oracle_dbsys
-        oracle_dbsys: occp41ng_sys
     - id: 3853E4F08E376B47E06400144FFBE115
       name: occp41ng
       typeName: rac_database
       tags:
+        oracle_dbsys: occp41ng_sys
+        rac_database: occp41ng
         target_name: occp41ng
         target_type: rac_database
-        rac_database: occp41ng
-        oracle_dbsys: occp41ng_sys
     - id: DFC88C4E314E651A6B71CBD3EB0B7B0A
       name: occs41ng
       typeName: rac_database
       tags:
+        oracle_dbsys: occp41ng_sys
+        rac_database: occs41ng
         target_name: occs41ng
         target_type: rac_database
-        rac_database: occs41ng
-        oracle_dbsys: occp41ng_sys
     - id: 3853E4F08E346B47E06400144FFBE115
       name: occp41ng_occp41ng1
       typeName: oracle_database
       tags:
-        target_name: occp41ng_occp41ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp41ng_occp41ng1
         oracle_dbsys: occp41ng_sys
         rac_database: occp41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp41ng_occp41ng1
+        target_type: oracle_database
     - id: 3853E4F08E356B47E06400144FFBE115
       name: occp41ng_occp41ng2
       typeName: oracle_database
       tags:
-        target_name: occp41ng_occp41ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp41ng_occp41ng2
         oracle_dbsys: occp41ng_sys
         rac_database: occp41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp41ng_occp41ng2
+        target_type: oracle_database
     - id: 3853E4F08E366B47E06400144FFBE115
       name: occp41ng_occp41ng3
       typeName: oracle_database
       tags:
-        target_name: occp41ng_occp41ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occp41ng_occp41ng3
         oracle_dbsys: occp41ng_sys
         rac_database: occp41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occp41ng_occp41ng3
+        target_type: oracle_database
     - id: 5F18BF46B80CFE12650BEEF282F85D2F
       name: occs41ng_occs41ng1
       typeName: oracle_database
       tags:
-        target_name: occs41ng_occs41ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs41ng_occs41ng1
         oracle_dbsys: occp41ng_sys
         rac_database: occs41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs41ng_occs41ng1
+        target_type: oracle_database
     - id: 64780505D39083AA54F35926608B4306
       name: occs41ng_occs41ng2
       typeName: oracle_database
       tags:
-        target_name: occs41ng_occs41ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs41ng_occs41ng2
         oracle_dbsys: occp41ng_sys
         rac_database: occs41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs41ng_occs41ng2
+        target_type: oracle_database
     - id: 8B623D329EFCADFFFC1BC20EE93A794B
       name: occs41ng_occs41ng3
       typeName: oracle_database
       tags:
-        target_name: occs41ng_occs41ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: occs41ng_occs41ng3
         oracle_dbsys: occp41ng_sys
         rac_database: occs41ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: occs41ng_occs41ng3
+        target_type: oracle_database
     - id: D874B18DBB619D6E1D5D2C090D7A1BA0
       name: cdbp54ng_sys
       typeName: oracle_dbsys
       tags:
+        oracle_dbsys: cdbp54ng_sys
         target_name: cdbp54ng_sys
         target_type: oracle_dbsys
-        oracle_dbsys: cdbp54ng_sys
     - id: B400CB27FC79BB9B276175E03772423C
       name: cdbp54ng
       typeName: rac_database
       tags:
+        oracle_dbsys: cdbp54ng_sys
+        rac_database: cdbp54ng
         target_name: cdbp54ng
         target_type: rac_database
-        rac_database: cdbp54ng
-        oracle_dbsys: cdbp54ng_sys
     - id: AE5B1F267A5FD7D3ADD06E754BE4DF7E
       name: cdbs54ng
       typeName: rac_database
       tags:
+        oracle_dbsys: cdbp54ng_sys
+        rac_database: cdbs54ng
         target_name: cdbs54ng
         target_type: rac_database
-        rac_database: cdbs54ng
-        oracle_dbsys: cdbp54ng_sys
     - id: C16CB07B12BE44C81C6C49B6162ADA27
       name: cdbp54ng_CDBP54NGPDB001
       typeName: oracle_pdb
       tags:
+        oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbp54ng_CDBP54NGPDB001
+        rac_database: cdbp54ng
         target_name: cdbp54ng_CDBP54NGPDB001
         target_type: oracle_pdb
-        oracle_pdb: cdbp54ng_CDBP54NGPDB001
-        oracle_dbsys: cdbp54ng_sys
-        rac_database: cdbp54ng
     - id: DC8D3A3BB9EE740BBCCC54A03ED07845
       name: cdbs54ng_CDBP54NGPDB001
       typeName: oracle_pdb
       tags:
+        oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbs54ng_CDBP54NGPDB001
+        rac_database: cdbs54ng
         target_name: cdbs54ng_CDBP54NGPDB001
         target_type: oracle_pdb
-        oracle_pdb: cdbs54ng_CDBP54NGPDB001
-        oracle_dbsys: cdbp54ng_sys
-        rac_database: cdbs54ng
     - id: 2F625BD391A19C1174C2B71ADA14D105
       name: cdbp54ng_cdbp54ng4
       typeName: oracle_database
       tags:
-        target_name: cdbp54ng_cdbp54ng4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp54ng_cdbp54ng4
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbp54ng_CDBP54NGPDB001
         rac_database: cdbp54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp54ng_cdbp54ng4
+        target_type: oracle_database
     - id: 5E36634E7A2456ECEC8C2C9539982848
       name: cdbp54ng_cdbp54ng1
       typeName: oracle_database
       tags:
-        target_name: cdbp54ng_cdbp54ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp54ng_cdbp54ng1
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbp54ng_CDBP54NGPDB001
         rac_database: cdbp54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp54ng_cdbp54ng1
+        target_type: oracle_database
     - id: 652F0D783ABD9D8A17CACB0663E53385
       name: cdbp54ng_cdbp54ng3
       typeName: oracle_database
       tags:
-        target_name: cdbp54ng_cdbp54ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp54ng_cdbp54ng3
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbp54ng_CDBP54NGPDB001
         rac_database: cdbp54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp54ng_cdbp54ng3
+        target_type: oracle_database
     - id: B7FCE33770054B61DE43298FD97AA27E
       name: cdbp54ng_cdbp54ng2
       typeName: oracle_database
       tags:
-        target_name: cdbp54ng_cdbp54ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbp54ng_cdbp54ng2
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbp54ng_CDBP54NGPDB001
         rac_database: cdbp54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbp54ng_cdbp54ng2
+        target_type: oracle_database
     - id: 6265CD345236A98265039D57998FBF7F
       name: cdbs54ng_cdbs54ng3
       typeName: oracle_database
       tags:
-        target_name: cdbs54ng_cdbs54ng3
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbs54ng_cdbs54ng3
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbs54ng_CDBP54NGPDB001
         rac_database: cdbs54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbs54ng_cdbs54ng3
+        target_type: oracle_database
     - id: 75AEC7D216BDB7F4AC6DED17BB1C188A
       name: cdbs54ng_cdbs54ng1
       typeName: oracle_database
       tags:
-        target_name: cdbs54ng_cdbs54ng1
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbs54ng_cdbs54ng1
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbs54ng_CDBP54NGPDB001
         rac_database: cdbs54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbs54ng_cdbs54ng1
+        target_type: oracle_database
     - id: C94101AC4D3D96E6C7C3237AA651ADCF
       name: cdbs54ng_cdbs54ng2
       typeName: oracle_database
       tags:
-        target_name: cdbs54ng_cdbs54ng2
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbs54ng_cdbs54ng2
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbs54ng_CDBP54NGPDB001
         rac_database: cdbs54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbs54ng_cdbs54ng2
+        target_type: oracle_database
     - id: DDF2A4A3C8716E9F2CEA8ACB04F1B150
       name: cdbs54ng_cdbs54ng4
       typeName: oracle_database
       tags:
-        target_name: cdbs54ng_cdbs54ng4
-        target_type: oracle_database
+        dg_role: Physical Standby
+        listener_name: cadecrk01cl01vm03_lstnr
+        machine_name: cadecrk01cl01vm03
         oracle_database: cdbs54ng_cdbs54ng4
         oracle_dbsys: cdbp54ng_sys
+        oracle_pdb: cdbs54ng_CDBP54NGPDB001
         rac_database: cdbs54ng
-        dg_role: Physical Standby
-        machine_name: cadecrk01cl01vm03
-        listener_name: cadecrk01cl01vm03_lstnr
-      dg_role: Physical Standby
-      listener_name: LISTENER_cadecrk01cl01vm03.intra.caixa.gov.br
-      machine_name: cadecrk01cl01vm03.intra.caixa.gov.br
+        target_name: cdbs54ng_cdbs54ng4
+        target_type: oracle_database
