@@ -147,6 +147,7 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_CONFIG_METRICS` | `./configs/configMetrics.yaml` | Caminho do arquivo de metricas. |
 | `OEM_VALIDATE_CONFIG` | `false` | Ativa validacao de IDs e correlacoes contra a API OEM. Aceita somente `true` ou `false`. |
 | `OEM_VALIDATED_CONFIG_OUTPUT` | `./configs/configTargets.validated.yaml` | Caminho do YAML corrigido quando a validacao esta ativa. |
+| `OEM_VALIDATION_REPORT_OUTPUT` | derivado de `OEM_VALIDATED_CONFIG_OUTPUT` | Caminho do relatorio YAML com as alteracoes feitas pela validacao. |
 | `OEM_USER` | vazio | Usuario de Basic Auth no OEM. Obrigatorio para coleta ou validacao opcional. |
 | `OEM_PASSWORD` | vazio | Senha direta de Basic Auth. Tem prioridade sobre `OEM_TOKEN`. |
 | `OEM_TOKEN` | vazio | Token legado usado para recuperar a senha. |
@@ -214,6 +215,7 @@ Ative a validacao na inicializacao com:
 ```sh
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
 ```
 
 Quando ativa, a aplicacao:
@@ -222,18 +224,25 @@ Quando ativa, a aplicacao:
 2. Lista targets na API OEM para cada site.
 3. Localiza cada target configurado por `name` + `typeName`.
 4. Corrige em memoria IDs divergentes.
-5. Registra warnings para target ausente, duplicado ou divergente.
-6. Valida correlacoes para raizes `rac_database` e `oracle_pdb`.
-7. Usa propriedades de `oracle_database`, principalmente `MachineName` e
+5. Remove targets que nao existem mais na API OEM.
+6. Registra warnings para target ausente, duplicado ou divergente.
+7. Valida correlacoes para raizes `rac_database` e `oracle_pdb`.
+8. Usa propriedades de `oracle_database`, principalmente `MachineName` e
    `DataGuardStatus`, para inferir `host`, `oracle_listener` e `dg_role`.
-8. Adiciona targets relacionados ausentes quando eles existem na API OEM.
-9. Escreve um novo YAML corrigido no caminho de `OEM_VALIDATED_CONFIG_OUTPUT`.
+9. Adiciona targets relacionados ausentes quando eles existem na API OEM.
+10. Escreve um novo YAML corrigido no caminho de `OEM_VALIDATED_CONFIG_OUTPUT`.
+11. Escreve um relatorio YAML no caminho de `OEM_VALIDATION_REPORT_OUTPUT`.
 
 O arquivo original nunca e sobrescrito. O caminho de saida tambem nao pode ser
-o mesmo arquivo original, inclusive por symlink ou hardlink. Durante a mesma
-execucao, a coleta usa a configuracao corrigida em memoria. Em uma proxima
-execucao, rode a validacao novamente ou aponte `OEM_CONFIG_TARGETS` para o YAML
-validado, conforme o processo operacional escolhido.
+o mesmo arquivo original, inclusive por symlink ou hardlink. O relatorio tambem
+nao pode usar o mesmo caminho do YAML validado. Durante a mesma execucao, a
+coleta usa a configuracao corrigida em memoria; targets removidos nao geram
+jobs nem chamadas `latestData`. Em uma proxima execucao, rode a validacao
+novamente ou aponte `OEM_CONFIG_TARGETS` para o YAML validado, conforme o
+processo operacional escolhido.
+
+Veja detalhes, estrutura do relatorio e casos extremos em
+[`docs/validacao.md`](validacao.md).
 
 ## Execucao local
 
@@ -278,6 +287,7 @@ cd oem-ingest-new
 export OEM_CONFIG_TARGETS=./configs/configTargets.yaml
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
 export OEM_USER=usuario
 export OEM_PASSWORD=senha
 

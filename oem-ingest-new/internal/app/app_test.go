@@ -939,11 +939,15 @@ func TestRunValidatesTargetsWhenEnabled(t *testing.T) {
 	if !factoryCalled {
 		t.Fatal("expected validation factory to be called")
 	}
-	if !strings.Contains(output.String(), "validacao de configuracao concluida: 1 correcoes de ID, 0 targets adicionados, 1 tags corrigidas, 2 avisos") {
+	if !strings.Contains(output.String(), "validacao de configuracao concluida: 1 correcoes de ID, 0 targets removidos, 0 sites removidos, 0 targets adicionados, 1 tags corrigidas, 2 avisos") {
 		t.Fatalf("expected validation summary, got %q", output.String())
 	}
 	if !strings.Contains(output.String(), "configuracao validada escrita em "+validatedPath) {
 		t.Fatalf("expected validated config output path, got %q", output.String())
+	}
+	reportPath := config.DefaultReportPath(validatedPath)
+	if !strings.Contains(output.String(), "relatorio de validacao escrito em "+reportPath) {
+		t.Fatalf("expected validation report output path, got %q", output.String())
 	}
 	if !strings.Contains(output.String(), "scaffold inicializado") {
 		t.Fatalf("expected scaffold message, got %q", output.String())
@@ -977,8 +981,218 @@ func TestRunValidatesTargetsWhenEnabled(t *testing.T) {
 	if string(validatedContents) != wantValidated {
 		t.Fatalf("validated YAML mismatch\nwant:\n%s\ngot:\n%s", wantValidated, validatedContents)
 	}
+	reportContents, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read validation report file: %v", err)
+	}
+	if !strings.Contains(string(reportContents), "idCorrections: 1") || !strings.Contains(string(reportContents), "targetsRemoved: 0") {
+		t.Fatalf("validation report missing expected summary:\n%s", reportContents)
+	}
 	if len(logger.infos) != 1 || !strings.Contains(logger.infos[0], "configuracao validada escrita") {
 		t.Fatalf("expected validation summary log, got %#v", logger.infos)
+	}
+}
+
+func TestRunWithValidationDoesNotCollectRemovedTarget(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	validatedPath := filepath.Join(tmp, "validated", "configTargets.yaml")
+	reportPath := filepath.Join(tmp, "validated", "configTargets.report.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: keep-id
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+    - id: missing-id
+      name: missing
+      typeName: host
+      tags:
+        target_name: missing
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var keepLatestDataCalls atomic.Int32
+	var missingLatestDataCalls atomic.Int32
+	var metricsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			fmt.Fprint(w, `{"name":"mock","version":"test"}`)
+		case "/em/api/targets/keep-id/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/keep-id/metricGroups/Load/latestData":
+			keepLatestDataCalls.Add(1)
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/em/api/targets/missing-id/metricGroups/Load":
+			http.Error(w, "removed target should not be collected", http.StatusInternalServerError)
+		case "/em/api/targets/missing-id/metricGroups/Load/latestData":
+			missingLatestDataCalls.Add(1)
+			http.Error(w, "removed target should not be collected", http.StatusInternalServerError)
+		case "/em/api/incidents/":
+			fmt.Fprint(w, `{"items":[]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			if cancel != nil {
+				time.AfterFunc(10*time.Millisecond, cancel)
+			}
+		case "/v1/logs":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	cancel = stop
+	defer stop()
+
+	var output bytes.Buffer
+	err = Run(ctx, Options{
+		Output: &output,
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_VALIDATE_CONFIG":          "true",
+			"OEM_CONFIG_TARGETS":           targetsPath,
+			"OEM_CONFIG_METRICS":           metricsPath,
+			"OEM_VALIDATED_CONFIG_OUTPUT":  validatedPath,
+			"OEM_VALIDATION_REPORT_OUTPUT": reportPath,
+			"OEM_USER":                     "user",
+			"OEM_PASSWORD":                 "secret",
+			"OTEL_EXPORT_URL":              server.URL,
+			"OEM_HTTP_MAX_RETRIES":         "0",
+			"OEM_EXPORT_INTERVAL_SECONDS":  "60",
+		}),
+		Logger: &appRecordingLogger{},
+		TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+			return appFakeTargetLister{
+				targets: []oem.Target{{ID: "keep-id", Name: "host1", TypeName: "host"}},
+			}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if keepLatestDataCalls.Load() == 0 {
+		t.Fatal("expected kept target to be collected")
+	}
+	if missingLatestDataCalls.Load() != 0 {
+		t.Fatalf("removed target latestData calls = %d, want zero", missingLatestDataCalls.Load())
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected metrics export after collecting kept target")
+	}
+	if !strings.Contains(output.String(), "coleta iniciada com 1 jobs") {
+		t.Fatalf("expected one job after validation removal, got %q", output.String())
+	}
+
+	validatedContents, err := os.ReadFile(validatedPath)
+	if err != nil {
+		t.Fatalf("read validated targets: %v", err)
+	}
+	if strings.Contains(string(validatedContents), "missing-id") || !strings.Contains(string(validatedContents), "keep-id") {
+		t.Fatalf("validated config should keep only found target:\n%s", validatedContents)
+	}
+	reportContents, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read validation report: %v", err)
+	}
+	if !strings.Contains(string(reportContents), "targetsRemoved: 1") || !strings.Contains(string(reportContents), "targetName: missing") {
+		t.Fatalf("validation report should describe removed target:\n%s", reportContents)
+	}
+}
+
+func TestRunWithValidationFailsBeforeCollectionWhenAllTargetsRemoved(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	validatedPath := filepath.Join(tmp, "validated", "configTargets.yaml")
+	reportPath := filepath.Join(tmp, "validated", "configTargets.report.yaml")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: http://oem.example
+  targets:
+    - id: missing-id
+      name: missing
+      typeName: host
+      tags:
+        target_name: missing
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	err := Run(context.Background(), Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_VALIDATE_CONFIG":          "true",
+			"OEM_CONFIG_TARGETS":           targetsPath,
+			"OEM_CONFIG_METRICS":           metricsPath,
+			"OEM_VALIDATED_CONFIG_OUTPUT":  validatedPath,
+			"OEM_VALIDATION_REPORT_OUTPUT": reportPath,
+			"OTEL_EXPORT_URL":              "http://collector.example",
+		}),
+		Logger: &appRecordingLogger{},
+		TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+			return appFakeTargetLister{}, nil
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "validacao removeu todos os targets") {
+		t.Fatalf("expected all-targets-removed error, got %v", err)
+	}
+	validatedContents, readErr := os.ReadFile(validatedPath)
+	if readErr != nil {
+		t.Fatalf("read validated targets: %v", readErr)
+	}
+	if !strings.Contains(string(validatedContents), "[]") {
+		t.Fatalf("validated config should contain no sites, got:\n%s", validatedContents)
+	}
+	reportContents, readErr := os.ReadFile(reportPath)
+	if readErr != nil {
+		t.Fatalf("read validation report: %v", readErr)
+	}
+	if !strings.Contains(string(reportContents), "targetsRemoved: 1") || !strings.Contains(string(reportContents), "sitesRemoved: 1") {
+		t.Fatalf("validation report should record all removals:\n%s", reportContents)
 	}
 }
 
@@ -1092,6 +1306,51 @@ func TestRunValidationRejectsOutputSymlinkToOriginal(t *testing.T) {
 	}
 	if !strings.Contains(string(contents), "configured-id") || strings.Contains(string(contents), "site: null") {
 		t.Fatalf("original file should remain untouched, got:\n%s", contents)
+	}
+}
+
+func TestRunValidationRejectsReportPathEqualToOriginalOrValidatedConfig(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		reportPath func(targetsPath, validatedPath string) string
+		want       string
+	}{
+		{
+			name: "original",
+			reportPath: func(targetsPath, _ string) string {
+				return targetsPath
+			},
+			want: "OEM_CONFIG_TARGETS",
+		},
+		{
+			name: "validated",
+			reportPath: func(_, validatedPath string) string {
+				return validatedPath
+			},
+			want: "OEM_VALIDATED_CONFIG_OUTPUT",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			targetsPath := writeTargetsFile(t, "configured-id")
+			validatedPath := filepath.Join(t.TempDir(), "validated.yaml")
+
+			err := Run(context.Background(), Options{
+				LookupEnv: mapLookup(map[string]string{
+					"OEM_VALIDATE_CONFIG":          "true",
+					"OEM_CONFIG_TARGETS":           targetsPath,
+					"OEM_VALIDATED_CONFIG_OUTPUT":  validatedPath,
+					"OEM_VALIDATION_REPORT_OUTPUT": tt.reportPath(targetsPath, validatedPath),
+				}),
+				TargetInventoryFactory: func(config.SiteConfig) (validate.TargetInventory, error) {
+					return appFakeTargetLister{
+						targets: []oem.Target{{ID: "configured-id", Name: "cdbp51bc", TypeName: "rac_database"}},
+					}, nil
+				},
+			})
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("expected report path validation error containing %q, got %v", tt.want, err)
+			}
+		})
 	}
 }
 

@@ -33,25 +33,48 @@ type IDValidationOptions struct {
 // IDValidationResult contains the corrected in-memory target configuration and
 // a machine-readable summary of warnings and corrections.
 type IDValidationResult struct {
-	Sites         []config.SiteConfig
-	IDCorrections []IDCorrection
-	Warnings      []Warning
+	Sites          []config.SiteConfig
+	IDCorrections  []IDCorrection
+	TargetRemovals []TargetRemoval
+	SiteRemovals   []SiteRemoval
+	Warnings       []Warning
 }
 
-// Changed reports whether validation updated at least one target ID in memory.
+// Changed reports whether validation updated target IDs or removed targets.
 func (r IDValidationResult) Changed() bool {
-	return len(r.IDCorrections) > 0
+	return len(r.IDCorrections) > 0 || len(r.TargetRemovals) > 0 || len(r.SiteRemovals) > 0
 }
 
 // IDCorrection describes one target ID changed to match the current OEM API.
 type IDCorrection struct {
-	SiteIndex   int
-	TargetIndex int
-	SiteName    string
-	TargetName  string
-	TargetType  string
-	OldID       string
-	NewID       string
+	SiteIndex   int    `yaml:"siteIndex"`
+	TargetIndex int    `yaml:"targetIndex"`
+	SiteName    string `yaml:"siteName"`
+	TargetName  string `yaml:"targetName"`
+	TargetType  string `yaml:"targetType"`
+	OldID       string `yaml:"oldID"`
+	NewID       string `yaml:"newID"`
+}
+
+// TargetRemoval describes one configured target excluded because it was not
+// found in the current OEM API target list.
+type TargetRemoval struct {
+	SiteIndex   int         `yaml:"siteIndex"`
+	TargetIndex int         `yaml:"targetIndex"`
+	SiteName    string      `yaml:"siteName"`
+	TargetName  string      `yaml:"targetName"`
+	TargetType  string      `yaml:"targetType"`
+	ConfigID    string      `yaml:"configID"`
+	Reason      WarningCode `yaml:"reason"`
+}
+
+// SiteRemoval describes one site omitted from the validated configuration
+// because all its configured targets were removed.
+type SiteRemoval struct {
+	SiteIndex      int    `yaml:"siteIndex"`
+	SiteName       string `yaml:"siteName"`
+	Endpoint       string `yaml:"endpoint"`
+	RemovedTargets int    `yaml:"removedTargets"`
 }
 
 // WarningCode identifies a validation warning class.
@@ -65,16 +88,16 @@ const (
 
 // Warning is emitted when validation finds a non-fatal configuration issue.
 type Warning struct {
-	Code        WarningCode
-	SiteIndex   int
-	TargetIndex int
-	SiteName    string
-	TargetName  string
-	TargetType  string
-	ConfigID    string
-	CurrentID   string
-	Count       int
-	Message     string
+	Code        WarningCode `yaml:"code"`
+	SiteIndex   int         `yaml:"siteIndex"`
+	TargetIndex int         `yaml:"targetIndex"`
+	SiteName    string      `yaml:"siteName"`
+	TargetName  string      `yaml:"targetName"`
+	TargetType  string      `yaml:"targetType"`
+	ConfigID    string      `yaml:"configID,omitempty"`
+	CurrentID   string      `yaml:"currentID,omitempty"`
+	Count       int         `yaml:"count,omitempty"`
+	Message     string      `yaml:"message"`
 }
 
 // ValidateTargetIDs checks configured target IDs against the current OEM target
@@ -105,11 +128,21 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 		}
 		index := indexTargetsByNameAndType(targets.Items)
 
+		keptTargets := make([]config.TargetConfig, 0, len(site.Targets))
 		for targetIndex, target := range site.Targets {
 			key := targetKey(target.Name, target.TypeName)
 			matches := index[key]
 			switch len(matches) {
 			case 0:
+				result.TargetRemovals = append(result.TargetRemovals, TargetRemoval{
+					SiteIndex:   siteIndex,
+					TargetIndex: targetIndex,
+					SiteName:    site.Name,
+					TargetName:  target.Name,
+					TargetType:  target.TypeName,
+					ConfigID:    target.ID,
+					Reason:      WarningTargetMissing,
+				})
 				warning := Warning{
 					Code:        WarningTargetMissing,
 					SiteIndex:   siteIndex,
@@ -124,32 +157,32 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 			case 1:
 				current := matches[0]
 				currentID := strings.TrimSpace(current.ID)
-				if target.ID == currentID {
-					continue
+				if target.ID != currentID {
+					correction := IDCorrection{
+						SiteIndex:   siteIndex,
+						TargetIndex: targetIndex,
+						SiteName:    site.Name,
+						TargetName:  target.Name,
+						TargetType:  target.TypeName,
+						OldID:       target.ID,
+						NewID:       currentID,
+					}
+					target.ID = currentID
+					result.IDCorrections = append(result.IDCorrections, correction)
+					warning := Warning{
+						Code:        WarningIDDivergent,
+						SiteIndex:   siteIndex,
+						TargetIndex: targetIndex,
+						SiteName:    site.Name,
+						TargetName:  target.Name,
+						TargetType:  target.TypeName,
+						ConfigID:    correction.OldID,
+						CurrentID:   currentID,
+						Message:     fmt.Sprintf("ID do target %q tipo %q diverge da API OEM", target.Name, target.TypeName),
+					}
+					result.addWarning(ctx, opts.Logger, warning)
 				}
-				correction := IDCorrection{
-					SiteIndex:   siteIndex,
-					TargetIndex: targetIndex,
-					SiteName:    site.Name,
-					TargetName:  target.Name,
-					TargetType:  target.TypeName,
-					OldID:       target.ID,
-					NewID:       currentID,
-				}
-				corrected[siteIndex].Targets[targetIndex].ID = currentID
-				result.IDCorrections = append(result.IDCorrections, correction)
-				warning := Warning{
-					Code:        WarningIDDivergent,
-					SiteIndex:   siteIndex,
-					TargetIndex: targetIndex,
-					SiteName:    site.Name,
-					TargetName:  target.Name,
-					TargetType:  target.TypeName,
-					ConfigID:    target.ID,
-					CurrentID:   currentID,
-					Message:     fmt.Sprintf("ID do target %q tipo %q diverge da API OEM", target.Name, target.TypeName),
-				}
-				result.addWarning(ctx, opts.Logger, warning)
+				keptTargets = append(keptTargets, target)
 			default:
 				warning := Warning{
 					Code:        WarningTargetDuplicate,
@@ -163,12 +196,36 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 					Message:     fmt.Sprintf("target %q tipo %q retornou %d correspondencias na API OEM", target.Name, target.TypeName, len(matches)),
 				}
 				result.addWarning(ctx, opts.Logger, warning)
+				keptTargets = append(keptTargets, target)
 			}
 		}
+		corrected[siteIndex].Targets = keptTargets
 	}
 
-	result.Sites = corrected
+	result.Sites = result.removeEmptySites(corrected)
 	return result, nil
+}
+
+func (r *IDValidationResult) removeEmptySites(sites []config.SiteConfig) []config.SiteConfig {
+	removedTargetsBySite := make(map[int]int, len(r.TargetRemovals))
+	for _, removal := range r.TargetRemovals {
+		removedTargetsBySite[removal.SiteIndex]++
+	}
+
+	filtered := make([]config.SiteConfig, 0, len(sites))
+	for siteIndex, site := range sites {
+		if len(site.Targets) > 0 {
+			filtered = append(filtered, site)
+			continue
+		}
+		r.SiteRemovals = append(r.SiteRemovals, SiteRemoval{
+			SiteIndex:      siteIndex,
+			SiteName:       site.Name,
+			Endpoint:       site.Endpoint,
+			RemovedTargets: removedTargetsBySite[siteIndex],
+		})
+	}
+	return filtered
 }
 
 func (r *IDValidationResult) addWarning(ctx context.Context, logger Logger, warning Warning) {

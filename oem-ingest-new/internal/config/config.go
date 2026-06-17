@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ const (
 	DefaultTargetsPath              = "./configs/configTargets.yaml"
 	DefaultMetricsPath              = "./configs/configMetrics.yaml"
 	DefaultValidatedTargetsPath     = "./configs/configTargets.validated.yaml"
+	DefaultValidationReportPath     = "./configs/configTargets.validated.report.yaml"
 	DefaultExportIntervalSeconds    = 60
 	DefaultResponseToleranceMin     = 21
 	DefaultHTTPTimeoutSeconds       = 30
@@ -33,6 +35,7 @@ type Env struct {
 	MetricsPath              string
 	ValidateConfig           bool
 	ValidatedConfigOutput    string
+	ValidationReportOutput   string
 	User                     string
 	Password                 string
 	Token                    string
@@ -90,10 +93,12 @@ func LoadEnv() (Env, error) {
 // ReadEnv reads environment variables through lookup, which keeps tests isolated
 // from the host process environment.
 func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
+	validatedConfigOutput := stringValue(lookup, "OEM_VALIDATED_CONFIG_OUTPUT", DefaultValidatedTargetsPath)
 	env := Env{
 		TargetsPath:              stringValue(lookup, "OEM_CONFIG_TARGETS", DefaultTargetsPath),
 		MetricsPath:              stringValue(lookup, "OEM_CONFIG_METRICS", DefaultMetricsPath),
-		ValidatedConfigOutput:    stringValue(lookup, "OEM_VALIDATED_CONFIG_OUTPUT", DefaultValidatedTargetsPath),
+		ValidatedConfigOutput:    validatedConfigOutput,
+		ValidationReportOutput:   stringValue(lookup, "OEM_VALIDATION_REPORT_OUTPUT", DefaultReportPath(validatedConfigOutput)),
 		User:                     stringValue(lookup, "OEM_USER", ""),
 		Password:                 stringValue(lookup, "OEM_PASSWORD", ""),
 		Token:                    stringValue(lookup, "OEM_TOKEN", ""),
@@ -149,6 +154,20 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 	}
 
 	return env, nil
+}
+
+// DefaultReportPath derives the validation report path from the validated
+// target YAML path by inserting ".report" before the file extension.
+func DefaultReportPath(validatedConfigOutput string) string {
+	path := strings.TrimSpace(validatedConfigOutput)
+	if path == "" {
+		return DefaultValidationReportPath
+	}
+	ext := filepath.Ext(path)
+	if ext == "" {
+		return path + ".report.yaml"
+	}
+	return strings.TrimSuffix(path, ext) + ".report" + ext
 }
 
 // Load reads targets and metrics YAML files.

@@ -21,7 +21,8 @@ inclui:
 - resolucao de credenciais OEM para Basic Auth, incluindo token legado;
 - cliente HTTP OEM com Basic Auth, timeouts, retries, pool de conexoes,
   paginacao por `links.next` e endpoints tipados;
-- validacao opcional de IDs/correlacoes de targets na inicializacao;
+- validacao opcional de IDs/correlacoes de targets na inicializacao, removendo
+  targets ausentes e gerando relatorio de mudancas;
 - scheduler de coleta por site, target e grupo de metrica;
 - transformacao de metricas numericas, logs textuais e metricas customizadas
   legadas;
@@ -50,9 +51,12 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_CONFIG_TARGETS`: caminho do arquivo de targets.
 - `OEM_CONFIG_METRICS`: caminho do arquivo de metricas.
 - `OEM_VALIDATE_CONFIG`: `true` ou `false`; quando `true`, consulta a API OEM
-  e corrige IDs/correlacoes divergentes em memoria.
+  e corrige IDs/correlacoes divergentes em memoria, removendo targets
+  ausentes.
 - `OEM_VALIDATED_CONFIG_OUTPUT`: caminho para gravar a configuracao corrigida,
   sem sobrescrever o arquivo original.
+- `OEM_VALIDATION_REPORT_OUTPUT`: caminho para gravar o relatorio YAML da
+  validacao. Quando omitido, e derivado de `OEM_VALIDATED_CONFIG_OUTPUT`.
 - `OEM_USER`, `OEM_PASSWORD`, `OEM_TOKEN`, `OEM_AUTH_TOKEN_HASH_FILE`.
 - `OTEL_EXPORT_URL`.
 - `OTEL_EXPORT_TIMEOUT_SECONDS`.
@@ -115,6 +119,8 @@ checks, alem de `docker build` e um smoke test da imagem com `--help`.
   legado.
 - `docs/configuracao.md`: arquivos YAML, variaveis de ambiente, autenticacao e
   validacao opcional.
+- `docs/validacao.md`: regras de validacao, arquivos gerados, relatorio de
+  mudancas e efeito na run.
 - `docs/operacao.md`: execucao local, Docker, Docker Compose, logs,
   troubleshooting e metricas internas.
 - `docs/compatibilidade_legado.md`: contrato de compatibilidade com o coletor
@@ -156,9 +162,12 @@ docker run --rm \
 ```
 
 Quando `OEM_VALIDATE_CONFIG=true`, a aplicacao grava a configuracao corrigida no
-caminho de `OEM_VALIDATED_CONFIG_OUTPUT`. Se `/app/configs` estiver montado como
-somente leitura, defina essa variavel para um caminho gravavel, por exemplo
-`/tmp/configTargets.validated.yaml`, ou monte um diretorio de saida separado.
+caminho de `OEM_VALIDATED_CONFIG_OUTPUT` e o relatorio no caminho de
+`OEM_VALIDATION_REPORT_OUTPUT`. Se `/app/configs` estiver montado como somente
+leitura, defina essas variaveis para caminhos gravaveis, por exemplo
+`/tmp/configTargets.validated.yaml` e
+`/tmp/configTargets.validated.report.yaml`, ou monte um diretorio de saida
+separado.
 
 Para usar `OEM_TOKEN`, monte tambem o arquivo usado como base de hash e aponte
 `OEM_AUTH_TOKEN_HASH_FILE` para o caminho dentro do container, por exemplo
@@ -193,6 +202,6 @@ real:
 - credenciais e conectividade com cada endpoint OEM configurado;
 - aceitacao dos payloads OTLP pelo collector de destino;
 - politica operacional para usar o YAML validado gerado por
-  `OEM_VALIDATE_CONFIG=true`;
+  `OEM_VALIDATE_CONFIG=true` e revisar o relatorio de validacao;
 - arquivo base correto para `OEM_AUTH_TOKEN_HASH_FILE` quando tokens legados ja
   existentes forem reutilizados.

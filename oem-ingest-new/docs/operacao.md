@@ -51,13 +51,15 @@ Esses comandos nao leem os arquivos de configuracao nem iniciam coleta.
 
 Sem `OTEL_EXPORT_URL`, a aplicacao nao inicia o runtime de coleta/exportacao.
 Com `OEM_VALIDATE_CONFIG=true`, ela ainda consulta o OEM, corrige divergencias
-em memoria e escreve o arquivo validado no caminho configurado.
+em memoria, remove targets ausentes e escreve o arquivo validado e o relatorio
+de mudancas nos caminhos configurados.
 
 ```sh
 export OEM_CONFIG_TARGETS=./configs/configTargets.yaml
 export OEM_CONFIG_METRICS=./configs/configMetrics.yaml
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
 export OEM_USER=usuario
 export OEM_PASSWORD=senha
 
@@ -68,6 +70,7 @@ Comportamento esperado:
 
 - imprime um resumo como `validacao de configuracao concluida`;
 - escreve o YAML corrigido em `OEM_VALIDATED_CONFIG_OUTPUT`;
+- escreve o relatorio YAML em `OEM_VALIDATION_REPORT_OUTPUT`;
 - preserva o arquivo original de targets;
 - encerra sem agendar jobs, porque `OTEL_EXPORT_URL` nao foi informado.
 
@@ -122,12 +125,15 @@ O diretorio de trabalho do container e `/app`. Por padrao, a imagem usa:
 
 - `/app/configs/configTargets.yaml`;
 - `/app/configs/configMetrics.yaml`;
-- `/app/configs/configTargets.validated.yaml`.
+- `/app/configs/configTargets.validated.yaml`;
+- `/app/configs/configTargets.validated.report.yaml`.
 
 Quando `OEM_VALIDATE_CONFIG=true`, nao monte o diretorio de configuracao apenas
-como leitura se `OEM_VALIDATED_CONFIG_OUTPUT` apontar para dentro dele. Use um
-caminho gravavel, por exemplo `/tmp/configTargets.validated.yaml`, ou monte um
-volume separado para a saida validada.
+como leitura se `OEM_VALIDATED_CONFIG_OUTPUT` ou
+`OEM_VALIDATION_REPORT_OUTPUT` apontarem para dentro dele. Use caminhos
+gravaveis, por exemplo `/tmp/configTargets.validated.yaml` e
+`/tmp/configTargets.validated.report.yaml`, ou monte um volume separado para as
+saidas da validacao.
 
 Se usar `OEM_TOKEN`, monte tambem o arquivo usado para hash e configure
 `OEM_AUTH_TOKEN_HASH_FILE` para o caminho dentro do container:
@@ -203,6 +209,7 @@ mensagens de status de startup usam `stdout`, como:
 - `oem-ingest: scaffold inicializado; coleta nao iniciada sem OTEL_EXPORT_URL`;
 - `validacao de configuracao concluida: ...`;
 - `configuracao validada escrita em ...`;
+- `relatorio de validacao escrito em ...`;
 - `oem-ingest: coleta iniciada com <N> jobs`.
 
 Eventos esperados em operacao normal:
@@ -318,6 +325,11 @@ buffer para tentar novamente no proximo ciclo enquanto o processo continuar.
 
 O arquivo validado foi configurado para sobrescrever o original, ou aponta para
 o mesmo arquivo via link. Escolha outro caminho.
+
+`OEM_VALIDATION_REPORT_OUTPUT ... deve ser diferente ...`
+
+O relatorio foi configurado para sobrescrever o arquivo original de targets ou
+o YAML validado. Escolha um caminho proprio para o relatorio.
 
 Compose nao sobe por timeout no mock
 

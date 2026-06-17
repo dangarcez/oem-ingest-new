@@ -61,23 +61,23 @@ func (r CorrelationValidationResult) Changed() bool {
 
 // TargetAddition describes one related target added to the in-memory config.
 type TargetAddition struct {
-	SiteIndex      int
-	TargetIndex    int
-	SiteName       string
-	TargetName     string
-	TargetType     string
-	SourceRootName string
-	SourceRootType string
+	SiteIndex      int    `yaml:"siteIndex"`
+	TargetIndex    int    `yaml:"targetIndex"`
+	SiteName       string `yaml:"siteName"`
+	TargetName     string `yaml:"targetName"`
+	TargetType     string `yaml:"targetType"`
+	SourceRootName string `yaml:"sourceRootName"`
+	SourceRootType string `yaml:"sourceRootType"`
 }
 
 // TagCorrection describes one existing target whose structural tags were
 // corrected to match the legacy mapping rules.
 type TagCorrection struct {
-	SiteIndex   int
-	TargetIndex int
-	SiteName    string
-	TargetName  string
-	TargetType  string
+	SiteIndex   int    `yaml:"siteIndex"`
+	TargetIndex int    `yaml:"targetIndex"`
+	SiteName    string `yaml:"siteName"`
+	TargetName  string `yaml:"targetName"`
+	TargetType  string `yaml:"targetType"`
 }
 
 // ValidateTargetCorrelations expands and retags related database targets using

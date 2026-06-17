@@ -28,8 +28,8 @@ O codigo fica organizado em pacotes internos com responsabilidades pequenas:
   para GET, paginacao por `links.next`, limite compartilhado de concorrencia,
   endpoints tipados e contadores internos de requests.
 - `internal/validate`: validacao opcional de configuracao contra a API OEM,
-  corrigindo IDs em memoria, validando correlacoes e gerando um YAML corrigido
-  sem sobrescrever o original.
+  corrigindo IDs em memoria, removendo targets ausentes, validando correlacoes
+  e gerando YAML corrigido e relatorio de mudancas sem sobrescrever o original.
 - `internal/scheduler`: criacao de jobs por site, target e grupo de metrica,
   frequencia em minutos, jitter e protecao contra sobreposicao do mesmo job.
 - `internal/collect`: cache em memoria de metadata de metric groups, coleta de
@@ -50,9 +50,9 @@ O codigo fica organizado em pacotes internos com responsabilidades pequenas:
 2. `app.Run` le as variaveis de ambiente por `config.ReadEnv`.
 3. Se `OEM_VALIDATE_CONFIG=true`, a aplicacao carrega `configTargets.yaml`,
    consulta a API OEM e executa as validacoes de IDs e correlacoes.
-4. Quando a validacao encontra divergencias, as correcoes ficam em memoria e
-   tambem sao gravadas em `OEM_VALIDATED_CONFIG_OUTPUT`. O arquivo original nao
-   e sobrescrito.
+4. Quando a validacao encontra divergencias, as correcoes e remocoes ficam em
+   memoria, sao gravadas em `OEM_VALIDATED_CONFIG_OUTPUT` e sao resumidas em
+   `OEM_VALIDATION_REPORT_OUTPUT`. O arquivo original nao e sobrescrito.
 5. Se `OTEL_EXPORT_URL` nao estiver definido, o processo encerra apos as
    validacoes explicitas de startup. Se estiver definido, o runtime de coleta e
    exportacao e iniciado.
@@ -78,7 +78,8 @@ Quando ativada, a validacao consulta a API OEM por site e aplica duas etapas:
 
 - IDs: cada target configurado e localizado pelo par `name` + `typeName`. Se o
   ID atual na API divergir do YAML, o ID e corrigido em memoria e registrado no
-  arquivo validado.
+  arquivo validado. Se o target nao existir na API, ele e removido do arquivo
+  validado e da run atual.
 - Correlacao: targets `rac_database` e `oracle_pdb` podem ser expandidos com
   componentes relacionados quando a API permite inferir a hierarquia. A
   hierarquia esperada e `oracle_dbsys -> rac_database -> oracle_pdb ->
@@ -86,7 +87,8 @@ Quando ativada, a validacao consulta a API OEM por site e aplica duas etapas:
 
 Tags externas, como `sistema` e `torre`, sao preservadas. Targets avulsos sao
 aceitos; a expansao automatica e limitada aos casos definidos no plano do
-projeto.
+projeto. O detalhe operacional da validacao fica em
+[`validacao.md`](validacao.md).
 
 ## Coleta
 

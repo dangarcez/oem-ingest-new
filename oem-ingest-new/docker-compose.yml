@@ -21,35 +21,35 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-  # oem-ingest:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   mem_limit: 256m
-  #   entrypoint:
-  #     - /app/oem-ingest
-  #   command: []
-  #   depends_on:
-  #     oem-mock:
-  #       condition: service_healthy
-  #   environment:
-  #     OEM_CONFIG_TARGETS: /app/configs/configTargets.yaml
-  #     OEM_CONFIG_METRICS: /app/configs/configMetrics.yaml
-  #     OEM_VALIDATE_CONFIG: "true"
-  #     OEM_VALIDATED_CONFIG_OUTPUT: /tmp/configTargets.validated.yaml
-  #     OEM_USER: mock
-  #     OEM_PASSWORD: mock
-  #     OEM_TOKEN: DGZXB1YMAQs=
-  #     OEM_AUTH_TOKEN_HASH_FILE: DGZXB1YMAQs= # Utiliza hash fixa e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  #     OEM_HTTP_MAX_RETRIES: "3"
-  #     OEM_TLS_VERIFY: "true"
-  #     OEM_SCHEDULER_JITTER_SECONDS: "180"
-  #     OEM_DIAGNOSTICS_INTERVAL_SECONDS: "60"
-  #     OEM_EXPORT_INTERVAL_SECONDS: "120"
-  #     OTEL_EXPORT_TIMEOUT_SECONDS: "10"
-  #     OTEL_EXPORT_URL: http://host.docker.internal:10054 #http://oem-mock:8008 também funciona
-  #     OEM_LOG_LEVEL: WARN
-  #   volumes:
-  #     - ./configs/docker-compose/configTargets.yaml:/app/configs/configTargets.yaml:ro
-  #     - ./configs/docker-compose/configMetrics.yaml:/app/configs/configMetrics.yaml:ro
-  #     - ./configs/tmp/configTargets.validated.yaml:/tmp/configTargets.validated.yaml
+  oem-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    mem_limit: 256m
+    entrypoint:
+      - /app/oem-ingest
+    command: []
+    depends_on:
+      oem-mock:
+        condition: service_healthy
+    environment:
+      OEM_CONFIG_TARGETS: /app/configs/configTargets.yaml
+      OEM_CONFIG_METRICS: /app/configs/configMetrics.yaml
+      OEM_VALIDATE_CONFIG: "true"
+      OEM_VALIDATED_CONFIG_OUTPUT: /tmp/configTargets.validated.yaml
+      OEM_VALIDATION_REPORT_OUTPUT: /tmp/configTargets.validated.report.yaml
+      OEM_USER: mock
+      OEM_PASSWORD: mock
+      OEM_TOKEN: DGZXB1YMAQs=
+      OEM_AUTH_TOKEN_HASH_FILE: DGZXB1YMAQs= # Utiliza hash fixa e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      OEM_HTTP_MAX_RETRIES: "3"
+      OEM_TLS_VERIFY: "true"
+      OEM_SCHEDULER_JITTER_SECONDS: "180"
+      OEM_DIAGNOSTICS_INTERVAL_SECONDS: "60"
+      OEM_EXPORT_INTERVAL_SECONDS: "120"
+      OTEL_EXPORT_TIMEOUT_SECONDS: "10"
+      OTEL_EXPORT_URL: http://host.docker.internal:10054 #http://oem-mock:8008 também funciona
+      OEM_LOG_LEVEL: WARN
+    volumes:
+      - ./configs/docker-compose/configTargets.yaml:/app/configs/configTargets.yaml:ro
+      - ./configs/docker-compose/configMetrics.yaml:/app/configs/configMetrics.yaml:ro

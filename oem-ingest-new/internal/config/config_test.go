@@ -23,6 +23,9 @@ func TestReadEnvDefaults(t *testing.T) {
 	if env.ValidateConfig {
 		t.Fatal("ValidateConfig should default to false")
 	}
+	if env.ValidationReportOutput != DefaultValidationReportPath {
+		t.Fatalf("ValidationReportOutput = %q, want %q", env.ValidationReportOutput, DefaultValidationReportPath)
+	}
 	if env.ExportInterval != time.Duration(DefaultExportIntervalSeconds)*time.Second {
 		t.Fatalf("ExportInterval = %s", env.ExportInterval)
 	}
@@ -49,6 +52,7 @@ func TestReadEnvOverrides(t *testing.T) {
 		"OEM_CONFIG_METRICS":                     "/tmp/metrics.yaml",
 		"OEM_VALIDATE_CONFIG":                    "true",
 		"OEM_VALIDATED_CONFIG_OUTPUT":            "/tmp/validated.yaml",
+		"OEM_VALIDATION_REPORT_OUTPUT":           "/tmp/validated.report.yaml",
 		"OEM_USER":                               "oem_user",
 		"OEM_PASSWORD":                           "secret",
 		"OEM_TOKEN":                              "token",
@@ -81,6 +85,9 @@ func TestReadEnvOverrides(t *testing.T) {
 	if !env.ValidateConfig {
 		t.Fatal("ValidateConfig should be true")
 	}
+	if env.ValidationReportOutput != "/tmp/validated.report.yaml" {
+		t.Fatalf("ValidationReportOutput = %q, want /tmp/validated.report.yaml", env.ValidationReportOutput)
+	}
 	if env.User != "oem_user" || env.Password != "secret" || env.Token != "token" {
 		t.Fatalf("unexpected auth env: %#v", env)
 	}
@@ -107,6 +114,27 @@ func TestReadEnvOverrides(t *testing.T) {
 	}
 	if env.TLSVerify {
 		t.Fatal("TLSVerify should be false when OEM_TLS_VERIFY=false")
+	}
+}
+
+func TestReadEnvDerivesValidationReportOutputFromValidatedConfigOutput(t *testing.T) {
+	env, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_VALIDATED_CONFIG_OUTPUT" {
+			return "/tmp/custom.validated.yml", true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	if env.ValidationReportOutput != "/tmp/custom.validated.report.yml" {
+		t.Fatalf("ValidationReportOutput = %q, want derived report path", env.ValidationReportOutput)
+	}
+}
+
+func TestDefaultReportPathHandlesPathWithoutExtension(t *testing.T) {
+	if got := DefaultReportPath("/tmp/validated"); got != "/tmp/validated.report.yaml" {
+		t.Fatalf("DefaultReportPath = %q, want /tmp/validated.report.yaml", got)
 	}
 }
 

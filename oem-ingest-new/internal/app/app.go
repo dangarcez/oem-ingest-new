@@ -48,6 +48,7 @@ type startupValidationResult struct {
 	IDs         validate.IDValidationResult
 	Correlation validate.CorrelationValidationResult
 	OutputPath  string
+	ReportPath  string
 	Sites       []config.SiteConfig
 }
 
@@ -78,8 +79,10 @@ func Run(ctx context.Context, opts Options) error {
 		if opts.Output != nil {
 			_, err := fmt.Fprintf(
 				opts.Output,
-				"validacao de configuracao concluida: %d correcoes de ID, %d targets adicionados, %d tags corrigidas, %d avisos\n",
+				"validacao de configuracao concluida: %d correcoes de ID, %d targets removidos, %d sites removidos, %d targets adicionados, %d tags corrigidas, %d avisos\n",
 				len(result.IDs.IDCorrections),
+				len(result.IDs.TargetRemovals),
+				len(result.IDs.SiteRemovals),
 				len(result.Correlation.TargetAdds),
 				len(result.Correlation.TagCorrections),
 				len(result.IDs.Warnings)+len(result.Correlation.Warnings),
@@ -90,10 +93,13 @@ func Run(ctx context.Context, opts Options) error {
 			if _, err := fmt.Fprintf(opts.Output, "configuracao validada escrita em %s\n", result.OutputPath); err != nil {
 				return err
 			}
+			if _, err := fmt.Fprintf(opts.Output, "relatorio de validacao escrito em %s\n", result.ReportPath); err != nil {
+				return err
+			}
 		}
 	}
 	if strings.TrimSpace(env.OTELExportURL) != "" {
-		cfg, err := loadRuntimeConfig(env, validatedSites)
+		cfg, err := loadRuntimeConfig(env, validatedSites, env.ValidateConfig)
 		if err != nil {
 			return err
 		}
@@ -149,17 +155,33 @@ func validateStartupTargets(ctx context.Context, env config.Env, opts Options) (
 	if err := validateOutputPath(env.TargetsPath, env.ValidatedConfigOutput); err != nil {
 		return startupValidationResult{}, err
 	}
+	if err := validateReportOutputPath(env.TargetsPath, env.ValidatedConfigOutput, env.ValidationReportOutput); err != nil {
+		return startupValidationResult{}, err
+	}
 	if err := config.WriteTargets(env.ValidatedConfigOutput, correlationResult.Sites); err != nil {
 		return startupValidationResult{}, err
 	}
-	logValidationSummary(ctx, opts.Logger, env.ValidatedConfigOutput, idResult, correlationResult)
+	report := validate.NewValidationReport(env.TargetsPath, env.ValidatedConfigOutput, time.Now(), idResult, correlationResult)
+	if err := validate.WriteValidationReport(env.ValidationReportOutput, report); err != nil {
+		return startupValidationResult{}, err
+	}
+	logValidationSummary(ctx, opts.Logger, env.ValidatedConfigOutput, env.ValidationReportOutput, idResult, correlationResult)
 
-	return startupValidationResult{IDs: idResult, Correlation: correlationResult, OutputPath: env.ValidatedConfigOutput, Sites: correlationResult.Sites}, nil
+	return startupValidationResult{
+		IDs:         idResult,
+		Correlation: correlationResult,
+		OutputPath:  env.ValidatedConfigOutput,
+		ReportPath:  env.ValidationReportOutput,
+		Sites:       correlationResult.Sites,
+	}, nil
 }
 
-func loadRuntimeConfig(env config.Env, validatedSites []config.SiteConfig) (config.Config, error) {
-	if len(validatedSites) == 0 {
+func loadRuntimeConfig(env config.Env, validatedSites []config.SiteConfig, validationRan bool) (config.Config, error) {
+	if !validationRan {
 		return config.Load(env.TargetsPath, env.MetricsPath)
+	}
+	if len(validatedSites) == 0 {
+		return config.Config{}, errors.New("validacao removeu todos os targets; coleta nao iniciada")
 	}
 	metrics, err := config.LoadMetrics(env.MetricsPath)
 	if err != nil {
@@ -763,11 +785,59 @@ func validateOutputPath(targetsPath, outputPath string) error {
 	return nil
 }
 
+func validateReportOutputPath(targetsPath, validatedPath, reportPath string) error {
+	if strings.TrimSpace(reportPath) == "" {
+		return errors.New("OEM_VALIDATION_REPORT_OUTPUT: caminho do relatorio de validacao nao informado")
+	}
+	if samePathReference(reportPath, targetsPath) {
+		return fmt.Errorf("OEM_VALIDATION_REPORT_OUTPUT %q deve ser diferente de OEM_CONFIG_TARGETS %q para preservar o arquivo original", reportPath, targetsPath)
+	}
+	if samePathReference(reportPath, validatedPath) {
+		return fmt.Errorf("OEM_VALIDATION_REPORT_OUTPUT %q deve ser diferente de OEM_VALIDATED_CONFIG_OUTPUT %q", reportPath, validatedPath)
+	}
+	return nil
+}
+
+func samePathReference(candidatePath, targetPath string) bool {
+	candidateAbs, err := filepath.Abs(candidatePath)
+	if err != nil {
+		return false
+	}
+	targetAbs, err := filepath.Abs(targetPath)
+	if err != nil {
+		return false
+	}
+	candidateAbs = filepath.Clean(candidateAbs)
+	targetAbs = filepath.Clean(targetAbs)
+	if candidateAbs == targetAbs {
+		return true
+	}
+
+	candidateInfo, candidateErr := os.Stat(candidateAbs)
+	targetInfo, targetErr := os.Stat(targetAbs)
+	if candidateErr == nil && targetErr == nil && os.SameFile(candidateInfo, targetInfo) {
+		return true
+	}
+
+	linkTarget, err := os.Readlink(candidateAbs)
+	if err != nil {
+		return false
+	}
+	if !filepath.IsAbs(linkTarget) {
+		linkTarget = filepath.Join(filepath.Dir(candidateAbs), linkTarget)
+	}
+	linkAbs, err := filepath.Abs(linkTarget)
+	if err != nil {
+		return false
+	}
+	return filepath.Clean(linkAbs) == targetAbs
+}
+
 type infoLogger interface {
 	InfoContext(ctx context.Context, msg string, args ...any)
 }
 
-func logValidationSummary(ctx context.Context, logger validate.Logger, outputPath string, ids validate.IDValidationResult, correlation validate.CorrelationValidationResult) {
+func logValidationSummary(ctx context.Context, logger validate.Logger, outputPath, reportPath string, ids validate.IDValidationResult, correlation validate.CorrelationValidationResult) {
 	if logger == nil {
 		return
 	}
@@ -777,7 +847,10 @@ func logValidationSummary(ctx context.Context, logger validate.Logger, outputPat
 	}
 	info.InfoContext(ctx, "configuracao validada escrita",
 		"output", outputPath,
+		"report", reportPath,
 		"id_corrections", len(ids.IDCorrections),
+		"targets_removed", len(ids.TargetRemovals),
+		"sites_removed", len(ids.SiteRemovals),
 		"targets_added", len(correlation.TargetAdds),
 		"tag_corrections", len(correlation.TagCorrections),
 		"warnings", len(ids.Warnings)+len(correlation.Warnings),

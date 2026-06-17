@@ -95,7 +95,7 @@ func TestValidateTargetIDsNormalizesConfiguredIDWhitespace(t *testing.T) {
 	assertWarning(t, result.Warnings, WarningIDDivergent)
 }
 
-func TestValidateTargetIDsWarnsAndKeepsMissingTarget(t *testing.T) {
+func TestValidateTargetIDsWarnsAndRemovesMissingTarget(t *testing.T) {
 	sites := []config.SiteConfig{newTestSite(newTestTarget("configured-id", "missing", "oracle_database"))}
 	factory := singleListerFactory(fakeTargetLister{
 		targets: []oem.Target{{ID: "other-id", Name: "other", TypeName: "oracle_database"}},
@@ -105,16 +105,26 @@ func TestValidateTargetIDsWarnsAndKeepsMissingTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateTargetIDs returned error: %v", err)
 	}
-	if result.Changed() {
-		t.Fatalf("missing target should not change config: %#v", result)
+	if !result.Changed() {
+		t.Fatal("missing target should change config")
 	}
-	if result.Sites[0].Targets[0].ID != "configured-id" {
-		t.Fatalf("target ID = %q, want configured-id", result.Sites[0].Targets[0].ID)
+	if len(result.Sites) != 0 {
+		t.Fatalf("site with only missing targets should be removed: %#v", result.Sites)
+	}
+	if len(result.TargetRemovals) != 1 {
+		t.Fatalf("TargetRemovals = %#v, want one removal", result.TargetRemovals)
+	}
+	removal := result.TargetRemovals[0]
+	if removal.ConfigID != "configured-id" || removal.TargetName != "missing" || removal.Reason != WarningTargetMissing {
+		t.Fatalf("unexpected removal: %#v", removal)
+	}
+	if len(result.SiteRemovals) != 1 || result.SiteRemovals[0].RemovedTargets != 1 {
+		t.Fatalf("SiteRemovals = %#v, want one removed site", result.SiteRemovals)
 	}
 	assertWarning(t, result.Warnings, WarningTargetMissing)
 }
 
-func TestValidateTargetIDsIgnoresAPITargetWithoutID(t *testing.T) {
+func TestValidateTargetIDsRemovesWhenAPITargetHasNoID(t *testing.T) {
 	sites := []config.SiteConfig{newTestSite(newTestTarget("configured-id", "cdbp51bc", "rac_database"))}
 	factory := singleListerFactory(fakeTargetLister{
 		targets: []oem.Target{{ID: " ", Name: "cdbp51bc", TypeName: "rac_database"}},
@@ -124,13 +134,50 @@ func TestValidateTargetIDsIgnoresAPITargetWithoutID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateTargetIDs returned error: %v", err)
 	}
-	if result.Changed() {
-		t.Fatalf("API target without ID should not change config: %#v", result)
+	if !result.Changed() {
+		t.Fatal("API target without ID should remove configured target")
 	}
-	if result.Sites[0].Targets[0].ID != "configured-id" {
-		t.Fatalf("target ID = %q, want configured-id", result.Sites[0].Targets[0].ID)
+	if len(result.Sites) != 0 || len(result.TargetRemovals) != 1 {
+		t.Fatalf("unexpected result after missing ID: %#v", result)
 	}
 	assertWarning(t, result.Warnings, WarningTargetMissing)
+}
+
+func TestValidateTargetIDsRemovesMultipleMissingTargetsAndPreservesRemainingOrder(t *testing.T) {
+	sites := []config.SiteConfig{newTestSite(
+		newTestTarget("missing-1", "missing1", "host"),
+		newTestTarget("keep-1", "host1", "host"),
+		newTestTarget("missing-2", "missing2", "host"),
+		newTestTarget("keep-2", "host2", "host"),
+	)}
+	factory := singleListerFactory(fakeTargetLister{
+		targets: []oem.Target{
+			{ID: "keep-1", Name: "host1", TypeName: "host"},
+			{ID: "keep-2", Name: "host2", TypeName: "host"},
+		},
+	})
+
+	result, err := ValidateTargetIDs(context.Background(), sites, factory, IDValidationOptions{Enabled: true})
+	if err != nil {
+		t.Fatalf("ValidateTargetIDs returned error: %v", err)
+	}
+	if len(result.TargetRemovals) != 2 {
+		t.Fatalf("TargetRemovals = %#v, want two removals", result.TargetRemovals)
+	}
+	if len(result.SiteRemovals) != 0 {
+		t.Fatalf("site should remain because targets were kept: %#v", result.SiteRemovals)
+	}
+	if len(result.Sites) != 1 || len(result.Sites[0].Targets) != 2 {
+		t.Fatalf("unexpected filtered sites: %#v", result.Sites)
+	}
+	gotNames := []string{result.Sites[0].Targets[0].Name, result.Sites[0].Targets[1].Name}
+	wantNames := []string{"host1", "host2"}
+	if gotNames[0] != wantNames[0] || gotNames[1] != wantNames[1] {
+		t.Fatalf("remaining target order = %#v, want %#v", gotNames, wantNames)
+	}
+	if sites[0].Targets[0].Name != "missing1" || len(sites[0].Targets) != 4 {
+		t.Fatalf("original config was mutated: %#v", sites[0].Targets)
+	}
 }
 
 func TestValidateTargetIDsWarnsAndKeepsDuplicatedTarget(t *testing.T) {
