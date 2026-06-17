@@ -319,6 +319,44 @@ func TestCollectorTreatsLatestDataNotFoundAsUnavailable(t *testing.T) {
 	}
 }
 
+func TestCollectorAllowsBodylessLatestDataHTTPErrorAsEmptyPayload(t *testing.T) {
+	now := time.Unix(1700000250, 0)
+	client := &fakeCollectClient{
+		latestErrors: map[string]error{
+			"target-1\x00Response": &oem.HTTPError{StatusCode: http.StatusNotFound, Method: http.MethodGet, URL: "http://oem.example/latestData"},
+		},
+	}
+	monitor := NewResponseMonitor()
+	collector := NewCollector(client, CollectorOptions{
+		Clock:           func() time.Time { return now },
+		ResponseMonitor: monitor,
+	})
+	job := collectJob()
+	job.MetricGroupName = "Response"
+	job.MetricGroup = config.MetricGroupConfig{Freq: 3, MetricGroupName: "Response", Bodyless: true}
+
+	result, err := collector.Collect(context.Background(), job)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if !result.Metadata.Bodyless || result.Metadata.MetricGroupName != "Response" {
+		t.Fatalf("unexpected bodyless metadata: %#v", result.Metadata)
+	}
+	if len(result.LatestData.Items) != 0 || result.Datapoints() != 0 {
+		t.Fatalf("bodyless HTTP error should produce empty latestData, got %#v", result.LatestData)
+	}
+	if got := client.metricGroupCalls("target-1", "Response"); got != 0 {
+		t.Fatalf("bodyless collection should not fetch metadata, got %d calls", got)
+	}
+	if _, ok := monitor.Last("target-1"); ok {
+		t.Fatal("empty bodyless payload should not update response monitor")
+	}
+	if got := collector.SnapshotStats(); got.CollectionErrorsTotal != 0 || got.UnavailableGroupsTotal != 0 || got.DatapointsCollectedTotal != 0 {
+		t.Fatalf("unexpected collector stats: %#v", got)
+	}
+}
+
 func TestCollectorCountsMetadataNotFoundAsUnavailable(t *testing.T) {
 	client := &fakeCollectClient{
 		metadataErrors: map[string]error{

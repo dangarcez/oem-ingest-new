@@ -49,16 +49,61 @@ func TestBuildJobsCreatesOneJobPerSiteTargetMetricGroup(t *testing.T) {
 		t.Fatalf("BuildJobs returned error: %v", err)
 	}
 
-	if len(jobs) != 5 {
-		t.Fatalf("expected 5 jobs, got %d: %#v", len(jobs), jobs)
+	if len(jobs) != 7 {
+		t.Fatalf("expected 7 jobs, got %d: %#v", len(jobs), jobs)
 	}
 	assertJob(t, jobs[0], "http://oem-a.example", "dbhost01.example", "host", "Load", 5*time.Minute)
 	assertJob(t, jobs[1], "http://oem-a.example", "dbhost01.example", "host", "Filesystems", 10*time.Minute)
-	assertJob(t, jobs[2], "http://oem-a.example", "orcl1", "oracle_database", "Response", 2*time.Minute)
-	assertJob(t, jobs[3], "http://oem-b.example", "dbhost02.example", "host", "Load", 5*time.Minute)
-	assertJob(t, jobs[4], "http://oem-b.example", "dbhost02.example", "host", "Filesystems", 10*time.Minute)
+	assertJob(t, jobs[2], "http://oem-a.example", "dbhost01.example", "host", "Response", 3*time.Minute)
+	if !jobs[2].MetricGroup.Bodyless {
+		t.Fatalf("host Response custom job should be bodyless: %#v", jobs[2])
+	}
+	assertJob(t, jobs[3], "http://oem-a.example", "orcl1", "oracle_database", "Response", 2*time.Minute)
+	assertJob(t, jobs[4], "http://oem-b.example", "dbhost02.example", "host", "Load", 5*time.Minute)
+	assertJob(t, jobs[5], "http://oem-b.example", "dbhost02.example", "host", "Filesystems", 10*time.Minute)
+	assertJob(t, jobs[6], "http://oem-b.example", "dbhost02.example", "host", "Response", 3*time.Minute)
+	if !jobs[6].MetricGroup.Bodyless {
+		t.Fatalf("host Response custom job should be bodyless: %#v", jobs[6])
+	}
 	if jobs[0].ID == "" || jobs[0].ID == jobs[1].ID {
 		t.Fatalf("expected stable unique job IDs, got %q and %q", jobs[0].ID, jobs[1].ID)
+	}
+}
+
+func TestBuildJobsAddsMissingLegacyCustomGroups(t *testing.T) {
+	cfg := config.Config{
+		Sites: []config.SiteConfig{{
+			Name:     "oraemc",
+			Endpoint: "http://oem-a.example",
+			Targets: []config.TargetConfig{
+				target("rac-id", "rac1", "rac_database"),
+				target("pdb-id", "pdb1", "oracle_pdb"),
+			},
+		}},
+		Metrics: config.MetricsConfig{
+			"rac_database": {{Freq: 15, MetricGroupName: "service_performance"}},
+			"oracle_pdb":   {{Freq: 1440, MetricGroupName: "DATABASE_SIZE"}},
+		},
+	}
+
+	jobs, err := BuildJobs(cfg)
+	if err != nil {
+		t.Fatalf("BuildJobs returned error: %v", err)
+	}
+
+	if len(jobs) != 5 {
+		t.Fatalf("expected 5 jobs, got %d: %#v", len(jobs), jobs)
+	}
+	assertJob(t, jobs[0], "http://oem-a.example", "rac1", "rac_database", "service_performance", 15*time.Minute)
+	assertJob(t, jobs[1], "http://oem-a.example", "rac1", "rac_database", "Availability", 3*time.Minute)
+	if !jobs[1].MetricGroup.Bodyless {
+		t.Fatalf("rac Availability custom job should be bodyless: %#v", jobs[1])
+	}
+	assertJob(t, jobs[2], "http://oem-a.example", "pdb1", "oracle_pdb", "DATABASE_SIZE", 1440*time.Minute)
+	assertJob(t, jobs[3], "http://oem-a.example", "pdb1", "oracle_pdb", "DBService", 10*time.Minute)
+	assertJob(t, jobs[4], "http://oem-a.example", "pdb1", "oracle_pdb", "Response", 3*time.Minute)
+	if !jobs[4].MetricGroup.Bodyless {
+		t.Fatalf("pdb Response custom job should be bodyless: %#v", jobs[4])
 	}
 }
 

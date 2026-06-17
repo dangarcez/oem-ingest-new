@@ -86,7 +86,7 @@ func BuildJobs(cfg config.Config) ([]Job, error) {
 	var jobs []Job
 	for siteIndex, site := range cfg.Sites {
 		for targetIndex, target := range site.Targets {
-			groups := cfg.Metrics[target.TypeName]
+			groups := groupsForTarget(target.TypeName, cfg.Metrics[target.TypeName])
 			if len(groups) == 0 {
 				continue
 			}
@@ -111,6 +111,55 @@ func BuildJobs(cfg config.Config) ([]Job, error) {
 		}
 	}
 	return jobs, nil
+}
+
+func groupsForTarget(targetType string, configured []config.MetricGroupConfig) []config.MetricGroupConfig {
+	if len(configured) == 0 {
+		return nil
+	}
+
+	groups := append([]config.MetricGroupConfig(nil), configured...)
+	for _, required := range legacyCustomGroups(targetType) {
+		if hasMetricGroup(groups, required.MetricGroupName) {
+			continue
+		}
+		groups = append(groups, required)
+	}
+	return groups
+}
+
+func legacyCustomGroups(targetType string) []config.MetricGroupConfig {
+	switch strings.TrimSpace(targetType) {
+	case "rac_database":
+		return []config.MetricGroupConfig{
+			{Freq: 10, MetricGroupName: "service_performance"},
+			{Freq: 3, MetricGroupName: "Availability", Bodyless: true},
+		}
+	case "oracle_database":
+		return []config.MetricGroupConfig{
+			{Freq: 3, MetricGroupName: "Response", Bodyless: true},
+		}
+	case "oracle_pdb":
+		return []config.MetricGroupConfig{
+			{Freq: 10, MetricGroupName: "DBService"},
+			{Freq: 3, MetricGroupName: "Response", Bodyless: true},
+		}
+	case "host":
+		return []config.MetricGroupConfig{
+			{Freq: 3, MetricGroupName: "Response", Bodyless: true},
+		}
+	default:
+		return nil
+	}
+}
+
+func hasMetricGroup(groups []config.MetricGroupConfig, groupName string) bool {
+	for _, group := range groups {
+		if strings.EqualFold(strings.TrimSpace(group.MetricGroupName), groupName) {
+			return true
+		}
+	}
+	return false
 }
 
 // Run starts all jobs and blocks until ctx is canceled. It waits for already

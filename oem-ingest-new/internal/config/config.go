@@ -77,6 +77,7 @@ type MetricsConfig map[string][]MetricGroupConfig
 type MetricGroupConfig struct {
 	Freq            int    `yaml:"freq"`
 	MetricGroupName string `yaml:"metric_group_name"`
+	Bodyless        bool   `yaml:"bodyless,omitempty"`
 }
 
 // Config is the complete static configuration loaded from both YAML files.
@@ -211,6 +212,7 @@ func LoadMetrics(path string) (MetricsConfig, error) {
 type rawMetricGroup struct {
 	Freq            *int   `yaml:"freq"`
 	MetricGroupName string `yaml:"metric_group_name"`
+	Bodyless        bool   `yaml:"bodyless"`
 }
 
 func readYAML(path string, dst any) error {
@@ -309,6 +311,7 @@ func validateMetrics(raw map[string][]rawMetricGroup) (MetricsConfig, error) {
 			metrics[targetType] = append(metrics[targetType], MetricGroupConfig{
 				Freq:            *group.Freq,
 				MetricGroupName: group.MetricGroupName,
+				Bodyless:        group.Bodyless,
 			})
 		}
 	}

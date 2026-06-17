@@ -88,10 +88,18 @@ As regras por tipo de target seguem a logica do Python:
   usa `oem_monitor_response` para decidir `2` ou `1`.
 - `oracle_database`: usa `Response`; se vier vazio, usa
   `oem_monitor_response`; se houver item, usa `Status` ou `DatabaseStatus`.
-- `oracle_pdb`: usa `Response`; se vier vazio, status `1`; se houver item,
-  `Status == 0` ou `State != OPEN` geram status `0`, caso contrario `2`.
+- `oracle_pdb`: usa `Response`; se vier vazio, status `1`; se houver `Status`,
+  `0` gera status `0` e outros valores geram `2`; sem `Status`, `State != OPEN`
+  gera status `0`, caso contrario `2`.
 - `host`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se houver
   item, `Status == 0` gera `0`, caso contrario `2`.
+
+Para manter a compatibilidade com o Python, os grupos que alimentam essas
+metricas customizadas sao adicionados aos jobs de coleta quando faltam no
+`configMetrics.yaml`: `rac_database/Availability`,
+`oracle_database/Response`, `oracle_pdb/Response` e `host/Response`. Esses jobs
+custom usam metadata vazia e tratam respostas HTTP sem datapoints como coleta
+vazia, preservando a emissao de `oem_monitor_stus`.
 
 `oem_service_status` e `oem_str_service_status` continuam unificando status de
 servicos de `rac_database/service_performance` e `oracle_pdb/DBService`:

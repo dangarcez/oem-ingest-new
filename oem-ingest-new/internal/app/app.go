@@ -536,9 +536,11 @@ func (s *runtimeState) collectAndBuffer(ctx context.Context, job scheduler.Job) 
 		return err
 	}
 
-	out := transform.FromCollection(result, transform.Options{})
-	s.metricsExporter.Add(out.Metrics...)
-	s.logsExporter.Add(out.Logs...)
+	if !result.Metadata.Bodyless {
+		out := transform.FromCollection(result, transform.Options{})
+		s.metricsExporter.Add(out.Metrics...)
+		s.logsExporter.Add(out.Logs...)
+	}
 
 	if point, ok := transform.FromMonitorStatus(result, s.responseMonitor, s.env.MonitorResponseTolerance); ok {
 		s.metricsExporter.Add(point)

@@ -210,7 +210,7 @@ host:
 	if logsPosts.Load() == 0 {
 		t.Fatal("expected at least one OTLP logs POST")
 	}
-	if !strings.Contains(output.String(), "coleta iniciada com 2 jobs") {
+	if !strings.Contains(output.String(), "coleta iniciada com 3 jobs") {
 		t.Fatalf("expected collection startup message, got %q", output.String())
 	}
 }
@@ -602,15 +602,15 @@ func TestRunContinuesWhenInitialCollectionsFail(t *testing.T) {
   targets:
     - id: t1
       name: host1
-      typeName: host
+      typeName: custom_target
       tags:
         target_name: host1
-        target_type: host
+        target_type: custom_target
 `), 0o600); err != nil {
 		t.Fatalf("write targets: %v", err)
 	}
 	if err := os.WriteFile(metricsPath, []byte(`
-host:
+custom_target:
   - freq: 5
     metric_group_name: Load
 `), 0o600); err != nil {
@@ -1116,8 +1116,8 @@ host:
 	if metricsPosts.Load() == 0 {
 		t.Fatal("expected metrics export after collecting kept target")
 	}
-	if !strings.Contains(output.String(), "coleta iniciada com 1 jobs") {
-		t.Fatalf("expected one job after validation removal, got %q", output.String())
+	if !strings.Contains(output.String(), "coleta iniciada com 2 jobs") {
+		t.Fatalf("expected two jobs after validation removal, got %q", output.String())
 	}
 
 	validatedContents, err := os.ReadFile(validatedPath)

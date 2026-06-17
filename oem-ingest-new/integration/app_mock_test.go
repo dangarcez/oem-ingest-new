@@ -355,7 +355,7 @@ func (m *integrationMock) recordMetricsPost(r *http.Request) {
 	mergeCounts(m.metricServiceNames, decoded.serviceNames)
 	mergeCounts(m.metricNames, decoded.metricNames)
 	mergeMetricAttributes(m.metricAttributes, decoded.attributes)
-	shouldCancel := m.metricsPosts > 0 && m.logsPosts > 0 && m.cancel != nil
+	shouldCancel := m.readyToCancelLocked()
 	cancel := m.cancel
 	m.mu.Unlock()
 	if shouldCancel {
@@ -382,12 +382,16 @@ func (m *integrationMock) recordLogsPost(r *http.Request) {
 	m.logRecords += decoded.records
 	mergeCounts(m.logServiceNames, decoded.serviceNames)
 	mergeLogMetrics(m.logMetrics, decoded.metrics)
-	shouldCancel := m.metricsPosts > 0 && m.logsPosts > 0 && m.cancel != nil
+	shouldCancel := m.readyToCancelLocked()
 	cancel := m.cancel
 	m.mu.Unlock()
 	if shouldCancel {
 		cancel()
 	}
+}
+
+func (m *integrationMock) readyToCancelLocked() bool {
+	return m.cancel != nil && m.metricsPosts > 0 && m.logsPosts > 0 && len(m.logMetrics["oem_incident"]) > 0
 }
 
 func (m *integrationMock) recordDecodeError(signal string, err error) {

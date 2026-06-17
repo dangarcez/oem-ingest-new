@@ -155,6 +155,7 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		TargetID:        job.Target.ID,
 		TargetName:      job.Target.Name,
 		MetricGroupName: job.MetricGroupName,
+		Bodyless:        job.MetricGroup.Bodyless,
 	})
 	if err != nil {
 		if errors.Is(err, ErrMetricGroupUnavailable) {
@@ -169,15 +170,23 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 
 	latest, err := c.latestClient.LatestData(ctx, job.Target.ID, job.MetricGroupName)
 	if err != nil {
-		if isHTTPStatus(err, http.StatusNotFound) {
-			unavailable := latestDataUnavailableError(job, err)
-			c.recordUnavailableGroup()
-			c.warn(ctx, "latestData de grupo de metrica indisponivel; job de coleta sera ignorado", job, unavailable)
-			return Result{}, unavailable
+		if metadata.Bodyless && isHTTPError(err) {
+			latest = oem.LatestData{
+				MetricGroupName: job.MetricGroupName,
+				TargetID:        job.Target.ID,
+				Items:           nil,
+			}
+		} else {
+			if isHTTPStatus(err, http.StatusNotFound) {
+				unavailable := latestDataUnavailableError(job, err)
+				c.recordUnavailableGroup()
+				c.warn(ctx, "latestData de grupo de metrica indisponivel; job de coleta sera ignorado", job, unavailable)
+				return Result{}, unavailable
+			}
+			c.recordCollectionError()
+			c.warn(ctx, "falha transitoria ao coletar latestData", job, err)
+			return Result{}, fmt.Errorf("coletar latestData target %q grupo %q: %w", job.Target.Name, job.MetricGroupName, err)
 		}
-		c.recordCollectionError()
-		c.warn(ctx, "falha transitoria ao coletar latestData", job, err)
-		return Result{}, fmt.Errorf("coletar latestData target %q grupo %q: %w", job.Target.Name, job.MetricGroupName, err)
 	}
 
 	collectedAt := c.now()
@@ -192,6 +201,11 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		atomic.AddUint64(&c.stats.datapointsCollected, uint64(result.Datapoints()))
 	}
 	return result, nil
+}
+
+func isHTTPError(err error) bool {
+	var httpErr *oem.HTTPError
+	return errors.As(err, &httpErr)
 }
 
 func jobWithCollectionIdentity(job scheduler.Job, targetID, groupName string) scheduler.Job {

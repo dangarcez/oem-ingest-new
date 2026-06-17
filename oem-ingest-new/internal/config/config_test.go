@@ -273,6 +273,24 @@ func TestLoadVersionedExampleFiles(t *testing.T) {
 	}
 }
 
+func TestLoadMetricsPreservesBodylessFlag(t *testing.T) {
+	path := writeFile(t, t.TempDir(), "configMetrics.yaml", `
+host:
+  - freq: 3
+    metric_group_name: Response
+    bodyless: true
+`)
+
+	metrics, err := LoadMetrics(path)
+	if err != nil {
+		t.Fatalf("LoadMetrics returned error: %v", err)
+	}
+	got := metrics["host"][0]
+	if got.MetricGroupName != "Response" || got.Freq != 3 || !got.Bodyless {
+		t.Fatalf("unexpected metric group: %#v", got)
+	}
+}
+
 func TestWriteTargetsWritesSimplifiedYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "configTargets.validated.yaml")
 	sites := []SiteConfig{
