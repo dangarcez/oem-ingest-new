@@ -3,12 +3,14 @@ package exporter
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -389,9 +391,91 @@ func anyValue(value any) *commonpb.AnyValue {
 		return &commonpb.AnyValue{Value: &commonpb.AnyValue_DoubleValue{DoubleValue: v}}
 	case []byte:
 		return &commonpb.AnyValue{Value: &commonpb.AnyValue_BytesValue{BytesValue: append([]byte(nil), v...)}}
-	default:
-		return stringValue(fmt.Sprint(value))
 	}
+	if value, ok := jsonNumberValue(value); ok {
+		return value
+	}
+	if value, ok := mapAnyValue(value); ok {
+		return value
+	}
+	if value, ok := arrayAnyValue(value); ok {
+		return value
+	}
+	if value, ok := structAnyValue(value); ok {
+		return value
+	}
+	return stringValue(fmt.Sprint(value))
+}
+
+func jsonNumberValue(value any) (*commonpb.AnyValue, bool) {
+	number, ok := value.(json.Number)
+	if !ok {
+		return nil, false
+	}
+	if i, err := number.Int64(); err == nil {
+		return &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: i}}, true
+	}
+	if f, err := number.Float64(); err == nil {
+		return &commonpb.AnyValue{Value: &commonpb.AnyValue_DoubleValue{DoubleValue: f}}, true
+	}
+	return stringValue(number.String()), true
+}
+
+func mapAnyValue(value any) (*commonpb.AnyValue, bool) {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || rv.Kind() != reflect.Map || rv.Type().Key().Kind() != reflect.String {
+		return nil, false
+	}
+
+	keys := make([]string, 0, rv.Len())
+	for _, key := range rv.MapKeys() {
+		keys = append(keys, key.String())
+	}
+	sort.Strings(keys)
+
+	values := make([]*commonpb.KeyValue, 0, len(keys))
+	for _, key := range keys {
+		mapKey := reflect.ValueOf(key).Convert(rv.Type().Key())
+		values = append(values, &commonpb.KeyValue{
+			Key:   key,
+			Value: anyValue(rv.MapIndex(mapKey).Interface()),
+		})
+	}
+	return &commonpb.AnyValue{Value: &commonpb.AnyValue_KvlistValue{
+		KvlistValue: &commonpb.KeyValueList{Values: values},
+	}}, true
+}
+
+func arrayAnyValue(value any) (*commonpb.AnyValue, bool) {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || (rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array) {
+		return nil, false
+	}
+	values := make([]*commonpb.AnyValue, 0, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		values = append(values, anyValue(rv.Index(i).Interface()))
+	}
+	return &commonpb.AnyValue{Value: &commonpb.AnyValue_ArrayValue{
+		ArrayValue: &commonpb.ArrayValue{Values: values},
+	}}, true
+}
+
+func structAnyValue(value any) (*commonpb.AnyValue, bool) {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || rv.Kind() != reflect.Struct {
+		return nil, false
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var fields map[string]any
+	if err := decoder.Decode(&fields); err != nil {
+		return nil, false
+	}
+	return mapAnyValue(fields)
 }
 
 func stringValue(value string) *commonpb.AnyValue {

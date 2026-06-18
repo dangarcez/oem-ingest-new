@@ -103,6 +103,68 @@ func TestPollOnceExportsNewIncidentAsLog(t *testing.T) {
 	}
 }
 
+func TestIncidentLogRecordPreservesStructuredAttributes(t *testing.T) {
+	var incident oem.Incident
+	raw := `{
+		"id": "INC-1",
+		"message": "incident with escalation",
+		"timeCreated": "2026-06-14T12:00:00.000Z",
+		"escalationLevel": {"name": "NONE", "displayName": "None"},
+		"priority": {"name": "PRIORITY_HIGH", "displayName": "High"},
+		"suppressionStatus": {"isSuppressed": false, "suppressUntil": "NONE"},
+		"compressionAttributes": {},
+		"targets": [{"id": "target-1", "name": "db1", "typeName": "oracle_database", "typeDisplayName": "Database Instance"}],
+		"links": {"self": {"href": "/em/api/incidents/INC-1"}}
+	}`
+	if err := json.Unmarshal([]byte(raw), &incident); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	record := incidentLogRecord(incident)
+	escalation, ok := record.Attributes["escalationLevel"].(map[string]any)
+	if !ok {
+		t.Fatalf("escalationLevel attr = %#v, want structured object", record.Attributes["escalationLevel"])
+	}
+	if got := escalation["name"]; got != "NONE" {
+		t.Fatalf("escalationLevel.name attr = %#v, want NONE", got)
+	}
+	if got := escalation["displayName"]; got != "None" {
+		t.Fatalf("escalationLevel.displayName attr = %#v, want None", got)
+	}
+	priority, ok := record.Attributes["priority"].(map[string]any)
+	if !ok {
+		t.Fatalf("priority attr = %#v, want structured object", record.Attributes["priority"])
+	}
+	if got := priority["displayName"]; got != "High" {
+		t.Fatalf("priority.displayName attr = %#v, want High", got)
+	}
+	suppression, ok := record.Attributes["suppressionStatus"].(map[string]any)
+	if !ok {
+		t.Fatalf("suppressionStatus attr = %#v, want structured object", record.Attributes["suppressionStatus"])
+	}
+	if got := suppression["isSuppressed"]; got != false {
+		t.Fatalf("suppressionStatus.isSuppressed attr = %#v, want false", got)
+	}
+	links, ok := record.Attributes["links"].(oem.Links)
+	if !ok {
+		t.Fatalf("links attr = %#v, want structured OEM links", record.Attributes["links"])
+	}
+	if got := links["self"].Href; got != "/em/api/incidents/INC-1" {
+		t.Fatalf("links.self.href attr = %#v, want incident self link", got)
+	}
+	targets, ok := record.Attributes["targets"].([]oem.IncidentTarget)
+	if !ok || len(targets) != 1 {
+		t.Fatalf("targets attr = %#v, want structured target array", record.Attributes["targets"])
+	}
+	if got := targets[0].ID; got != "target-1" {
+		t.Fatalf("targets[0].id attr = %#v, want target-1", got)
+	}
+	compression, ok := record.Attributes["compressionAttributes"].(map[string]any)
+	if !ok || len(compression) != 0 {
+		t.Fatalf("compressionAttributes attr = %#v, want empty structured object", record.Attributes["compressionAttributes"])
+	}
+}
+
 func TestIncidentLogRecordDoesNotInventAbsentJSONAttributes(t *testing.T) {
 	var incident oem.Incident
 	raw := `{

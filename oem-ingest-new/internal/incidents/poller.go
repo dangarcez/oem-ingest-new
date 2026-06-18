@@ -362,10 +362,10 @@ func incidentAttributes(incident oem.Incident) transform.Attributes {
 		attrs["target_name"] = target.Name
 		attrs["target_type"] = target.TypeName
 		attrs["target_type_display_name"] = target.TypeDisplayName
-		attrs["targets"] = jsonString(incident.Targets)
+		attrs["targets"] = incident.Targets
 	}
 	if incident.HasField("links") && len(incident.Links) > 0 {
-		attrs["links"] = jsonString(incident.Links)
+		attrs["links"] = incident.Links
 	}
 	for key, value := range incident.Extra {
 		if key == "" || key == "message" {
@@ -392,7 +392,7 @@ func normalizeAttributeValue(value any) any {
 	case nil, bool, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
 		return v
 	default:
-		return jsonString(v)
+		return v
 	}
 }
 

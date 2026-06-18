@@ -49,7 +49,7 @@ services:
       OEM_EXPORT_INTERVAL_SECONDS: "120"
       OTEL_EXPORT_TIMEOUT_SECONDS: "10"
       OTEL_EXPORT_URL: http://host.docker.internal:10054 #http://oem-mock:8008 também funciona
-      OEM_LOG_LEVEL: WARN
+      OEM_LOG_LEVEL: INFO
     volumes:
       - ./configs/docker-compose/configTargets.yaml:/app/configs/configTargets.yaml:ro
       - ./configs/docker-compose/configMetrics.yaml:/app/configs/configMetrics.yaml:ro

@@ -126,6 +126,73 @@ func TestMetricsExporterPostsOTLPAndClearsBuffer(t *testing.T) {
 	}
 }
 
+func TestAnyValuePreservesStructuredAttributes(t *testing.T) {
+	value := anyValue(map[string]any{
+		"escalationLevel": map[string]any{
+			"displayName": "None",
+			"name":        "NONE",
+		},
+		"links": map[string]any{
+			"self": struct {
+				Href string `json:"href"`
+			}{Href: "/em/api/incidents/INC-1"},
+		},
+		"suppressionStatus": map[string]any{
+			"isSuppressed":  false,
+			"suppressUntil": "NONE",
+		},
+		"targets": []struct {
+			ID              string `json:"id"`
+			Name            string `json:"name"`
+			TypeName        string `json:"typeName"`
+			TypeDisplayName string `json:"typeDisplayName"`
+		}{{
+			ID:              "target-1",
+			Name:            "db1",
+			TypeName:        "oracle_database",
+			TypeDisplayName: "Database Instance",
+		}},
+	})
+
+	root := value.GetKvlistValue()
+	if root == nil {
+		t.Fatalf("structured attribute encoded as %T, want kvlist", value.Value)
+	}
+	escalation := attrValue(root.Values, "escalationLevel").GetKvlistValue()
+	if escalation == nil {
+		t.Fatalf("escalationLevel encoded as %#v, want kvlist", attrValue(root.Values, "escalationLevel"))
+	}
+	if got := attrValue(escalation.Values, "displayName").GetStringValue(); got != "None" {
+		t.Fatalf("escalationLevel.displayName = %q, want None", got)
+	}
+	if got := attrValue(escalation.Values, "name").GetStringValue(); got != "NONE" {
+		t.Fatalf("escalationLevel.name = %q, want NONE", got)
+	}
+
+	links := attrValue(root.Values, "links").GetKvlistValue()
+	self := attrValue(links.Values, "self").GetKvlistValue()
+	if got := attrValue(self.Values, "href").GetStringValue(); got != "/em/api/incidents/INC-1" {
+		t.Fatalf("links.self.href = %q, want incident self link", got)
+	}
+
+	suppression := attrValue(root.Values, "suppressionStatus").GetKvlistValue()
+	if got := attrValue(suppression.Values, "isSuppressed").GetBoolValue(); got {
+		t.Fatalf("suppressionStatus.isSuppressed = %v, want false", got)
+	}
+
+	targets := attrValue(root.Values, "targets").GetArrayValue()
+	if targets == nil || len(targets.Values) != 1 {
+		t.Fatalf("targets encoded as %#v, want one-element array", attrValue(root.Values, "targets"))
+	}
+	target := targets.Values[0].GetKvlistValue()
+	if target == nil {
+		t.Fatalf("targets[0] encoded as %#v, want kvlist", targets.Values[0])
+	}
+	if got := attrValue(target.Values, "id").GetStringValue(); got != "target-1" {
+		t.Fatalf("targets[0].id = %q, want target-1", got)
+	}
+}
+
 func TestMetricsExporterRetainsBufferAfterFailureAndRetries(t *testing.T) {
 	var recorder requestRecorder
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -604,12 +671,16 @@ func findMetric(t *testing.T, metrics []*metricspb.Metric, name string) *metrics
 }
 
 func stringAttr(attrs []*commonpb.KeyValue, key string) string {
+	return attrValue(attrs, key).GetStringValue()
+}
+
+func attrValue(attrs []*commonpb.KeyValue, key string) *commonpb.AnyValue {
 	for _, attr := range attrs {
 		if attr.Key == key {
-			return attr.Value.GetStringValue()
+			return attr.Value
 		}
 	}
-	return ""
+	return &commonpb.AnyValue{}
 }
 
 func intAttr(attrs []*commonpb.KeyValue, key string) int64 {
