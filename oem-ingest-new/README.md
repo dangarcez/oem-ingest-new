@@ -55,13 +55,15 @@ Variaveis de ambiente suportadas nesta fase:
   ausentes.
 - `OEM_VALIDATED_CONFIG_OUTPUT`: caminho para gravar a configuracao corrigida,
   sem sobrescrever o arquivo original.
-- `OEM_VALIDATION_REPORT_OUTPUT`: caminho para gravar o relatorio YAML da
+- `OEM_VALIDATION_REPORT_OUTPUT`: caminho para gravar o relatorio JSONL da
   validacao. Quando omitido, e derivado de `OEM_VALIDATED_CONFIG_OUTPUT`.
 - `OEM_USER`, `OEM_PASSWORD`, `OEM_TOKEN`, `OEM_AUTH_TOKEN_HASH_FILE`.
 - `OTEL_EXPORT_URL`.
 - `OTEL_EXPORT_TIMEOUT_SECONDS`.
 - `OEM_EXPORT_INTERVAL_SECONDS`.
 - `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
+- `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS`: intervalo minimo entre
+  revalidacoes runtime de ID por target apos `404`; padrao `86400`.
 - `OEM_HTTP_TIMEOUT_SECONDS`.
 - `OEM_HTTP_CONNECT_TIMEOUT_SECONDS`.
 - `OEM_HTTP_MAX_RETRIES`.
@@ -166,7 +168,7 @@ caminho de `OEM_VALIDATED_CONFIG_OUTPUT` e o relatorio no caminho de
 `OEM_VALIDATION_REPORT_OUTPUT`. Se `/app/configs` estiver montado como somente
 leitura, defina essas variaveis para caminhos gravaveis, por exemplo
 `/tmp/configTargets.validated.yaml` e
-`/tmp/configTargets.validated.report.yaml`, ou monte um diretorio de saida
+`/tmp/configTargets.validated.report.jsonl`, ou monte um diretorio de saida
 separado.
 
 Para usar `OEM_TOKEN`, monte tambem o arquivo usado como base de hash e aponte

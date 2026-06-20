@@ -37,7 +37,7 @@ services:
       OEM_CONFIG_METRICS: /app/configs/configMetrics.yaml
       OEM_VALIDATE_CONFIG: "true"
       OEM_VALIDATED_CONFIG_OUTPUT: /tmp/configTargets.validated.yaml
-      OEM_VALIDATION_REPORT_OUTPUT: /tmp/configTargets.validated.report.yaml
+      OEM_VALIDATION_REPORT_OUTPUT: /tmp/configTargets.validated.report.jsonl
       OEM_USER: mock
       OEM_PASSWORD: mock
       OEM_TOKEN: DGZXB1YMAQs=

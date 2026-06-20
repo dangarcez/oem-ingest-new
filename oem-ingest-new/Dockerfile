@@ -28,7 +28,7 @@ WORKDIR /app
 ENV OEM_CONFIG_TARGETS=/app/configs/configTargets.yaml \
     OEM_CONFIG_METRICS=/app/configs/configMetrics.yaml \
     OEM_VALIDATED_CONFIG_OUTPUT=/app/configs/configTargets.validated.yaml \
-    OEM_VALIDATION_REPORT_OUTPUT=/app/configs/configTargets.validated.report.yaml
+    OEM_VALIDATION_REPORT_OUTPUT=/app/configs/configTargets.validated.report.jsonl
 
 COPY --from=build --chown=nonroot:nonroot /out/oem-ingest ./oem-ingest
 COPY --from=build --chown=nonroot:nonroot /out/app/configs ./configs

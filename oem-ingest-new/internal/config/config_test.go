@@ -35,6 +35,9 @@ func TestReadEnvDefaults(t *testing.T) {
 	if env.MonitorResponseTolerance != time.Duration(DefaultResponseToleranceMin)*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
 	}
+	if env.RuntimeIDRecheckInterval != time.Duration(DefaultRuntimeIDRecheckSeconds)*time.Second {
+		t.Fatalf("RuntimeIDRecheckInterval = %s", env.RuntimeIDRecheckInterval)
+	}
 	if env.SchedulerJitter != time.Duration(DefaultSchedulerJitterSeconds)*time.Second {
 		t.Fatalf("SchedulerJitter = %s", env.SchedulerJitter)
 	}
@@ -48,27 +51,28 @@ func TestReadEnvDefaults(t *testing.T) {
 
 func TestReadEnvOverrides(t *testing.T) {
 	values := map[string]string{
-		"OEM_CONFIG_TARGETS":                     "/tmp/targets.yaml",
-		"OEM_CONFIG_METRICS":                     "/tmp/metrics.yaml",
-		"OEM_VALIDATE_CONFIG":                    "true",
-		"OEM_VALIDATED_CONFIG_OUTPUT":            "/tmp/validated.yaml",
-		"OEM_VALIDATION_REPORT_OUTPUT":           "/tmp/validated.report.yaml",
-		"OEM_USER":                               "oem_user",
-		"OEM_PASSWORD":                           "secret",
-		"OEM_TOKEN":                              "token",
-		"OEM_AUTH_TOKEN_HASH_FILE":               "/tmp/hash-source",
-		"OTEL_EXPORT_URL":                        "http://collector:4318",
-		"OTEL_EXPORT_TIMEOUT_SECONDS":            "6",
-		"OEM_EXPORT_INTERVAL_SECONDS":            "15",
-		"OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES": "7",
-		"OEM_HTTP_TIMEOUT_SECONDS":               "20",
-		"OEM_HTTP_CONNECT_TIMEOUT_SECONDS":       "3",
-		"OEM_HTTP_MAX_RETRIES":                   "4",
-		"OEM_MAX_CONCURRENT_REQUESTS":            "5",
-		"OEM_SCHEDULER_JITTER_SECONDS":           "12",
-		"OEM_LOG_LEVEL":                          "debug",
-		"OEM_TLS_VERIFY":                         "false",
-		"OEM_DIAGNOSTICS_INTERVAL_SECONDS":       "9",
+		"OEM_CONFIG_TARGETS":                      "/tmp/targets.yaml",
+		"OEM_CONFIG_METRICS":                      "/tmp/metrics.yaml",
+		"OEM_VALIDATE_CONFIG":                     "true",
+		"OEM_VALIDATED_CONFIG_OUTPUT":             "/tmp/validated.yaml",
+		"OEM_VALIDATION_REPORT_OUTPUT":            "/tmp/validated.report.jsonl",
+		"OEM_USER":                                "oem_user",
+		"OEM_PASSWORD":                            "secret",
+		"OEM_TOKEN":                               "token",
+		"OEM_AUTH_TOKEN_HASH_FILE":                "/tmp/hash-source",
+		"OTEL_EXPORT_URL":                         "http://collector:4318",
+		"OTEL_EXPORT_TIMEOUT_SECONDS":             "6",
+		"OEM_EXPORT_INTERVAL_SECONDS":             "15",
+		"OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES":  "7",
+		"OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS": "42",
+		"OEM_HTTP_TIMEOUT_SECONDS":                "20",
+		"OEM_HTTP_CONNECT_TIMEOUT_SECONDS":        "3",
+		"OEM_HTTP_MAX_RETRIES":                    "4",
+		"OEM_MAX_CONCURRENT_REQUESTS":             "5",
+		"OEM_SCHEDULER_JITTER_SECONDS":            "12",
+		"OEM_LOG_LEVEL":                           "debug",
+		"OEM_TLS_VERIFY":                          "false",
+		"OEM_DIAGNOSTICS_INTERVAL_SECONDS":        "9",
 	}
 
 	env, err := ReadEnv(func(key string) (string, bool) {
@@ -85,8 +89,8 @@ func TestReadEnvOverrides(t *testing.T) {
 	if !env.ValidateConfig {
 		t.Fatal("ValidateConfig should be true")
 	}
-	if env.ValidationReportOutput != "/tmp/validated.report.yaml" {
-		t.Fatalf("ValidationReportOutput = %q, want /tmp/validated.report.yaml", env.ValidationReportOutput)
+	if env.ValidationReportOutput != "/tmp/validated.report.jsonl" {
+		t.Fatalf("ValidationReportOutput = %q, want /tmp/validated.report.jsonl", env.ValidationReportOutput)
 	}
 	if env.User != "oem_user" || env.Password != "secret" || env.Token != "token" {
 		t.Fatalf("unexpected auth env: %#v", env)
@@ -99,6 +103,9 @@ func TestReadEnvOverrides(t *testing.T) {
 	}
 	if env.MonitorResponseTolerance != 7*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
+	}
+	if env.RuntimeIDRecheckInterval != 42*time.Second {
+		t.Fatalf("RuntimeIDRecheckInterval = %s", env.RuntimeIDRecheckInterval)
 	}
 	if env.HTTPTimeout != 20*time.Second || env.HTTPConnectTimeout != 3*time.Second {
 		t.Fatalf("unexpected HTTP timeouts: %#v", env)
@@ -127,14 +134,14 @@ func TestReadEnvDerivesValidationReportOutputFromValidatedConfigOutput(t *testin
 	if err != nil {
 		t.Fatalf("ReadEnv returned error: %v", err)
 	}
-	if env.ValidationReportOutput != "/tmp/custom.validated.report.yml" {
+	if env.ValidationReportOutput != "/tmp/custom.validated.report.jsonl" {
 		t.Fatalf("ValidationReportOutput = %q, want derived report path", env.ValidationReportOutput)
 	}
 }
 
 func TestDefaultReportPathHandlesPathWithoutExtension(t *testing.T) {
-	if got := DefaultReportPath("/tmp/validated"); got != "/tmp/validated.report.yaml" {
-		t.Fatalf("DefaultReportPath = %q, want /tmp/validated.report.yaml", got)
+	if got := DefaultReportPath("/tmp/validated"); got != "/tmp/validated.report.jsonl" {
+		t.Fatalf("DefaultReportPath = %q, want /tmp/validated.report.jsonl", got)
 	}
 }
 
@@ -184,6 +191,22 @@ func TestReadEnvRejectsInvalidNonNegativeSeconds(t *testing.T) {
 			})
 			if err == nil || !strings.Contains(err.Error(), envName) {
 				t.Fatalf("expected %s error, got %v", envName, err)
+			}
+		})
+	}
+}
+
+func TestReadEnvRejectsInvalidPositiveSeconds(t *testing.T) {
+	for _, value := range []string{"0", "invalid"} {
+		t.Run(value, func(t *testing.T) {
+			_, err := ReadEnv(func(key string) (string, bool) {
+				if key == "OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS" {
+					return value, true
+				}
+				return "", false
+			})
+			if err == nil || !strings.Contains(err.Error(), "OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS") {
+				t.Fatalf("expected runtime recheck interval error, got %v", err)
 			}
 		})
 	}

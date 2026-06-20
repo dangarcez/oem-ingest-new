@@ -11,15 +11,16 @@ Configure as credenciais OEM e habilite a validacao no startup:
 export OEM_VALIDATE_CONFIG=true
 export OEM_CONFIG_TARGETS=./configs/configTargets.yaml
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
-export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.jsonl
 export OEM_USER=usuario
 export OEM_PASSWORD=senha
 ```
 
 `OEM_VALIDATION_REPORT_OUTPUT` e opcional. Quando nao informado, o caminho e
-derivado de `OEM_VALIDATED_CONFIG_OUTPUT` inserindo `.report` antes da extensao.
+derivado de `OEM_VALIDATED_CONFIG_OUTPUT` substituindo a extensao por
+`.report.jsonl`.
 Por exemplo, `configTargets.validated.yaml` gera
-`configTargets.validated.report.yaml`.
+`configTargets.validated.report.jsonl`.
 
 ## Arquivos Gerados
 
@@ -28,8 +29,8 @@ A validacao sempre preserva o arquivo original de targets. Ela gera:
 - YAML validado em `OEM_VALIDATED_CONFIG_OUTPUT`, com IDs atualizados, targets
   ausentes removidos, tags estruturais corrigidas e targets relacionados
   adicionados quando a correlacao permite.
-- Relatorio YAML em `OEM_VALIDATION_REPORT_OUTPUT`, com resumo e listas
-  detalhadas de mudancas.
+- Relatorio JSONL em `OEM_VALIDATION_REPORT_OUTPUT`, com um evento JSON por
+  mudanca ou warning.
 
 Nenhum dos caminhos de saida pode apontar para `OEM_CONFIG_TARGETS`. O relatorio
 tambem nao pode apontar para o mesmo arquivo do YAML validado.
@@ -52,37 +53,39 @@ corrigir tags estruturais conforme as regras legadas.
 Sites que ficam sem targets depois das remocoes sao omitidos do YAML validado e
 registrados no relatorio.
 
-## Relatorio YAML
+## Relatorio JSONL
 
-O relatorio tem os caminhos de entrada/saida, timestamp e contadores agregados:
+O relatorio e append-only e contem uma linha JSON por evento. Todos os eventos
+incluem `timestamp`, `event`, `phase`, `sourceConfig` e `validatedConfig`.
 
-```yaml
-sourceConfig: ./configs/configTargets.yaml
-validatedConfig: ./configs/configTargets.validated.yaml
-generatedAt: "2026-06-16T12:30:00Z"
-summary:
-  idCorrections: 2
-  targetsRemoved: 1
-  sitesRemoved: 0
-  targetsAdded: 3
-  tagCorrections: 4
-  warnings: 10
-idCorrections: []
-targetsRemoved: []
-sitesRemoved: []
-targetsAdded: []
-tagCorrections: []
-warnings: []
+```jsonl
+{"timestamp":"2026-06-16T12:30:00Z","event":"id_correction","phase":"startup","sourceConfig":"./configs/configTargets.yaml","validatedConfig":"./configs/configTargets.validated.yaml","siteIndex":0,"targetIndex":1,"siteName":"oraemc","targetName":"db1","targetType":"oracle_database","oldID":"old-id","newID":"new-id"}
+{"timestamp":"2026-06-16T12:30:00Z","event":"warning","phase":"startup","sourceConfig":"./configs/configTargets.yaml","validatedConfig":"./configs/configTargets.validated.yaml","code":"id_divergent","siteIndex":0,"targetIndex":1,"siteName":"oraemc","targetName":"db1","targetType":"oracle_database","configID":"old-id","currentID":"new-id","message":"ID do target \"db1\" tipo \"oracle_database\" diverge da API OEM"}
 ```
 
-As listas detalhadas incluem site, indice original do target, nome, tipo, IDs
-antigo/novo quando aplicavel e a mensagem de warning emitida pela validacao.
+Eventos de startup usam `phase:"startup"` e podem ter `event` igual a
+`id_correction`, `target_removed`, `site_removed`, `target_added`,
+`tag_correction` ou `warning`. Correcoes feitas durante a coleta usam
+`phase:"runtime"`, `event:"id_correction"`, `trigger:"metric_404"` e incluem
+`metricGroupName`.
 
 ## Efeito Na Run
 
 Quando `OTEL_EXPORT_URL` esta definido, a mesma execucao usa a configuracao
 validada em memoria. Targets removidos nao geram jobs de scheduler e nao fazem
 chamadas `latestData`.
+
+Com `OEM_VALIDATE_CONFIG=true`, a coleta tambem pode revalidar um target em
+runtime quando uma busca de metadata ou `latestData` retornar `404`. Antes de
+listar targets no OEM, o runtime verifica `oem_monitor_response`: se o target
+teve coleta util dentro de `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`, a
+revalidacao e pulada. Caso contrario, a API de targets e consultada e, havendo
+match unico por `name` + `typeName` com ID diferente, o ID e atualizado em
+memoria, o YAML validado e reescrito e um evento JSONL e anexado ao relatorio.
+
+Quando a verificacao confirma que o ID nao mudou, ou nao encontra uma correcao
+segura, novas verificacoes para o mesmo target ficam bloqueadas por
+`OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS` (padrao `86400`).
 
 Se a validacao remover todos os targets de todos os sites, os arquivos de saida
 sao gerados e a coleta nao inicia. O processo retorna erro informando que a

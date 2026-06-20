@@ -153,8 +153,10 @@ coletor sao apenas em memoria.
 A validacao opcional de configuracao e nova no runtime Go. Quando
 `OEM_VALIDATE_CONFIG=true`, o coletor consulta o OEM, corrige IDs e correlacoes
 em memoria, remove targets ausentes, escreve um novo arquivo em
-`OEM_VALIDATED_CONFIG_OUTPUT`, gera relatorio em
-`OEM_VALIDATION_REPORT_OUTPUT` e preserva o arquivo original.
+`OEM_VALIDATED_CONFIG_OUTPUT`, gera relatorio JSONL em
+`OEM_VALIDATION_REPORT_OUTPUT` e preserva o arquivo original. Durante a coleta,
+`404` em metadata ou `latestData` tambem pode disparar uma revalidacao de ID e
+reescrever o YAML validado quando houver match unico seguro.
 
 Metricas internas da aplicacao sao novas e usam o prefixo `oem_collector_*`.
 Elas descrevem o proprio coletor e hoje incluem:

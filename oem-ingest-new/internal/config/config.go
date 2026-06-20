@@ -17,9 +17,10 @@ const (
 	DefaultTargetsPath              = "./configs/configTargets.yaml"
 	DefaultMetricsPath              = "./configs/configMetrics.yaml"
 	DefaultValidatedTargetsPath     = "./configs/configTargets.validated.yaml"
-	DefaultValidationReportPath     = "./configs/configTargets.validated.report.yaml"
+	DefaultValidationReportPath     = "./configs/configTargets.validated.report.jsonl"
 	DefaultExportIntervalSeconds    = 60
 	DefaultResponseToleranceMin     = 21
+	DefaultRuntimeIDRecheckSeconds  = 86400
 	DefaultHTTPTimeoutSeconds       = 30
 	DefaultConnectTimeoutSeconds    = 10
 	DefaultOTELExportTimeoutSeconds = 30
@@ -44,6 +45,7 @@ type Env struct {
 	OTELExportTimeout        time.Duration
 	ExportInterval           time.Duration
 	MonitorResponseTolerance time.Duration
+	RuntimeIDRecheckInterval time.Duration
 	HTTPTimeout              time.Duration
 	HTTPConnectTimeout       time.Duration
 	HTTPMaxRetries           int
@@ -108,6 +110,7 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		OTELExportTimeout:        time.Duration(DefaultOTELExportTimeoutSeconds) * time.Second,
 		ExportInterval:           time.Duration(DefaultExportIntervalSeconds) * time.Second,
 		MonitorResponseTolerance: time.Duration(DefaultResponseToleranceMin) * time.Minute,
+		RuntimeIDRecheckInterval: time.Duration(DefaultRuntimeIDRecheckSeconds) * time.Second,
 		HTTPTimeout:              time.Duration(DefaultHTTPTimeoutSeconds) * time.Second,
 		HTTPConnectTimeout:       time.Duration(DefaultConnectTimeoutSeconds) * time.Second,
 		HTTPMaxRetries:           DefaultHTTPMaxRetries,
@@ -130,6 +133,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.MonitorResponseTolerance, err = minutesValue(lookup, "OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES", DefaultResponseToleranceMin); err != nil {
+		return Env{}, err
+	}
+	if env.RuntimeIDRecheckInterval, err = secondsValue(lookup, "OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS", DefaultRuntimeIDRecheckSeconds); err != nil {
 		return Env{}, err
 	}
 	if env.HTTPTimeout, err = secondsValue(lookup, "OEM_HTTP_TIMEOUT_SECONDS", DefaultHTTPTimeoutSeconds); err != nil {
@@ -157,8 +163,8 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 	return env, nil
 }
 
-// DefaultReportPath derives the validation report path from the validated
-// target YAML path by inserting ".report" before the file extension.
+// DefaultReportPath derives the validation JSONL report path from the validated
+// target YAML path by replacing the file extension with ".report.jsonl".
 func DefaultReportPath(validatedConfigOutput string) string {
 	path := strings.TrimSpace(validatedConfigOutput)
 	if path == "" {
@@ -166,9 +172,9 @@ func DefaultReportPath(validatedConfigOutput string) string {
 	}
 	ext := filepath.Ext(path)
 	if ext == "" {
-		return path + ".report.yaml"
+		return path + ".report.jsonl"
 	}
-	return strings.TrimSuffix(path, ext) + ".report" + ext
+	return strings.TrimSuffix(path, ext) + ".report.jsonl"
 }
 
 // Load reads targets and metrics YAML files.

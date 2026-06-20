@@ -161,8 +161,8 @@ func validateStartupTargets(ctx context.Context, env config.Env, opts Options) (
 	if err := config.WriteTargets(env.ValidatedConfigOutput, correlationResult.Sites); err != nil {
 		return startupValidationResult{}, err
 	}
-	report := validate.NewValidationReport(env.TargetsPath, env.ValidatedConfigOutput, time.Now(), idResult, correlationResult)
-	if err := validate.WriteValidationReport(env.ValidationReportOutput, report); err != nil {
+	reportEvents := validate.NewStartupValidationEvents(env.TargetsPath, env.ValidatedConfigOutput, time.Now(), idResult, correlationResult)
+	if err := validate.WriteValidationReport(env.ValidationReportOutput, reportEvents); err != nil {
 		return startupValidationResult{}, err
 	}
 	logValidationSummary(ctx, opts.Logger, env.ValidatedConfigOutput, env.ValidationReportOutput, idResult, correlationResult)
@@ -195,6 +195,7 @@ type runtimeState struct {
 	env                  config.Env
 	logger               Logger
 	responseMonitor      *collect.ResponseMonitor
+	runtimeTargets       *runtimeTargetState
 	selfMetrics          *selfmetrics.Registry
 	metricsExporter      *exporter.MetricsExporter
 	logsExporter         *exporter.LogsExporter
@@ -352,6 +353,9 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 		clientsByEndpoint:    make(map[string]*oem.Client),
 		collectorsByEndpoint: make(map[string]*collect.Collector),
 	}
+	if env.ValidateConfig {
+		state.runtimeTargets = newRuntimeTargetState(cfg, env, state.responseMonitor, state.clientsByEndpoint, logger)
+	}
 
 	for _, site := range cfg.Sites {
 		if _, exists := state.clientsByEndpoint[site.Endpoint]; exists {
@@ -389,6 +393,7 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 		state.collectorsByEndpoint[site.Endpoint] = collect.NewCollector(client, collect.CollectorOptions{
 			Logger:          logger,
 			ResponseMonitor: state.responseMonitor,
+			IDRepairer:      state.runtimeTargets,
 		})
 		poller, err := incidents.New(incidents.Options{
 			Client: client,
@@ -526,6 +531,9 @@ func (s *runtimeState) startIncidentPollers(ctx context.Context) <-chan error {
 }
 
 func (s *runtimeState) collectAndBuffer(ctx context.Context, job scheduler.Job) error {
+	if s.runtimeTargets != nil {
+		job = s.runtimeTargets.ResolveJob(job)
+	}
 	collector := s.collectorsByEndpoint[job.Endpoint]
 	if collector == nil {
 		return fmt.Errorf("cliente OEM nao encontrado para endpoint %q", job.Endpoint)
@@ -553,9 +561,10 @@ func (s *runtimeState) collectAndBuffer(ctx context.Context, job scheduler.Job) 
 }
 
 func (s *runtimeState) enqueueRuntimeMetrics(observedAt time.Time) {
-	s.metricsExporter.Add(transform.FromResponseMonitor(s.cfg.Sites, s.responseMonitor, s.env.MonitorResponseTolerance, observedAt)...)
+	sites := s.runtimeSites()
+	s.metricsExporter.Add(transform.FromResponseMonitor(sites, s.responseMonitor, s.env.MonitorResponseTolerance, observedAt)...)
 	s.metricsExporter.Add(selfmetrics.FromSnapshot(selfmetrics.SnapshotInput{
-		Sites:             s.cfg.Sites,
+		Sites:             sites,
 		ResponseMonitor:   s.responseMonitor,
 		ResponseTolerance: s.env.MonitorResponseTolerance,
 		OEM:               s.oemStats(),
@@ -563,6 +572,13 @@ func (s *runtimeState) enqueueRuntimeMetrics(observedAt time.Time) {
 		Exporter:          s.selfMetrics.SnapshotStats(),
 		ObservedAt:        observedAt,
 	})...)
+}
+
+func (s *runtimeState) runtimeSites() []config.SiteConfig {
+	if s != nil && s.runtimeTargets != nil {
+		return s.runtimeTargets.Sites()
+	}
+	return s.cfg.Sites
 }
 
 func (s *runtimeState) flush(ctx context.Context) {

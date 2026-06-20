@@ -24,6 +24,34 @@ type Client interface {
 	LatestDataClient
 }
 
+// TargetIDRepairer can refresh one job's target ID after a metric endpoint
+// returns 404. It is implemented by the application wiring so collect stays
+// independent from config files and report artifacts.
+type TargetIDRepairer interface {
+	RepairTargetID(ctx context.Context, req TargetIDRepairRequest) (TargetIDRepairResult, error)
+}
+
+// TargetIDRepairRequest describes the 404 that triggered a runtime ID check.
+type TargetIDRepairRequest struct {
+	Job       scheduler.Job
+	Trigger   string
+	Stage     string
+	Err       error
+	CheckedAt time.Time
+}
+
+// TargetIDRepairResult returns the corrected job when a new ID was found.
+type TargetIDRepairResult struct {
+	Job       scheduler.Job
+	Corrected bool
+}
+
+const (
+	TargetIDRepairTriggerMetric404 = "metric_404"
+	TargetIDRepairStageMetadata    = "metadata"
+	TargetIDRepairStageLatestData  = "latestData"
+)
+
 // Collector fetches metadata and latestData for scheduler jobs.
 type Collector struct {
 	latestClient LatestDataClient
@@ -31,6 +59,7 @@ type Collector struct {
 	logger       Logger
 	clock        func() time.Time
 	responses    *ResponseMonitor
+	idRepairer   TargetIDRepairer
 	stats        collectorStats
 }
 
@@ -40,6 +69,7 @@ type CollectorOptions struct {
 	Logger          Logger
 	Clock           func() time.Time
 	ResponseMonitor *ResponseMonitor
+	IDRepairer      TargetIDRepairer
 }
 
 type collectorStats struct {
@@ -137,6 +167,7 @@ func NewCollector(client Client, opts CollectorOptions) *Collector {
 		logger:       opts.Logger,
 		clock:        clock,
 		responses:    responses,
+		idRepairer:   opts.IDRepairer,
 	}
 }
 
@@ -144,6 +175,10 @@ func NewCollector(client Client, opts CollectorOptions) *Collector {
 // successful response with at least one item; only those update target response
 // monitoring.
 func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, error) {
+	return c.collect(ctx, job, true)
+}
+
+func (c *Collector) collect(ctx context.Context, job scheduler.Job, allowRepair bool) (Result, error) {
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
@@ -158,6 +193,11 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		Bodyless:        job.MetricGroup.Bodyless,
 	})
 	if err != nil {
+		if allowRepair && isHTTPStatus(err, http.StatusNotFound) {
+			if repairedJob, ok := c.repairJobAfterNotFound(ctx, job, TargetIDRepairStageMetadata, err); ok {
+				return c.collect(ctx, repairedJob, false)
+			}
+		}
 		if errors.Is(err, ErrMetricGroupUnavailable) {
 			c.recordUnavailableGroup()
 		} else {
@@ -170,6 +210,11 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 
 	latest, err := c.latestClient.LatestData(ctx, job.Target.ID, job.MetricGroupName)
 	if err != nil {
+		if allowRepair && isHTTPStatus(err, http.StatusNotFound) {
+			if repairedJob, ok := c.repairJobAfterNotFound(ctx, job, TargetIDRepairStageLatestData, err); ok {
+				return c.collect(ctx, repairedJob, false)
+			}
+		}
 		if metadata.Bodyless && isHTTPError(err) {
 			latest = oem.LatestData{
 				MetricGroupName: job.MetricGroupName,
@@ -201,6 +246,27 @@ func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, err
 		atomic.AddUint64(&c.stats.datapointsCollected, uint64(result.Datapoints()))
 	}
 	return result, nil
+}
+
+func (c *Collector) repairJobAfterNotFound(ctx context.Context, job scheduler.Job, stage string, cause error) (scheduler.Job, bool) {
+	if c == nil || c.idRepairer == nil {
+		return scheduler.Job{}, false
+	}
+	result, err := c.idRepairer.RepairTargetID(ctx, TargetIDRepairRequest{
+		Job:       job,
+		Trigger:   TargetIDRepairTriggerMetric404,
+		Stage:     stage,
+		Err:       cause,
+		CheckedAt: c.now(),
+	})
+	if err != nil {
+		c.warn(ctx, "falha ao revalidar ID do target apos 404", job, err)
+		return scheduler.Job{}, false
+	}
+	if !result.Corrected || result.Job.Target.ID == "" {
+		return scheduler.Job{}, false
+	}
+	return result.Job, true
 }
 
 func isHTTPError(err error) bool {

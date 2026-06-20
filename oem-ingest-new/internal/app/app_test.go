@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,8 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"oem-ingest-new/internal/auth"
+	"oem-ingest-new/internal/collect"
 	"oem-ingest-new/internal/config"
 	"oem-ingest-new/internal/oem"
+	"oem-ingest-new/internal/scheduler"
 	"oem-ingest-new/internal/validate"
 )
 
@@ -985,8 +989,10 @@ func TestRunValidatesTargetsWhenEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read validation report file: %v", err)
 	}
-	if !strings.Contains(string(reportContents), "idCorrections: 1") || !strings.Contains(string(reportContents), "targetsRemoved: 0") {
-		t.Fatalf("validation report missing expected summary:\n%s", reportContents)
+	reportEvents := parseAppJSONLReport(t, reportContents)
+	if !hasAppReportEvent(reportEvents, "id_correction", "targetName", "cdbp51bc") ||
+		!hasAppReportEvent(reportEvents, "tag_correction", "targetName", "cdbp51bc") {
+		t.Fatalf("validation report missing expected events:\n%s", reportContents)
 	}
 	if len(logger.infos) != 1 || !strings.Contains(logger.infos[0], "configuracao validada escrita") {
 		t.Fatalf("expected validation summary log, got %#v", logger.infos)
@@ -998,7 +1004,7 @@ func TestRunWithValidationDoesNotCollectRemovedTarget(t *testing.T) {
 	targetsPath := filepath.Join(tmp, "configTargets.yaml")
 	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
 	validatedPath := filepath.Join(tmp, "validated", "configTargets.yaml")
-	reportPath := filepath.Join(tmp, "validated", "configTargets.report.yaml")
+	reportPath := filepath.Join(tmp, "validated", "configTargets.report.jsonl")
 	if err := os.WriteFile(targetsPath, []byte(`
 - name: mock
   endpoint: PLACEHOLDER
@@ -1131,8 +1137,222 @@ host:
 	if err != nil {
 		t.Fatalf("read validation report: %v", err)
 	}
-	if !strings.Contains(string(reportContents), "targetsRemoved: 1") || !strings.Contains(string(reportContents), "targetName: missing") {
+	reportEvents := parseAppJSONLReport(t, reportContents)
+	if !hasAppReportEvent(reportEvents, "target_removed", "targetName", "missing") {
 		t.Fatalf("validation report should describe removed target:\n%s", reportContents)
+	}
+}
+
+func TestRunWithValidationRepairsTargetIDAfterRuntimeLatestDataNotFound(t *testing.T) {
+	tmp := t.TempDir()
+	targetsPath := filepath.Join(tmp, "configTargets.yaml")
+	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
+	validatedPath := filepath.Join(tmp, "validated", "configTargets.yaml")
+	reportPath := filepath.Join(tmp, "validated", "configTargets.report.jsonl")
+	if err := os.WriteFile(targetsPath, []byte(`
+- name: mock
+  endpoint: PLACEHOLDER
+  targets:
+    - id: old-id
+      name: host1
+      typeName: host
+      tags:
+        target_name: host1
+        target_type: host
+`), 0o600); err != nil {
+		t.Fatalf("write targets: %v", err)
+	}
+	if err := os.WriteFile(metricsPath, []byte(`
+host:
+  - freq: 5
+    metric_group_name: Load
+`), 0o600); err != nil {
+		t.Fatalf("write metrics: %v", err)
+	}
+
+	var targetListCalls atomic.Int32
+	var oldLatestDataCalls atomic.Int32
+	var newLatestDataCalls atomic.Int32
+	var metricsPosts atomic.Int32
+	var cancel context.CancelFunc
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/em/") {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "user" || pass != "secret" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/em/api":
+			fmt.Fprint(w, `{"name":"mock","version":"test"}`)
+		case "/em/api/targets":
+			if targetListCalls.Add(1) <= 2 {
+				fmt.Fprint(w, `{"items":[{"id":"old-id","name":"host1","typeName":"host"}]}`)
+				return
+			}
+			fmt.Fprint(w, `{"items":[{"id":"new-id","name":"host1","typeName":"host"}]}`)
+		case "/em/api/targets/old-id/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/old-id/metricGroups/Load/latestData":
+			oldLatestDataCalls.Add(1)
+			http.NotFound(w, r)
+		case "/em/api/targets/old-id/metricGroups/Response/latestData":
+			fmt.Fprint(w, `{"items":[]}`)
+		case "/em/api/targets/new-id/metricGroups/Load":
+			fmt.Fprint(w, `{"name":"Load","keys":[{"name":"mount"}],"metrics":[{"name":"value","dataType":"NUMBER"}]}`)
+		case "/em/api/targets/new-id/metricGroups/Load/latestData":
+			newLatestDataCalls.Add(1)
+			fmt.Fprint(w, `{"items":[{"mount":"/","value":1.5}]}`)
+		case "/em/api/incidents/":
+			fmt.Fprint(w, `{"items":[]}`)
+		case "/v1/metrics":
+			metricsPosts.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			if cancel != nil && newLatestDataCalls.Load() > 0 {
+				time.AfterFunc(10*time.Millisecond, cancel)
+			}
+		case "/v1/logs":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	targetsContents, err := os.ReadFile(targetsPath)
+	if err != nil {
+		t.Fatalf("read targets: %v", err)
+	}
+	targetsContents = []byte(strings.ReplaceAll(string(targetsContents), "PLACEHOLDER", server.URL))
+	if err := os.WriteFile(targetsPath, targetsContents, 0o600); err != nil {
+		t.Fatalf("rewrite targets: %v", err)
+	}
+
+	ctx, stop := context.WithTimeout(context.Background(), 6*time.Second)
+	cancel = stop
+	defer stop()
+
+	err = Run(ctx, Options{
+		LookupEnv: mapLookup(map[string]string{
+			"OEM_VALIDATE_CONFIG":                     "true",
+			"OEM_CONFIG_TARGETS":                      targetsPath,
+			"OEM_CONFIG_METRICS":                      metricsPath,
+			"OEM_VALIDATED_CONFIG_OUTPUT":             validatedPath,
+			"OEM_VALIDATION_REPORT_OUTPUT":            reportPath,
+			"OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS": "3600",
+			"OEM_USER":                               "user",
+			"OEM_PASSWORD":                           "secret",
+			"OTEL_EXPORT_URL":                        server.URL,
+			"OEM_HTTP_MAX_RETRIES":                   "0",
+			"OEM_EXPORT_INTERVAL_SECONDS":            "1",
+			"OEM_DIAGNOSTICS_INTERVAL_SECONDS":       "60",
+			"OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES": "21",
+		}),
+		Logger: &appRecordingLogger{},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if oldLatestDataCalls.Load() == 0 || newLatestDataCalls.Load() == 0 {
+		t.Fatalf("latestData calls old/new = %d/%d, want both", oldLatestDataCalls.Load(), newLatestDataCalls.Load())
+	}
+	if metricsPosts.Load() == 0 {
+		t.Fatal("expected metrics export after repaired collection")
+	}
+
+	validatedContents, err := os.ReadFile(validatedPath)
+	if err != nil {
+		t.Fatalf("read validated targets: %v", err)
+	}
+	if strings.Contains(string(validatedContents), "old-id") || !strings.Contains(string(validatedContents), "new-id") {
+		t.Fatalf("validated config should be rewritten with new ID:\n%s", validatedContents)
+	}
+	reportContents, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read validation report: %v", err)
+	}
+	reportEvents := parseAppJSONLReport(t, reportContents)
+	if !hasAppReportEventFields(reportEvents, map[string]any{
+		"event":           "id_correction",
+		"phase":           "runtime",
+		"trigger":         "metric_404",
+		"metricGroupName": "Load",
+		"oldID":           "old-id",
+		"newID":           "new-id",
+	}) {
+		t.Fatalf("validation report should include runtime ID correction:\n%s", reportContents)
+	}
+}
+
+func TestRuntimeTargetRepairSkipsLookupWhenResponseIsActive(t *testing.T) {
+	var targetListCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/em/api/targets" {
+			targetListCalls.Add(1)
+			fmt.Fprint(w, `{"items":[{"id":"new-id","name":"host1","typeName":"host"}]}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := newRuntimeRepairClient(t, server.URL)
+	monitor := collect.NewResponseMonitor()
+	now := time.Date(2026, 6, 18, 10, 0, 0, 0, time.UTC)
+	monitor.Mark("old-id", now.Add(-time.Minute))
+	state := newRuntimeTargetState(runtimeRepairConfig(server.URL), runtimeRepairEnv(t, time.Hour), monitor, map[string]*oem.Client{server.URL: client}, &appRecordingLogger{})
+
+	result, err := state.RepairTargetID(context.Background(), collect.TargetIDRepairRequest{
+		Job:       runtimeRepairJob(server.URL),
+		Trigger:   collect.TargetIDRepairTriggerMetric404,
+		Stage:     collect.TargetIDRepairStageLatestData,
+		CheckedAt: now,
+	})
+	if err != nil {
+		t.Fatalf("RepairTargetID returned error: %v", err)
+	}
+	if result.Corrected {
+		t.Fatalf("response-active target should not be corrected: %#v", result)
+	}
+	if targetListCalls.Load() != 0 {
+		t.Fatalf("target list calls = %d, want zero when response is active", targetListCalls.Load())
+	}
+}
+
+func TestRuntimeTargetRepairAppliesCooldownWhenIDDoesNotChange(t *testing.T) {
+	var targetListCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/em/api/targets" {
+			targetListCalls.Add(1)
+			fmt.Fprint(w, `{"items":[{"id":"old-id","name":"host1","typeName":"host"}]}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := newRuntimeRepairClient(t, server.URL)
+	now := time.Date(2026, 6, 18, 10, 0, 0, 0, time.UTC)
+	state := newRuntimeTargetState(runtimeRepairConfig(server.URL), runtimeRepairEnv(t, time.Hour), collect.NewResponseMonitor(), map[string]*oem.Client{server.URL: client}, &appRecordingLogger{})
+	req := collect.TargetIDRepairRequest{
+		Job:     runtimeRepairJob(server.URL),
+		Trigger: collect.TargetIDRepairTriggerMetric404,
+		Stage:   collect.TargetIDRepairStageLatestData,
+	}
+
+	req.CheckedAt = now
+	if result, err := state.RepairTargetID(context.Background(), req); err != nil || result.Corrected {
+		t.Fatalf("first RepairTargetID result = %#v, %v; want no correction", result, err)
+	}
+	req.CheckedAt = now.Add(time.Minute)
+	if result, err := state.RepairTargetID(context.Background(), req); err != nil || result.Corrected {
+		t.Fatalf("second RepairTargetID result = %#v, %v; want cooldown without correction", result, err)
+	}
+	if targetListCalls.Load() != 1 {
+		t.Fatalf("target list calls = %d, want one due cooldown", targetListCalls.Load())
 	}
 }
 
@@ -1141,7 +1361,7 @@ func TestRunWithValidationFailsBeforeCollectionWhenAllTargetsRemoved(t *testing.
 	targetsPath := filepath.Join(tmp, "configTargets.yaml")
 	metricsPath := filepath.Join(tmp, "configMetrics.yaml")
 	validatedPath := filepath.Join(tmp, "validated", "configTargets.yaml")
-	reportPath := filepath.Join(tmp, "validated", "configTargets.report.yaml")
+	reportPath := filepath.Join(tmp, "validated", "configTargets.report.jsonl")
 	if err := os.WriteFile(targetsPath, []byte(`
 - name: mock
   endpoint: http://oem.example
@@ -1191,7 +1411,9 @@ host:
 	if readErr != nil {
 		t.Fatalf("read validation report: %v", readErr)
 	}
-	if !strings.Contains(string(reportContents), "targetsRemoved: 1") || !strings.Contains(string(reportContents), "sitesRemoved: 1") {
+	reportEvents := parseAppJSONLReport(t, reportContents)
+	if !hasAppReportEvent(reportEvents, "target_removed", "targetName", "missing") ||
+		!hasAppReportEvent(reportEvents, "site_removed", "siteName", "mock") {
 		t.Fatalf("validation report should record all removals:\n%s", reportContents)
 	}
 }
@@ -1443,6 +1665,108 @@ func writeTargetsFile(t *testing.T, targetID string) string {
 		t.Fatalf("write targets file: %v", err)
 	}
 	return path
+}
+
+func parseAppJSONLReport(t *testing.T, data []byte) []map[string]any {
+	t.Helper()
+
+	text := strings.TrimSpace(string(data))
+	if text == "" {
+		return nil
+	}
+	lines := strings.Split(text, "\n")
+	events := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		var event map[string]any
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatalf("invalid JSONL report line %q: %v", line, err)
+		}
+		events = append(events, event)
+	}
+	return events
+}
+
+func hasAppReportEvent(events []map[string]any, eventName, field string, value any) bool {
+	for _, event := range events {
+		if event["event"] == eventName && event[field] == value {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAppReportEventFields(events []map[string]any, fields map[string]any) bool {
+	for _, event := range events {
+		matches := true
+		for key, want := range fields {
+			if event[key] != want {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
+}
+
+func newRuntimeRepairClient(t *testing.T, endpoint string) *oem.Client {
+	t.Helper()
+
+	client, err := oem.New(oem.Options{
+		Endpoint:    endpoint,
+		Credentials: auth.Credentials{User: "user", Password: "secret"},
+		MaxRetries:  0,
+	})
+	if err != nil {
+		t.Fatalf("oem.New returned error: %v", err)
+	}
+	return client
+}
+
+func runtimeRepairEnv(t *testing.T, recheckInterval time.Duration) config.Env {
+	t.Helper()
+
+	dir := t.TempDir()
+	return config.Env{
+		ValidateConfig:           true,
+		TargetsPath:              filepath.Join(dir, "configTargets.yaml"),
+		ValidatedConfigOutput:    filepath.Join(dir, "configTargets.validated.yaml"),
+		ValidationReportOutput:   filepath.Join(dir, "configTargets.validated.report.jsonl"),
+		RuntimeIDRecheckInterval: recheckInterval,
+		MonitorResponseTolerance: time.Hour,
+	}
+}
+
+func runtimeRepairConfig(endpoint string) config.Config {
+	return config.Config{
+		Sites: []config.SiteConfig{{
+			Name:     "mock",
+			Endpoint: endpoint,
+			Targets: []config.TargetConfig{{
+				ID:       "old-id",
+				Name:     "host1",
+				TypeName: "host",
+				Tags: map[string]string{
+					"target_name": "host1",
+					"target_type": "host",
+				},
+			}},
+		}},
+	}
+}
+
+func runtimeRepairJob(endpoint string) scheduler.Job {
+	return scheduler.Job{
+		ID:              "job-load",
+		SiteName:        "mock",
+		Endpoint:        endpoint,
+		Target:          runtimeRepairConfig(endpoint).Sites[0].Targets[0],
+		MetricGroup:     config.MetricGroupConfig{Freq: 1, MetricGroupName: "Load"},
+		MetricGroupName: "Load",
+		Frequency:       time.Minute,
+	}
 }
 
 func mapLookup(values map[string]string) func(string) (string, bool) {

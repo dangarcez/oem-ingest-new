@@ -319,6 +319,75 @@ func TestCollectorTreatsLatestDataNotFoundAsUnavailable(t *testing.T) {
 	}
 }
 
+func TestCollectorRepairsTargetIDAfterLatestDataNotFoundAndRetries(t *testing.T) {
+	client := &fakeCollectClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}}},
+			"target-2\x00Load": {Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}}},
+		},
+		latestErrors: map[string]error{
+			"target-1\x00Load": &oem.HTTPError{StatusCode: http.StatusNotFound, Method: http.MethodGet, URL: "http://oem.example/latestData"},
+		},
+		latest: map[string]oem.LatestData{
+			"target-2\x00Load": {MetricGroupName: "Load", Items: []map[string]any{{"value": 42}}},
+		},
+	}
+	repairer := &fakeTargetIDRepairer{targetID: "target-2"}
+	collector := NewCollector(client, CollectorOptions{IDRepairer: repairer})
+
+	result, err := collector.Collect(context.Background(), collectJob())
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if result.Job.Target.ID != "target-2" || result.Datapoints() != 1 {
+		t.Fatalf("unexpected repaired result: %#v", result)
+	}
+	if len(repairer.requests) != 1 || repairer.requests[0].Stage != TargetIDRepairStageLatestData {
+		t.Fatalf("repair requests = %#v, want latestData repair", repairer.requests)
+	}
+	if client.latestCallsFor("target-1", "Load") != 1 || client.latestCallsFor("target-2", "Load") != 1 {
+		t.Fatalf("latest calls old/new = %d/%d, want 1/1", client.latestCallsFor("target-1", "Load"), client.latestCallsFor("target-2", "Load"))
+	}
+	if got := collector.SnapshotStats(); got.UnavailableGroupsTotal != 0 || got.CollectionErrorsTotal != 0 || got.DatapointsCollectedTotal != 1 {
+		t.Fatalf("unexpected collector stats after repair: %#v", got)
+	}
+}
+
+func TestCollectorRepairsTargetIDAfterMetadataNotFoundAndRetries(t *testing.T) {
+	client := &fakeCollectClient{
+		metadataErrors: map[string]error{
+			"target-1\x00Load": &oem.HTTPError{StatusCode: http.StatusNotFound, Method: http.MethodGet, URL: "http://oem.example/metricGroups/Load"},
+		},
+		groups: map[string]oem.MetricGroup{
+			"target-2\x00Load": {Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}}},
+		},
+		latest: map[string]oem.LatestData{
+			"target-2\x00Load": {MetricGroupName: "Load", Items: []map[string]any{{"value": 7}}},
+		},
+	}
+	repairer := &fakeTargetIDRepairer{targetID: "target-2"}
+	collector := NewCollector(client, CollectorOptions{IDRepairer: repairer})
+
+	result, err := collector.Collect(context.Background(), collectJob())
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if result.Job.Target.ID != "target-2" || result.Datapoints() != 1 {
+		t.Fatalf("unexpected repaired metadata result: %#v", result)
+	}
+	if len(repairer.requests) != 1 || repairer.requests[0].Stage != TargetIDRepairStageMetadata {
+		t.Fatalf("repair requests = %#v, want metadata repair", repairer.requests)
+	}
+	if client.metricGroupCalls("target-1", "Load") != 1 || client.metricGroupCalls("target-2", "Load") != 1 {
+		t.Fatalf("metadata calls old/new = %d/%d, want 1/1", client.metricGroupCalls("target-1", "Load"), client.metricGroupCalls("target-2", "Load"))
+	}
+	if got := collector.SnapshotStats(); got.UnavailableGroupsTotal != 0 || got.CollectionErrorsTotal != 0 || got.DatapointsCollectedTotal != 1 {
+		t.Fatalf("unexpected collector stats after metadata repair: %#v", got)
+	}
+}
+
 func TestCollectorAllowsBodylessLatestDataHTTPErrorAsEmptyPayload(t *testing.T) {
 	now := time.Unix(1700000250, 0)
 	client := &fakeCollectClient{
@@ -354,6 +423,31 @@ func TestCollectorAllowsBodylessLatestDataHTTPErrorAsEmptyPayload(t *testing.T) 
 	}
 	if got := collector.SnapshotStats(); got.CollectionErrorsTotal != 0 || got.UnavailableGroupsTotal != 0 || got.DatapointsCollectedTotal != 0 {
 		t.Fatalf("unexpected collector stats: %#v", got)
+	}
+}
+
+func TestCollectorAttemptsRepairBeforeBodylessLatestDataFallback(t *testing.T) {
+	client := &fakeCollectClient{
+		latestErrors: map[string]error{
+			"target-1\x00Response": &oem.HTTPError{StatusCode: http.StatusNotFound, Method: http.MethodGet, URL: "http://oem.example/latestData"},
+		},
+	}
+	repairer := &fakeTargetIDRepairer{}
+	collector := NewCollector(client, CollectorOptions{IDRepairer: repairer})
+	job := collectJob()
+	job.MetricGroupName = "Response"
+	job.MetricGroup = config.MetricGroupConfig{Freq: 3, MetricGroupName: "Response", Bodyless: true}
+
+	result, err := collector.Collect(context.Background(), job)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if len(repairer.requests) != 1 || repairer.requests[0].Stage != TargetIDRepairStageLatestData {
+		t.Fatalf("repair requests = %#v, want bodyless latestData repair attempt", repairer.requests)
+	}
+	if len(result.LatestData.Items) != 0 || result.Datapoints() != 0 {
+		t.Fatalf("bodyless fallback should still produce empty payload, got %#v", result)
 	}
 }
 
@@ -423,6 +517,27 @@ type fakeCollectClient struct {
 	latestErrors    map[string]error
 	metadataCallMap map[string]int
 	latestCallMap   map[string]int
+}
+
+type fakeTargetIDRepairer struct {
+	mu       sync.Mutex
+	targetID string
+	err      error
+	requests []TargetIDRepairRequest
+}
+
+func (f *fakeTargetIDRepairer) RepairTargetID(_ context.Context, req TargetIDRepairRequest) (TargetIDRepairResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.requests = append(f.requests, req)
+	if f.err != nil {
+		return TargetIDRepairResult{}, f.err
+	}
+	if f.targetID == "" {
+		return TargetIDRepairResult{}, nil
+	}
+	req.Job.Target.ID = f.targetID
+	return TargetIDRepairResult{Job: req.Job, Corrected: true}, nil
 }
 
 func (f *fakeCollectClient) MetricGroup(_ context.Context, targetID, groupName string) (oem.MetricGroup, error) {

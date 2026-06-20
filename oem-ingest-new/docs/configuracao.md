@@ -147,7 +147,7 @@ logado sem derrubar a aplicacao inteira.
 | `OEM_CONFIG_METRICS` | `./configs/configMetrics.yaml` | Caminho do arquivo de metricas. |
 | `OEM_VALIDATE_CONFIG` | `false` | Ativa validacao de IDs e correlacoes contra a API OEM. Aceita somente `true` ou `false`. |
 | `OEM_VALIDATED_CONFIG_OUTPUT` | `./configs/configTargets.validated.yaml` | Caminho do YAML corrigido quando a validacao esta ativa. |
-| `OEM_VALIDATION_REPORT_OUTPUT` | derivado de `OEM_VALIDATED_CONFIG_OUTPUT` | Caminho do relatorio YAML com as alteracoes feitas pela validacao. |
+| `OEM_VALIDATION_REPORT_OUTPUT` | derivado de `OEM_VALIDATED_CONFIG_OUTPUT` | Caminho do relatorio JSONL com as alteracoes feitas pela validacao. |
 | `OEM_USER` | vazio | Usuario de Basic Auth no OEM. Obrigatorio para coleta ou validacao opcional. |
 | `OEM_PASSWORD` | vazio | Senha direta de Basic Auth. Tem prioridade sobre `OEM_TOKEN`. |
 | `OEM_TOKEN` | vazio | Token legado usado para recuperar a senha. |
@@ -156,6 +156,7 @@ logado sem derrubar a aplicacao inteira.
 | `OTEL_EXPORT_TIMEOUT_SECONDS` | `30` | Timeout total dos POSTs OTLP HTTP para metricas e logs, em segundos. |
 | `OEM_EXPORT_INTERVAL_SECONDS` | `60` | Intervalo de exportacao dos buffers OTLP, em segundos. |
 | `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Janela usada por `oem_monitor_response`, em minutos. |
+| `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS` | `86400` | Intervalo minimo entre revalidacoes runtime de ID por target apos `404`. |
 | `OEM_HTTP_TIMEOUT_SECONDS` | `30` | Timeout total das chamadas HTTP ao OEM, em segundos. |
 | `OEM_HTTP_CONNECT_TIMEOUT_SECONDS` | `10` | Timeout de conexao HTTP ao OEM, em segundos. |
 | `OEM_HTTP_MAX_RETRIES` | `3` | Numero de retries para GETs ao OEM. Pode ser `0`. |
@@ -215,7 +216,7 @@ Ative a validacao na inicializacao com:
 ```sh
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
-export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.jsonl
 ```
 
 Quando ativa, a aplicacao:
@@ -231,7 +232,7 @@ Quando ativa, a aplicacao:
    `DataGuardStatus`, para inferir `host`, `oracle_listener` e `dg_role`.
 9. Adiciona targets relacionados ausentes quando eles existem na API OEM.
 10. Escreve um novo YAML corrigido no caminho de `OEM_VALIDATED_CONFIG_OUTPUT`.
-11. Escreve um relatorio YAML no caminho de `OEM_VALIDATION_REPORT_OUTPUT`.
+11. Escreve um relatorio JSONL no caminho de `OEM_VALIDATION_REPORT_OUTPUT`.
 
 O arquivo original nunca e sobrescrito. O caminho de saida tambem nao pode ser
 o mesmo arquivo original, inclusive por symlink ou hardlink. O relatorio tambem
@@ -240,6 +241,14 @@ coleta usa a configuracao corrigida em memoria; targets removidos nao geram
 jobs nem chamadas `latestData`. Em uma proxima execucao, rode a validacao
 novamente ou aponte `OEM_CONFIG_TARGETS` para o YAML validado, conforme o
 processo operacional escolhido.
+
+Com a validacao ativa, o runtime tambem reage a `404` em metadata ou
+`latestData`: se `oem_monitor_response` indicar coleta util recente para o
+target, a checagem de ID e pulada; caso contrario, o runtime lista targets,
+corrige o ID quando houver match unico por `name` + `typeName`, reescreve o YAML
+validado e anexa um evento `id_correction` ao JSONL. Quando a checagem nao muda
+o ID, novas tentativas para o mesmo target respeitam
+`OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS`.
 
 Veja detalhes, estrutura do relatorio e casos extremos em
 [`docs/validacao.md`](validacao.md).
@@ -287,7 +296,7 @@ cd oem-ingest-new
 export OEM_CONFIG_TARGETS=./configs/configTargets.yaml
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
-export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.jsonl
 export OEM_USER=usuario
 export OEM_PASSWORD=senha
 

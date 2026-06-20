@@ -1,98 +1,219 @@
 package validate
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
-// ValidationReport is the YAML artifact emitted beside the validated target
-// configuration. It records what changed during validation.
-type ValidationReport struct {
-	SourceConfig    string                  `yaml:"sourceConfig"`
-	ValidatedConfig string                  `yaml:"validatedConfig"`
-	GeneratedAt     string                  `yaml:"generatedAt"`
-	Summary         ValidationReportSummary `yaml:"summary"`
-	IDCorrections   []IDCorrection          `yaml:"idCorrections"`
-	TargetsRemoved  []TargetRemoval         `yaml:"targetsRemoved"`
-	SitesRemoved    []SiteRemoval           `yaml:"sitesRemoved"`
-	TargetsAdded    []TargetAddition        `yaml:"targetsAdded"`
-	TagCorrections  []TagCorrection         `yaml:"tagCorrections"`
-	Warnings        []Warning               `yaml:"warnings"`
-}
+const (
+	ReportPhaseStartup = "startup"
+	ReportPhaseRuntime = "runtime"
+	ReportTrigger404   = "metric_404"
 
-// ValidationReportSummary contains aggregate counts for fast human and machine
-// inspection of a validation run.
-type ValidationReportSummary struct {
-	IDCorrections  int `yaml:"idCorrections"`
-	TargetsRemoved int `yaml:"targetsRemoved"`
-	SitesRemoved   int `yaml:"sitesRemoved"`
-	TargetsAdded   int `yaml:"targetsAdded"`
-	TagCorrections int `yaml:"tagCorrections"`
-	Warnings       int `yaml:"warnings"`
-}
+	ReportEventIDCorrection  = "id_correction"
+	ReportEventTargetRemoved = "target_removed"
+	ReportEventSiteRemoved   = "site_removed"
+	ReportEventTargetAdded   = "target_added"
+	ReportEventTagCorrection = "tag_correction"
+	ReportEventWarning       = "warning"
+)
 
-// NewValidationReport builds a report from the two validation phases.
-func NewValidationReport(sourceConfig, validatedConfig string, generatedAt time.Time, ids IDValidationResult, correlation CorrelationValidationResult) ValidationReport {
-	if generatedAt.IsZero() {
-		generatedAt = time.Now()
+// ValidationReportEvent is one JSONL event emitted by validation. The fields
+// are intentionally dynamic because startup and runtime corrections carry
+// different details.
+type ValidationReportEvent map[string]any
+
+// NewStartupValidationEvents builds append-only JSONL events from the startup
+// validation phases.
+func NewStartupValidationEvents(sourceConfig, validatedConfig string, generatedAt time.Time, ids IDValidationResult, correlation CorrelationValidationResult) []ValidationReportEvent {
+	generatedAt = reportTime(generatedAt)
+	events := make([]ValidationReportEvent, 0,
+		len(ids.IDCorrections)+
+			len(ids.TargetRemovals)+
+			len(ids.SiteRemovals)+
+			len(correlation.TargetAdds)+
+			len(correlation.TagCorrections)+
+			len(ids.Warnings)+
+			len(correlation.Warnings),
+	)
+
+	for _, correction := range ids.IDCorrections {
+		event := baseReportEvent(ReportEventIDCorrection, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		addIDCorrection(event, correction)
+		events = append(events, event)
 	}
-	warnings := make([]Warning, 0, len(ids.Warnings)+len(correlation.Warnings))
-	warnings = append(warnings, ids.Warnings...)
-	warnings = append(warnings, correlation.Warnings...)
-
-	return ValidationReport{
-		SourceConfig:    sourceConfig,
-		ValidatedConfig: validatedConfig,
-		GeneratedAt:     generatedAt.UTC().Format(time.RFC3339),
-		Summary: ValidationReportSummary{
-			IDCorrections:  len(ids.IDCorrections),
-			TargetsRemoved: len(ids.TargetRemovals),
-			SitesRemoved:   len(ids.SiteRemovals),
-			TargetsAdded:   len(correlation.TargetAdds),
-			TagCorrections: len(correlation.TagCorrections),
-			Warnings:       len(warnings),
-		},
-		IDCorrections:  append([]IDCorrection(nil), ids.IDCorrections...),
-		TargetsRemoved: append([]TargetRemoval(nil), ids.TargetRemovals...),
-		SitesRemoved:   append([]SiteRemoval(nil), ids.SiteRemovals...),
-		TargetsAdded:   append([]TargetAddition(nil), correlation.TargetAdds...),
-		TagCorrections: append([]TagCorrection(nil), correlation.TagCorrections...),
-		Warnings:       warnings,
+	for _, removal := range ids.TargetRemovals {
+		event := baseReportEvent(ReportEventTargetRemoved, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		event["siteIndex"] = removal.SiteIndex
+		event["targetIndex"] = removal.TargetIndex
+		event["siteName"] = removal.SiteName
+		event["targetName"] = removal.TargetName
+		event["targetType"] = removal.TargetType
+		event["configID"] = removal.ConfigID
+		event["reason"] = string(removal.Reason)
+		events = append(events, event)
 	}
+	for _, removal := range ids.SiteRemovals {
+		event := baseReportEvent(ReportEventSiteRemoved, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		event["siteIndex"] = removal.SiteIndex
+		event["siteName"] = removal.SiteName
+		event["endpoint"] = removal.Endpoint
+		event["removedTargets"] = removal.RemovedTargets
+		events = append(events, event)
+	}
+	for _, addition := range correlation.TargetAdds {
+		event := baseReportEvent(ReportEventTargetAdded, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		event["siteIndex"] = addition.SiteIndex
+		event["targetIndex"] = addition.TargetIndex
+		event["siteName"] = addition.SiteName
+		event["targetName"] = addition.TargetName
+		event["targetType"] = addition.TargetType
+		event["sourceRootName"] = addition.SourceRootName
+		event["sourceRootType"] = addition.SourceRootType
+		events = append(events, event)
+	}
+	for _, correction := range correlation.TagCorrections {
+		event := baseReportEvent(ReportEventTagCorrection, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		event["siteIndex"] = correction.SiteIndex
+		event["targetIndex"] = correction.TargetIndex
+		event["siteName"] = correction.SiteName
+		event["targetName"] = correction.TargetName
+		event["targetType"] = correction.TargetType
+		events = append(events, event)
+	}
+	for _, warning := range append(append([]Warning(nil), ids.Warnings...), correlation.Warnings...) {
+		event := baseReportEvent(ReportEventWarning, ReportPhaseStartup, sourceConfig, validatedConfig, generatedAt)
+		addWarning(event, warning)
+		events = append(events, event)
+	}
+
+	return events
 }
 
-// MarshalValidationReport renders a validation report as YAML.
-func MarshalValidationReport(report ValidationReport) ([]byte, error) {
-	data, err := yaml.Marshal(report)
-	if err != nil {
-		return nil, fmt.Errorf("serializar relatorio de validacao: %w", err)
-	}
-	return data, nil
+// NewRuntimeIDCorrectionEvent builds one runtime correction event for JSONL
+// appends after a 404-driven target ID recheck.
+func NewRuntimeIDCorrectionEvent(sourceConfig, validatedConfig string, generatedAt time.Time, correction IDCorrection, metricGroupName string) ValidationReportEvent {
+	event := baseReportEvent(ReportEventIDCorrection, ReportPhaseRuntime, sourceConfig, validatedConfig, reportTime(generatedAt))
+	event["trigger"] = ReportTrigger404
+	event["metricGroupName"] = metricGroupName
+	addIDCorrection(event, correction)
+	return event
 }
 
-// WriteValidationReport writes the validation report YAML.
-func WriteValidationReport(path string, report ValidationReport) error {
+// MarshalValidationReportEvents renders events as newline-delimited JSON.
+func MarshalValidationReportEvents(events []ValidationReportEvent) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	for _, event := range events {
+		if err := encoder.Encode(event); err != nil {
+			return nil, fmt.Errorf("serializar evento do relatorio de validacao: %w", err)
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// WriteValidationReport writes the validation report JSONL, truncating any
+// existing file before startup events are written.
+func WriteValidationReport(path string, events []ValidationReportEvent) error {
 	if strings.TrimSpace(path) == "" {
 		return errors.New("caminho de saida do relatorio de validacao nao informado")
 	}
-	data, err := MarshalValidationReport(report)
+	data, err := MarshalValidationReportEvents(events)
 	if err != nil {
 		return err
 	}
+	if err := ensureReportDir(path); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("escrever relatorio de validacao %q: %w", path, err)
+	}
+	return nil
+}
+
+// AppendValidationReportEvent appends one JSON object to an existing JSONL
+// validation report. The file is created if startup created no report yet.
+func AppendValidationReportEvent(path string, event ValidationReportEvent) error {
+	if strings.TrimSpace(path) == "" {
+		return errors.New("caminho de saida do relatorio de validacao nao informado")
+	}
+	data, err := MarshalValidationReportEvents([]ValidationReportEvent{event})
+	if err != nil {
+		return err
+	}
+	if err := ensureReportDir(path); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return fmt.Errorf("abrir relatorio de validacao %q para append: %w", path, err)
+	}
+	defer file.Close()
+	if _, err := file.Write(data); err != nil {
+		return fmt.Errorf("anexar evento ao relatorio de validacao %q: %w", path, err)
+	}
+	return nil
+}
+
+func ensureReportDir(path string) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("criar diretorio do relatorio de validacao %q: %w", dir, err)
 		}
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("escrever relatorio de validacao %q: %w", path, err)
-	}
 	return nil
+}
+
+func baseReportEvent(event, phase, sourceConfig, validatedConfig string, at time.Time) ValidationReportEvent {
+	return ValidationReportEvent{
+		"timestamp":       at.UTC().Format(time.RFC3339Nano),
+		"event":           event,
+		"phase":           phase,
+		"sourceConfig":    sourceConfig,
+		"validatedConfig": validatedConfig,
+	}
+}
+
+func addIDCorrection(event ValidationReportEvent, correction IDCorrection) {
+	event["siteIndex"] = correction.SiteIndex
+	event["targetIndex"] = correction.TargetIndex
+	event["siteName"] = correction.SiteName
+	event["targetName"] = correction.TargetName
+	event["targetType"] = correction.TargetType
+	event["oldID"] = correction.OldID
+	event["newID"] = correction.NewID
+}
+
+func addWarning(event ValidationReportEvent, warning Warning) {
+	event["code"] = string(warning.Code)
+	event["siteIndex"] = warning.SiteIndex
+	event["targetIndex"] = warning.TargetIndex
+	event["siteName"] = warning.SiteName
+	event["targetName"] = warning.TargetName
+	event["targetType"] = warning.TargetType
+	event["message"] = warning.Message
+	if warning.ConfigID != "" {
+		event["configID"] = warning.ConfigID
+	}
+	if warning.CurrentID != "" {
+		event["currentID"] = warning.CurrentID
+	}
+	if warning.Count > 0 {
+		event["count"] = warning.Count
+	}
+}
+
+func reportTime(at time.Time) time.Time {
+	if at.IsZero() {
+		return time.Now()
+	}
+	return at
 }

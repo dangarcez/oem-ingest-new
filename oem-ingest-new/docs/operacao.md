@@ -59,7 +59,7 @@ export OEM_CONFIG_TARGETS=./configs/configTargets.yaml
 export OEM_CONFIG_METRICS=./configs/configMetrics.yaml
 export OEM_VALIDATE_CONFIG=true
 export OEM_VALIDATED_CONFIG_OUTPUT=./configs/configTargets.validated.yaml
-export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.yaml
+export OEM_VALIDATION_REPORT_OUTPUT=./configs/configTargets.validated.report.jsonl
 export OEM_USER=usuario
 export OEM_PASSWORD=senha
 
@@ -70,7 +70,7 @@ Comportamento esperado:
 
 - imprime um resumo como `validacao de configuracao concluida`;
 - escreve o YAML corrigido em `OEM_VALIDATED_CONFIG_OUTPUT`;
-- escreve o relatorio YAML em `OEM_VALIDATION_REPORT_OUTPUT`;
+- escreve o relatorio JSONL em `OEM_VALIDATION_REPORT_OUTPUT`;
 - preserva o arquivo original de targets;
 - encerra sem agendar jobs, porque `OTEL_EXPORT_URL` nao foi informado.
 
@@ -126,13 +126,13 @@ O diretorio de trabalho do container e `/app`. Por padrao, a imagem usa:
 - `/app/configs/configTargets.yaml`;
 - `/app/configs/configMetrics.yaml`;
 - `/app/configs/configTargets.validated.yaml`;
-- `/app/configs/configTargets.validated.report.yaml`.
+- `/app/configs/configTargets.validated.report.jsonl`.
 
 Quando `OEM_VALIDATE_CONFIG=true`, nao monte o diretorio de configuracao apenas
 como leitura se `OEM_VALIDATED_CONFIG_OUTPUT` ou
 `OEM_VALIDATION_REPORT_OUTPUT` apontarem para dentro dele. Use caminhos
 gravaveis, por exemplo `/tmp/configTargets.validated.yaml` e
-`/tmp/configTargets.validated.report.yaml`, ou monte um volume separado para as
+`/tmp/configTargets.validated.report.jsonl`, ou monte um volume separado para as
 saidas da validacao.
 
 Se usar `OEM_TOKEN`, monte tambem o arquivo usado para hash e configure
