@@ -131,10 +131,10 @@ async def read_roottres(target_id : str,group_name: str,page : str = ""):
     #simulando names que sao deletados
 
     resposta = load_target_fixture(target, f"{group_name}_metric")
-    if group_name == "topWaitEvents" and resposta.get("items"):
-        intrandom = random.randint(0, min(3, len(resposta["items"]) - 1))
-        print(f"deleted: {resposta['items'][intrandom]}")
-        del resposta["items"][intrandom]
+   #  if group_name == "topWaitEvents" and resposta.get("items"):
+   #      intrandom = random.randint(0, min(3, len(resposta["items"]) - 1))
+   #      print(f"deleted: {resposta['items'][intrandom]}")
+   #      del resposta["items"][intrandom]
         
     if(page!=""):
       resposta.get("links", {}).pop("next", None)

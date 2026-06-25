@@ -1576,6 +1576,55 @@ func TestRunValidationRejectsReportPathEqualToOriginalOrValidatedConfig(t *testi
 	}
 }
 
+func TestMonitorStatusWarmupCoversInitialCollectionAndExtraDuration(t *testing.T) {
+	observedAt := time.Unix(1700000000, 0)
+	state := &runtimeState{env: config.Env{MonitorStatusWarmup: 5 * time.Minute}}
+
+	if !state.monitorStatusWarmupActive(observedAt) {
+		t.Fatal("warmup should be active before initial collection completes")
+	}
+
+	state.setMonitorStatusWarmupUntil(observedAt.Add(5 * time.Minute))
+	if !state.monitorStatusWarmupActive(observedAt.Add(5*time.Minute - time.Nanosecond)) {
+		t.Fatal("warmup should stay active before configured deadline")
+	}
+	if state.monitorStatusWarmupActive(observedAt.Add(5 * time.Minute)) {
+		t.Fatal("warmup should end at configured deadline")
+	}
+}
+
+func TestFinishMonitorStatusWarmupLogsImmediatelyWithoutExtraDuration(t *testing.T) {
+	logger := &appRecordingLogger{}
+	state := &runtimeState{logger: logger}
+
+	timer := state.finishMonitorStatusWarmupAfterInitial(context.Background(), time.Now())
+
+	if timer != nil {
+		timer.Stop()
+		t.Fatal("warmup without extra duration should not schedule a timer")
+	}
+	if !logger.containsInfo("warm-up de oem_monitor_stus concluido") {
+		t.Fatalf("missing warmup completion info log: %#v", logger.infosSnapshot())
+	}
+}
+
+func TestFinishMonitorStatusWarmupSchedulesExtraDuration(t *testing.T) {
+	logger := &appRecordingLogger{}
+	state := &runtimeState{
+		env:    config.Env{MonitorStatusWarmup: time.Hour},
+		logger: logger,
+	}
+
+	timer := state.finishMonitorStatusWarmupAfterInitial(context.Background(), time.Now())
+	if timer == nil {
+		t.Fatal("warmup with extra duration should schedule a timer")
+	}
+	timer.Stop()
+	if logger.containsInfo("warm-up de oem_monitor_stus concluido") {
+		t.Fatalf("warmup completion should wait for timer: %#v", logger.infosSnapshot())
+	}
+}
+
 type appFakeTargetLister struct {
 	targets []oem.Target
 }

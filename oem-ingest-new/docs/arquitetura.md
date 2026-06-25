@@ -147,7 +147,9 @@ Algumas series nao existem diretamente na API OEM e sao geradas no coletor:
   (default de 21 minutos).
 - `oem_monitor_stus`: nome legado mantido exatamente, incluindo o erro de
   grafia. Usa regras especificas por `rac_database`, `oracle_database`,
-  `oracle_pdb` e `host`.
+  `oracle_pdb` e `host`. Durante a coleta inicial, estados sem coleta sao
+  tratados como `2`; depois dela, `OEM_MONITOR_STATUS_WARMUP_MINUTES` define o
+  tempo extra dessa janela de warm-up.
 - `oem_service_status`: status numerico de servicos a partir de
   `service_performance` ou `DBService`.
 - `oem_str_service_status`: status textual equivalente, marcado como continuo

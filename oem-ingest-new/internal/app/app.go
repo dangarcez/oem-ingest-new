@@ -195,6 +195,8 @@ type runtimeState struct {
 	env                  config.Env
 	logger               Logger
 	responseMonitor      *collect.ResponseMonitor
+	warmupMu             sync.RWMutex
+	monitorWarmupUntil   time.Time
 	runtimeTargets       *runtimeTargetState
 	selfMetrics          *selfmetrics.Registry
 	metricsExporter      *exporter.MetricsExporter
@@ -253,6 +255,13 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 
 	ticker := time.NewTicker(env.ExportInterval)
 	defer ticker.Stop()
+	var monitorWarmupTimer *time.Timer
+	var monitorWarmupC <-chan time.Time
+	defer func() {
+		if monitorWarmupTimer != nil {
+			monitorWarmupTimer.Stop()
+		}
+	}()
 	var diagnosticsC <-chan time.Time
 	if env.DiagnosticsInterval > 0 {
 		diagnosticsTicker := time.NewTicker(env.DiagnosticsInterval)
@@ -298,7 +307,15 @@ func runCollector(ctx context.Context, env config.Env, cfg config.Config, opts O
 				state.flushWithTimeout(runtimeShutdownTimeout)
 				return err
 			}
+			monitorWarmupTimer = state.finishMonitorStatusWarmupAfterInitial(runtimeCtx, time.Now())
+			if monitorWarmupTimer != nil {
+				monitorWarmupC = monitorWarmupTimer.C
+			}
 			startScheduler()
+		case <-monitorWarmupC:
+			monitorWarmupC = nil
+			monitorWarmupTimer = nil
+			state.logMonitorStatusWarmupEnded(runtimeCtx, time.Now())
 		case <-ticker.C:
 			state.enqueueRuntimeMetrics(time.Now())
 			state.flush(runtimeCtx)
@@ -492,6 +509,65 @@ func (s *runtimeState) runInitialCollections(ctx context.Context, jobs []schedul
 	return nil
 }
 
+func (s *runtimeState) monitorStatusWarmupActive(observedAt time.Time) bool {
+	if s == nil {
+		return false
+	}
+	s.warmupMu.RLock()
+	until := s.monitorWarmupUntil
+	s.warmupMu.RUnlock()
+	if until.IsZero() {
+		return true
+	}
+	if observedAt.IsZero() {
+		observedAt = time.Now()
+	}
+	return observedAt.Before(until)
+}
+
+func (s *runtimeState) finishMonitorStatusWarmupAfterInitial(ctx context.Context, completedAt time.Time) *time.Timer {
+	if s == nil {
+		return nil
+	}
+	if completedAt.IsZero() {
+		completedAt = time.Now()
+	}
+	until := completedAt.Add(s.env.MonitorStatusWarmup)
+	s.setMonitorStatusWarmupUntil(until)
+	delay := time.Until(until)
+	if delay <= 0 {
+		s.logMonitorStatusWarmupEnded(ctx, completedAt)
+		return nil
+	}
+	return time.NewTimer(delay)
+}
+
+func (s *runtimeState) setMonitorStatusWarmupUntil(until time.Time) {
+	s.warmupMu.Lock()
+	defer s.warmupMu.Unlock()
+	s.monitorWarmupUntil = until
+}
+
+func (s *runtimeState) monitorStatusWarmupUntil() time.Time {
+	if s == nil {
+		return time.Time{}
+	}
+	s.warmupMu.RLock()
+	defer s.warmupMu.RUnlock()
+	return s.monitorWarmupUntil
+}
+
+func (s *runtimeState) logMonitorStatusWarmupEnded(ctx context.Context, endedAt time.Time) {
+	if s == nil || s.logger == nil {
+		return
+	}
+	s.logger.InfoContext(ctx, "warm-up de oem_monitor_stus concluido",
+		"ended_at", endedAt,
+		"warmup_until", s.monitorStatusWarmupUntil(),
+		"warmup_extra", s.env.MonitorStatusWarmup,
+	)
+}
+
 func (s *runtimeState) pollIncidentsOnce(ctx context.Context) {
 	for _, poller := range s.incidentPollers {
 		if _, err := poller.PollOnce(ctx); err != nil {
@@ -550,7 +626,10 @@ func (s *runtimeState) collectAndBuffer(ctx context.Context, job scheduler.Job) 
 		s.logsExporter.Add(out.Logs...)
 	}
 
-	if point, ok := transform.FromMonitorStatus(result, s.responseMonitor, s.env.MonitorResponseTolerance); ok {
+	if point, ok := transform.FromMonitorStatusWithOptions(result, s.responseMonitor, transform.MonitorStatusOptions{
+		ResponseTolerance: s.env.MonitorResponseTolerance,
+		WarmupActive:      s.monitorStatusWarmupActive(result.CollectedAt),
+	}); ok {
 		s.metricsExporter.Add(point)
 	}
 	serviceStatus := transform.FromServiceStatus(result)

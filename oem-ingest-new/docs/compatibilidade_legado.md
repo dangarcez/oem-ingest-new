@@ -94,6 +94,14 @@ As regras por tipo de target seguem a logica do Python:
 - `host`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se houver
   item, `Status == 0` gera `0`, caso contrario `2`.
 
+Durante a coleta inicial, `oem_monitor_stus` trata estados sem coleta como `2`
+para evitar que a inicializacao gradual gere falsos `1`. Depois que a coleta
+inicial termina, `OEM_MONITOR_STATUS_WARMUP_MINUTES` define por quantos minutos
+esse warm-up continua ativo. Com o valor padrao `0`, ele termina junto com a
+coleta inicial. O fim da etapa gera log `INFO` com a mensagem
+`warm-up de oem_monitor_stus concluido`. Status explicitos de down vindos do OEM
+continuam gerando `0`.
+
 Para manter a compatibilidade com o Python, os grupos que alimentam essas
 metricas customizadas sao adicionados aos jobs de coleta quando faltam no
 `configMetrics.yaml`: `rac_database/Availability`,

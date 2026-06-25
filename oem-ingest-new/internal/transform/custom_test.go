@@ -279,6 +279,61 @@ func TestFromMonitorStatusIgnoresUnsupportedTargetOrGroup(t *testing.T) {
 	}
 }
 
+func TestFromMonitorStatusWarmupMarksNoCollectionAsUp(t *testing.T) {
+	tests := []struct {
+		name         string
+		targetType   string
+		groupName    string
+		items        []map[string]any
+		warmupActive bool
+		want         float64
+	}{
+		{
+			name:         "empty host response inside warmup",
+			targetType:   "host",
+			groupName:    "Response",
+			warmupActive: true,
+			want:         2,
+		},
+		{
+			name:         "empty pdb response inside warmup",
+			targetType:   "oracle_pdb",
+			groupName:    "Response",
+			warmupActive: true,
+			want:         2,
+		},
+		{
+			name:       "empty host response after warmup keeps no collection",
+			targetType: "host",
+			groupName:  "Response",
+			want:       1,
+		},
+		{
+			name:         "explicit down status inside warmup still wins",
+			targetType:   "host",
+			groupName:    "Response",
+			items:        []map[string]any{{"Status": 0}},
+			warmupActive: true,
+			want:         0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := monitorStatusResult(tt.targetType, tt.groupName, tt.items)
+			point, ok := FromMonitorStatusWithOptions(result, collect.NewResponseMonitor(), MonitorStatusOptions{
+				ResponseTolerance: 21 * time.Minute,
+				WarmupActive:      tt.warmupActive,
+			})
+
+			if !ok {
+				t.Fatal("FromMonitorStatusWithOptions returned ok=false, want true")
+			}
+			assertMonitorStatusPoint(t, point, result.Job.Target.ID, tt.want, result.CollectedAt)
+		})
+	}
+}
+
 func TestFromServiceStatusUsesDBTimeDelta(t *testing.T) {
 	tests := []struct {
 		name string

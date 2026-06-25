@@ -35,6 +35,9 @@ func TestReadEnvDefaults(t *testing.T) {
 	if env.MonitorResponseTolerance != time.Duration(DefaultResponseToleranceMin)*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
 	}
+	if env.MonitorStatusWarmup != 0 {
+		t.Fatalf("MonitorStatusWarmup = %s, want no extra duration", env.MonitorStatusWarmup)
+	}
 	if env.RuntimeIDRecheckInterval != time.Duration(DefaultRuntimeIDRecheckSeconds)*time.Second {
 		t.Fatalf("RuntimeIDRecheckInterval = %s", env.RuntimeIDRecheckInterval)
 	}
@@ -64,6 +67,7 @@ func TestReadEnvOverrides(t *testing.T) {
 		"OTEL_EXPORT_TIMEOUT_SECONDS":             "6",
 		"OEM_EXPORT_INTERVAL_SECONDS":             "15",
 		"OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES":  "7",
+		"OEM_MONITOR_STATUS_WARMUP_MINUTES":       "5",
 		"OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS": "42",
 		"OEM_HTTP_TIMEOUT_SECONDS":                "20",
 		"OEM_HTTP_CONNECT_TIMEOUT_SECONDS":        "3",
@@ -103,6 +107,9 @@ func TestReadEnvOverrides(t *testing.T) {
 	}
 	if env.MonitorResponseTolerance != 7*time.Minute {
 		t.Fatalf("MonitorResponseTolerance = %s", env.MonitorResponseTolerance)
+	}
+	if env.MonitorStatusWarmup != 5*time.Minute {
+		t.Fatalf("MonitorStatusWarmup = %s", env.MonitorStatusWarmup)
 	}
 	if env.RuntimeIDRecheckInterval != 42*time.Second {
 		t.Fatalf("RuntimeIDRecheckInterval = %s", env.RuntimeIDRecheckInterval)
@@ -178,8 +185,23 @@ func TestReadEnvAllowsDisabledSchedulerJitter(t *testing.T) {
 	}
 }
 
-func TestReadEnvRejectsInvalidNonNegativeSeconds(t *testing.T) {
-	tests := []string{"OEM_SCHEDULER_JITTER_SECONDS", "OEM_DIAGNOSTICS_INTERVAL_SECONDS"}
+func TestReadEnvAllowsZeroMonitorStatusWarmupExtraDuration(t *testing.T) {
+	env, err := ReadEnv(func(key string) (string, bool) {
+		if key == "OEM_MONITOR_STATUS_WARMUP_MINUTES" {
+			return "0", true
+		}
+		return "", false
+	})
+	if err != nil {
+		t.Fatalf("ReadEnv returned error: %v", err)
+	}
+	if env.MonitorStatusWarmup != 0 {
+		t.Fatalf("MonitorStatusWarmup = %s, want no extra duration", env.MonitorStatusWarmup)
+	}
+}
+
+func TestReadEnvRejectsInvalidNonNegativeDurations(t *testing.T) {
+	tests := []string{"OEM_SCHEDULER_JITTER_SECONDS", "OEM_DIAGNOSTICS_INTERVAL_SECONDS", "OEM_MONITOR_STATUS_WARMUP_MINUTES"}
 
 	for _, envName := range tests {
 		t.Run(envName, func(t *testing.T) {

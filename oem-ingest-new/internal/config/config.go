@@ -20,6 +20,7 @@ const (
 	DefaultValidationReportPath     = "./configs/configTargets.validated.report.jsonl"
 	DefaultExportIntervalSeconds    = 60
 	DefaultResponseToleranceMin     = 21
+	DefaultMonitorStatusWarmupMin   = 0
 	DefaultRuntimeIDRecheckSeconds  = 86400
 	DefaultHTTPTimeoutSeconds       = 30
 	DefaultConnectTimeoutSeconds    = 10
@@ -45,6 +46,7 @@ type Env struct {
 	OTELExportTimeout        time.Duration
 	ExportInterval           time.Duration
 	MonitorResponseTolerance time.Duration
+	MonitorStatusWarmup      time.Duration
 	RuntimeIDRecheckInterval time.Duration
 	HTTPTimeout              time.Duration
 	HTTPConnectTimeout       time.Duration
@@ -110,6 +112,7 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		OTELExportTimeout:        time.Duration(DefaultOTELExportTimeoutSeconds) * time.Second,
 		ExportInterval:           time.Duration(DefaultExportIntervalSeconds) * time.Second,
 		MonitorResponseTolerance: time.Duration(DefaultResponseToleranceMin) * time.Minute,
+		MonitorStatusWarmup:      time.Duration(DefaultMonitorStatusWarmupMin) * time.Minute,
 		RuntimeIDRecheckInterval: time.Duration(DefaultRuntimeIDRecheckSeconds) * time.Second,
 		HTTPTimeout:              time.Duration(DefaultHTTPTimeoutSeconds) * time.Second,
 		HTTPConnectTimeout:       time.Duration(DefaultConnectTimeoutSeconds) * time.Second,
@@ -133,6 +136,9 @@ func ReadEnv(lookup func(string) (string, bool)) (Env, error) {
 		return Env{}, err
 	}
 	if env.MonitorResponseTolerance, err = minutesValue(lookup, "OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES", DefaultResponseToleranceMin); err != nil {
+		return Env{}, err
+	}
+	if env.MonitorStatusWarmup, err = nonNegativeMinutesValue(lookup, "OEM_MONITOR_STATUS_WARMUP_MINUTES", DefaultMonitorStatusWarmupMin); err != nil {
 		return Env{}, err
 	}
 	if env.RuntimeIDRecheckInterval, err = secondsValue(lookup, "OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS", DefaultRuntimeIDRecheckSeconds); err != nil {
@@ -376,6 +382,14 @@ func secondsValue(lookup func(string) (string, bool), name string, fallback int)
 
 func minutesValue(lookup func(string) (string, bool), name string, fallback int) (time.Duration, error) {
 	value, err := positiveIntValue(lookup, name, fallback)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(value) * time.Minute, nil
+}
+
+func nonNegativeMinutesValue(lookup func(string) (string, bool), name string, fallback int) (time.Duration, error) {
+	value, err := nonNegativeIntValue(lookup, name, fallback)
 	if err != nil {
 		return 0, err
 	}

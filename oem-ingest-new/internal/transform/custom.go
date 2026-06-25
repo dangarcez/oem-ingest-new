@@ -14,6 +14,12 @@ const MonitorStatusMetricName = "oem_monitor_stus"
 const ServiceStatusMetricName = "oem_service_status"
 const StringServiceStatusMetricName = "oem_str_service_status"
 
+// MonitorStatusOptions controls custom oem_monitor_stus fallback behavior.
+type MonitorStatusOptions struct {
+	ResponseTolerance time.Duration
+	WarmupActive      bool
+}
+
 // FromResponseMonitor builds the custom oem_monitor_response gauge for every
 // configured target. Value 1 means the target had a useful collection inside
 // the tolerance window; value 0 means it is stale or has never collected.
@@ -43,7 +49,13 @@ func FromResponseMonitor(sites []config.SiteConfig, monitor *collect.ResponseMon
 // latestData result used by each target type. Status codes are kept compatible
 // with the Python collector: 0 down/inactive, 1 without collection, 2 up.
 func FromMonitorStatus(result collect.Result, monitor *collect.ResponseMonitor, tolerance time.Duration) (MetricPoint, bool) {
-	value, ok := monitorStatusValue(result, monitor, tolerance)
+	return FromMonitorStatusWithOptions(result, monitor, MonitorStatusOptions{ResponseTolerance: tolerance})
+}
+
+// FromMonitorStatusWithOptions builds oem_monitor_stus and can map "without
+// collection" fallback states to 2 during a runtime warm-up phase.
+func FromMonitorStatusWithOptions(result collect.Result, monitor *collect.ResponseMonitor, opts MonitorStatusOptions) (MetricPoint, bool) {
+	value, ok := monitorStatusValue(result, monitor, opts)
 	if !ok {
 		return MetricPoint{}, false
 	}
@@ -116,7 +128,7 @@ func FromServiceStatus(result collect.Result) Output {
 	return out
 }
 
-func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor, tolerance time.Duration) (int, bool) {
+func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor, opts MonitorStatusOptions) (int, bool) {
 	targetType := strings.TrimSpace(result.Job.Target.TypeName)
 	if targetType == "" {
 		targetType = strings.TrimSpace(result.LatestData.TargetTypeName)
@@ -132,13 +144,13 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 		if len(items) > 0 {
 			return 0, true
 		}
-		return monitorActiveStatus(result, monitor, tolerance), true
+		return monitorActiveStatus(result, monitor, opts), true
 	case "oracle_database":
 		if !sameMetricGroup(groupName, "Response") {
 			return 0, false
 		}
 		if len(items) == 0 {
-			return monitorActiveStatus(result, monitor, tolerance), true
+			return monitorActiveStatus(result, monitor, opts), true
 		}
 		return oracleDatabaseStatus(items[0])
 	case "oracle_pdb":
@@ -146,7 +158,7 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 			return 0, false
 		}
 		if len(items) == 0 {
-			return 1, true
+			return noCollectionStatus(opts), true
 		}
 		return oraclePDBStatus(items[0])
 	case "host":
@@ -154,7 +166,7 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 			return 0, false
 		}
 		if len(items) == 0 {
-			return monitorActiveStatus(result, monitor, tolerance), true
+			return monitorActiveStatus(result, monitor, opts), true
 		}
 		return hostStatus(items[0])
 	default:
@@ -275,8 +287,15 @@ func hostStatus(item map[string]any) (int, bool) {
 	return 2, true
 }
 
-func monitorActiveStatus(result collect.Result, monitor *collect.ResponseMonitor, tolerance time.Duration) int {
-	if monitor.Active(resultTargetID(result), result.CollectedAt, tolerance) {
+func monitorActiveStatus(result collect.Result, monitor *collect.ResponseMonitor, opts MonitorStatusOptions) int {
+	if monitor.Active(resultTargetID(result), result.CollectedAt, opts.ResponseTolerance) {
+		return 2
+	}
+	return noCollectionStatus(opts)
+}
+
+func noCollectionStatus(opts MonitorStatusOptions) int {
+	if opts.WarmupActive {
 		return 2
 	}
 	return 1
