@@ -2,6 +2,7 @@ package transform
 
 import (
 	"encoding/json"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
@@ -279,7 +280,7 @@ func TestFromMonitorStatusIgnoresUnsupportedTargetOrGroup(t *testing.T) {
 	}
 }
 
-func TestFromMonitorStatusWarmupMarksNoCollectionAsUp(t *testing.T) {
+func TestFromMonitorStatusWarmupMarksNoCollectionAsCollectorStatus(t *testing.T) {
 	tests := []struct {
 		name         string
 		targetType   string
@@ -293,14 +294,14 @@ func TestFromMonitorStatusWarmupMarksNoCollectionAsUp(t *testing.T) {
 			targetType:   "host",
 			groupName:    "Response",
 			warmupActive: true,
-			want:         2,
+			want:         3,
 		},
 		{
 			name:         "empty pdb response inside warmup",
 			targetType:   "oracle_pdb",
 			groupName:    "Response",
 			warmupActive: true,
-			want:         2,
+			want:         3,
 		},
 		{
 			name:       "empty host response after warmup keeps no collection",
@@ -328,6 +329,72 @@ func TestFromMonitorStatusWarmupMarksNoCollectionAsUp(t *testing.T) {
 
 			if !ok {
 				t.Fatal("FromMonitorStatusWithOptions returned ok=false, want true")
+			}
+			assertMonitorStatusPoint(t, point, result.Job.Target.ID, tt.want, result.CollectedAt)
+		})
+	}
+}
+
+func TestFromMonitorStatusAuthFailureMarksCollectorStatus(t *testing.T) {
+	tests := []struct {
+		name             string
+		targetType       string
+		groupName        string
+		httpStatus       int
+		monitorActive    bool
+		warmupActive     bool
+		want             float64
+		wantPointEmitted bool
+	}{
+		{
+			name:             "host unauthorized ignores active response monitor",
+			targetType:       "host",
+			groupName:        "Response",
+			httpStatus:       http.StatusUnauthorized,
+			monitorActive:    true,
+			want:             3,
+			wantPointEmitted: true,
+		},
+		{
+			name:             "pdb forbidden marks collector status",
+			targetType:       "oracle_pdb",
+			groupName:        "Response",
+			httpStatus:       http.StatusForbidden,
+			want:             3,
+			wantPointEmitted: true,
+		},
+		{
+			name:             "server error keeps normal fallback",
+			targetType:       "host",
+			groupName:        "Response",
+			httpStatus:       http.StatusInternalServerError,
+			monitorActive:    true,
+			want:             2,
+			wantPointEmitted: true,
+		},
+		{
+			name:             "unsupported target remains ignored",
+			targetType:       "oracle_listener",
+			groupName:        "Response",
+			httpStatus:       http.StatusUnauthorized,
+			wantPointEmitted: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := monitorStatusResult(tt.targetType, tt.groupName, nil)
+			result.LatestDataHTTPStatus = tt.httpStatus
+			point, ok := FromMonitorStatusWithOptions(result, monitorForStatusResult(result, tt.monitorActive), MonitorStatusOptions{
+				ResponseTolerance: 21 * time.Minute,
+				WarmupActive:      tt.warmupActive,
+			})
+
+			if ok != tt.wantPointEmitted {
+				t.Fatalf("FromMonitorStatusWithOptions ok = %v, want %v", ok, tt.wantPointEmitted)
+			}
+			if !ok {
+				return
 			}
 			assertMonitorStatusPoint(t, point, result.Job.Target.ID, tt.want, result.CollectedAt)
 		})

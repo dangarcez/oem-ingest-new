@@ -2,6 +2,7 @@ package transform
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -13,6 +14,13 @@ const MonitorResponseMetricName = "oem_monitor_response"
 const MonitorStatusMetricName = "oem_monitor_stus"
 const ServiceStatusMetricName = "oem_service_status"
 const StringServiceStatusMetricName = "oem_str_service_status"
+
+const (
+	monitorStatusDown         = 0
+	monitorStatusNoCollection = 1
+	monitorStatusUp           = 2
+	monitorStatusCollector    = 3
+)
 
 // MonitorStatusOptions controls custom oem_monitor_stus fallback behavior.
 type MonitorStatusOptions struct {
@@ -46,14 +54,14 @@ func FromResponseMonitor(sites []config.SiteConfig, monitor *collect.ResponseMon
 }
 
 // FromMonitorStatus builds the legacy custom oem_monitor_stus gauge from the
-// latestData result used by each target type. Status codes are kept compatible
-// with the Python collector: 0 down/inactive, 1 without collection, 2 up.
+// latestData result used by each target type. Status codes are: 0 down/inactive,
+// 1 without collection, 2 up, 3 collector/script state.
 func FromMonitorStatus(result collect.Result, monitor *collect.ResponseMonitor, tolerance time.Duration) (MetricPoint, bool) {
 	return FromMonitorStatusWithOptions(result, monitor, MonitorStatusOptions{ResponseTolerance: tolerance})
 }
 
-// FromMonitorStatusWithOptions builds oem_monitor_stus and can map "without
-// collection" fallback states to 2 during a runtime warm-up phase.
+// FromMonitorStatusWithOptions builds oem_monitor_stus and can map fallback
+// states to collector/script status during runtime warm-up or auth failures.
 func FromMonitorStatusWithOptions(result collect.Result, monitor *collect.ResponseMonitor, opts MonitorStatusOptions) (MetricPoint, bool) {
 	value, ok := monitorStatusValue(result, monitor, opts)
 	if !ok {
@@ -141,13 +149,19 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 		if !sameMetricGroup(groupName, "Availability") {
 			return 0, false
 		}
+		if latestDataAuthFailed(result) {
+			return monitorStatusCollector, true
+		}
 		if len(items) > 0 {
-			return 0, true
+			return monitorStatusDown, true
 		}
 		return monitorActiveStatus(result, monitor, opts), true
 	case "oracle_database":
 		if !sameMetricGroup(groupName, "Response") {
 			return 0, false
+		}
+		if latestDataAuthFailed(result) {
+			return monitorStatusCollector, true
 		}
 		if len(items) == 0 {
 			return monitorActiveStatus(result, monitor, opts), true
@@ -157,6 +171,9 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 		if !sameMetricGroup(groupName, "Response") {
 			return 0, false
 		}
+		if latestDataAuthFailed(result) {
+			return monitorStatusCollector, true
+		}
 		if len(items) == 0 {
 			return noCollectionStatus(opts), true
 		}
@@ -164,6 +181,9 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 	case "host":
 		if !sameMetricGroup(groupName, "Response") {
 			return 0, false
+		}
+		if latestDataAuthFailed(result) {
+			return monitorStatusCollector, true
 		}
 		if len(items) == 0 {
 			return monitorActiveStatus(result, monitor, opts), true
@@ -289,16 +309,25 @@ func hostStatus(item map[string]any) (int, bool) {
 
 func monitorActiveStatus(result collect.Result, monitor *collect.ResponseMonitor, opts MonitorStatusOptions) int {
 	if monitor.Active(resultTargetID(result), result.CollectedAt, opts.ResponseTolerance) {
-		return 2
+		return monitorStatusUp
 	}
 	return noCollectionStatus(opts)
 }
 
 func noCollectionStatus(opts MonitorStatusOptions) int {
 	if opts.WarmupActive {
-		return 2
+		return monitorStatusCollector
 	}
-	return 1
+	return monitorStatusNoCollection
+}
+
+func latestDataAuthFailed(result collect.Result) bool {
+	switch result.LatestDataHTTPStatus {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return true
+	default:
+		return false
+	}
 }
 
 func statusIsZero(value any) bool {

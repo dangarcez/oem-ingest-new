@@ -76,11 +76,12 @@ A tolerancia padrao permanece 21 minutos, agora configuravel por
 `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
 
 `oem_monitor_stus` mantem exatamente o nome legado com erro de grafia. Os codigos
-tambem foram preservados:
+exportados sao:
 
 - `0`: down ou inativo;
 - `1`: sem coleta;
 - `2`: up ou coletando.
+- `3`: estado do coletor/script, sem confirmacao do target.
 
 As regras por tipo de target seguem a logica do Python:
 
@@ -94,8 +95,8 @@ As regras por tipo de target seguem a logica do Python:
 - `host`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se houver
   item, `Status == 0` gera `0`, caso contrario `2`.
 
-Durante a coleta inicial, `oem_monitor_stus` trata estados sem coleta como `2`
-para evitar que a inicializacao gradual gere falsos `1`. Depois que a coleta
+Durante a coleta inicial, `oem_monitor_stus` trata estados sem coleta como `3`
+para indicar estado do coletor/script. Depois que a coleta
 inicial termina, `OEM_MONITOR_STATUS_WARMUP_MINUTES` define por quantos minutos
 esse warm-up continua ativo. Com o valor padrao `0`, ele termina junto com a
 coleta inicial. O fim da etapa gera log `INFO` com a mensagem
@@ -107,7 +108,8 @@ metricas customizadas sao adicionados aos jobs de coleta quando faltam no
 `configMetrics.yaml`: `rac_database/Availability`,
 `oracle_database/Response`, `oracle_pdb/Response` e `host/Response`. Esses jobs
 custom usam metadata vazia e tratam respostas HTTP sem datapoints como coleta
-vazia, preservando a emissao de `oem_monitor_stus`.
+vazia, preservando a emissao de `oem_monitor_stus`. Respostas `401` ou `403`
+nesses jobs geram status `3`.
 
 `oem_service_status` e `oem_str_service_status` continuam unificando status de
 servicos de `rac_database/service_performance` e `oracle_pdb/DBService`:

@@ -415,6 +415,9 @@ func TestCollectorAllowsBodylessLatestDataHTTPErrorAsEmptyPayload(t *testing.T) 
 	if len(result.LatestData.Items) != 0 || result.Datapoints() != 0 {
 		t.Fatalf("bodyless HTTP error should produce empty latestData, got %#v", result.LatestData)
 	}
+	if result.LatestDataHTTPStatus != http.StatusNotFound {
+		t.Fatalf("LatestDataHTTPStatus = %d, want %d", result.LatestDataHTTPStatus, http.StatusNotFound)
+	}
 	if got := client.metricGroupCalls("target-1", "Response"); got != 0 {
 		t.Fatalf("bodyless collection should not fetch metadata, got %d calls", got)
 	}
@@ -423,6 +426,30 @@ func TestCollectorAllowsBodylessLatestDataHTTPErrorAsEmptyPayload(t *testing.T) 
 	}
 	if got := collector.SnapshotStats(); got.CollectionErrorsTotal != 0 || got.UnavailableGroupsTotal != 0 || got.DatapointsCollectedTotal != 0 {
 		t.Fatalf("unexpected collector stats: %#v", got)
+	}
+}
+
+func TestCollectorPreservesBodylessLatestDataUnauthorizedStatus(t *testing.T) {
+	client := &fakeCollectClient{
+		latestErrors: map[string]error{
+			"target-1\x00Response": &oem.HTTPError{StatusCode: http.StatusUnauthorized, Method: http.MethodGet, URL: "http://oem.example/latestData"},
+		},
+	}
+	collector := NewCollector(client, CollectorOptions{})
+	job := collectJob()
+	job.MetricGroupName = "Response"
+	job.MetricGroup = config.MetricGroupConfig{Freq: 3, MetricGroupName: "Response", Bodyless: true}
+
+	result, err := collector.Collect(context.Background(), job)
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	if result.LatestDataHTTPStatus != http.StatusUnauthorized {
+		t.Fatalf("LatestDataHTTPStatus = %d, want %d", result.LatestDataHTTPStatus, http.StatusUnauthorized)
+	}
+	if len(result.LatestData.Items) != 0 || result.Datapoints() != 0 {
+		t.Fatalf("bodyless unauthorized should produce empty latestData, got %#v", result.LatestData)
 	}
 }
 

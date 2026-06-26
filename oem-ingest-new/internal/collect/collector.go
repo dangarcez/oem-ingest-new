@@ -87,10 +87,11 @@ type Stats struct {
 
 // Result is one successful latestData collection result.
 type Result struct {
-	Job         scheduler.Job
-	Metadata    GroupMetadata
-	LatestData  oem.LatestData
-	CollectedAt time.Time
+	Job                  scheduler.Job
+	Metadata             GroupMetadata
+	LatestData           oem.LatestData
+	LatestDataHTTPStatus int
+	CollectedAt          time.Time
 }
 
 // Datapoints returns the number of metric values collected in this result.
@@ -208,6 +209,7 @@ func (c *Collector) collect(ctx context.Context, job scheduler.Job, allowRepair 
 	}
 	job = jobWithCollectionIdentity(job, metadata.TargetID, metadata.MetricGroupName)
 
+	latestHTTPStatus := 0
 	latest, err := c.latestClient.LatestData(ctx, job.Target.ID, job.MetricGroupName)
 	if err != nil {
 		if allowRepair && isHTTPStatus(err, http.StatusNotFound) {
@@ -215,7 +217,8 @@ func (c *Collector) collect(ctx context.Context, job scheduler.Job, allowRepair 
 				return c.collect(ctx, repairedJob, false)
 			}
 		}
-		if metadata.Bodyless && isHTTPError(err) {
+		if statusCode, ok := httpStatusCode(err); metadata.Bodyless && ok {
+			latestHTTPStatus = statusCode
 			latest = oem.LatestData{
 				MetricGroupName: job.MetricGroupName,
 				TargetID:        job.Target.ID,
@@ -236,10 +239,11 @@ func (c *Collector) collect(ctx context.Context, job scheduler.Job, allowRepair 
 
 	collectedAt := c.now()
 	result := Result{
-		Job:         job,
-		Metadata:    metadata,
-		LatestData:  latest,
-		CollectedAt: collectedAt,
+		Job:                  job,
+		Metadata:             metadata,
+		LatestData:           latest,
+		LatestDataHTTPStatus: latestHTTPStatus,
+		CollectedAt:          collectedAt,
 	}
 	if result.Datapoints() > 0 {
 		c.responses.Mark(job.Target.ID, collectedAt)
@@ -269,9 +273,12 @@ func (c *Collector) repairJobAfterNotFound(ctx context.Context, job scheduler.Jo
 	return result.Job, true
 }
 
-func isHTTPError(err error) bool {
+func httpStatusCode(err error) (int, bool) {
 	var httpErr *oem.HTTPError
-	return errors.As(err, &httpErr)
+	if !errors.As(err, &httpErr) {
+		return 0, false
+	}
+	return httpErr.StatusCode, true
 }
 
 func jobWithCollectionIdentity(job scheduler.Job, targetID, groupName string) scheduler.Job {

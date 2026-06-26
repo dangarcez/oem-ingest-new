@@ -156,7 +156,7 @@ logado sem derrubar a aplicacao inteira.
 | `OTEL_EXPORT_TIMEOUT_SECONDS` | `30` | Timeout total dos POSTs OTLP HTTP para metricas e logs, em segundos. |
 | `OEM_EXPORT_INTERVAL_SECONDS` | `60` | Intervalo de exportacao dos buffers OTLP, em segundos. |
 | `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Janela usada por `oem_monitor_response`, em minutos. |
-| `OEM_MONITOR_STATUS_WARMUP_MINUTES` | `0` | Tempo extra, apos a coleta inicial, em que `oem_monitor_stus` trata estados sem coleta como `2`. |
+| `OEM_MONITOR_STATUS_WARMUP_MINUTES` | `0` | Tempo extra, apos a coleta inicial, em que `oem_monitor_stus` trata estados sem coleta como `3` para indicar estado do coletor/script. |
 | `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS` | `86400` | Intervalo minimo entre revalidacoes runtime de ID por target apos `404`. |
 | `OEM_HTTP_TIMEOUT_SECONDS` | `30` | Timeout total das chamadas HTTP ao OEM, em segundos. |
 | `OEM_HTTP_CONNECT_TIMEOUT_SECONDS` | `10` | Timeout de conexao HTTP ao OEM, em segundos. |
