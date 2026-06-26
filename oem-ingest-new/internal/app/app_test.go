@@ -994,8 +994,22 @@ func TestRunValidatesTargetsWhenEnabled(t *testing.T) {
 		!hasAppReportEvent(reportEvents, "tag_correction", "targetName", "cdbp51bc") {
 		t.Fatalf("validation report missing expected events:\n%s", reportContents)
 	}
-	if len(logger.infos) != 1 || !strings.Contains(logger.infos[0], "configuracao validada escrita") {
-		t.Fatalf("expected validation summary log, got %#v", logger.infos)
+	infos := logger.infosSnapshot()
+	assertInfoSequence(t, infos, []string{
+		"validacao de configuracao iniciada",
+		"validacao de IDs iniciada",
+		"validacao de IDs: listando targets OEM",
+		"conexao OEM validada",
+		"validacao de IDs: targets OEM listados",
+		"validacao de IDs concluida",
+		"validacao de correlacoes iniciada",
+		"validacao de correlacoes: listando targets OEM",
+		"validacao de correlacoes: targets OEM listados",
+		"validacao de correlacoes concluida",
+		"configuracao validada escrita",
+	})
+	if got := countInfoMessages(infos, "conexao OEM validada"); got != 1 {
+		t.Fatalf("conexao OEM validada logs = %d, want 1; infos=%#v", got, infos)
 	}
 }
 
@@ -1693,6 +1707,30 @@ func (r *appRecordingLogger) warningsSnapshot() []string {
 	out := make([]string, len(r.warnings))
 	copy(out, r.warnings)
 	return out
+}
+
+func assertInfoSequence(t *testing.T, infos []string, want []string) {
+	t.Helper()
+
+	next := 0
+	for _, info := range infos {
+		if next < len(want) && strings.Contains(info, want[next]) {
+			next++
+		}
+	}
+	if next != len(want) {
+		t.Fatalf("missing info log sequence from %q; got %#v", want[next], infos)
+	}
+}
+
+func countInfoMessages(infos []string, part string) int {
+	count := 0
+	for _, info := range infos {
+		if strings.Contains(info, part) {
+			count++
+		}
+	}
+	return count
 }
 
 func writeTargetsFile(t *testing.T, targetID string) string {

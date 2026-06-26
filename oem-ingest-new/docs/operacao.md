@@ -214,6 +214,19 @@ mensagens de status de startup usam `stdout`, como:
 
 Eventos esperados em operacao normal:
 
+- `validacao de configuracao iniciada`: validacao de startup habilitada por
+  `OEM_VALIDATE_CONFIG=true` com resumo de sites e targets configurados;
+- `validacao de IDs iniciada` / `validacao de IDs concluida`: fase de
+  conferencia de IDs contra a API OEM;
+- `validacao de IDs: listando targets OEM` /
+  `validacao de IDs: targets OEM listados`: progresso por site durante a
+  chamada potencialmente demorada a `/em/api/targets`;
+- `validacao de correlacoes iniciada` /
+  `validacao de correlacoes concluida`: fase de expansao/correcao de
+  correlacoes entre targets;
+- `validacao de correlacoes: listando targets OEM` /
+  `validacao de correlacoes: targets OEM listados`: progresso por site durante
+  a chamada potencialmente demorada a `/em/api/targets`;
 - `conexao OEM validada`: conexao inicial com um endpoint OEM passou;
 - `job de coleta registrado`: scheduler registrou um job por target/grupo;
 - `batch OTLP exportado`: um batch de metricas ou logs recebeu resposta 2xx;

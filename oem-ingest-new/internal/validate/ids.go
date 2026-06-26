@@ -16,6 +16,13 @@ type Logger interface {
 	WarnContext(ctx context.Context, msg string, args ...any)
 }
 
+// InfoLogger is the optional INFO-level logger surface used for progress logs.
+// Callers can omit it, or pass a warn-only Logger, without changing validation
+// behavior.
+type InfoLogger interface {
+	InfoContext(ctx context.Context, msg string, args ...any)
+}
+
 // TargetLister is implemented by the OEM client endpoint used in this phase.
 type TargetLister interface {
 	ListTargets(ctx context.Context) (oem.Page[oem.Target], error)
@@ -26,8 +33,9 @@ type TargetListerFactory func(site config.SiteConfig) (TargetLister, error)
 
 // IDValidationOptions controls the optional ID validation step.
 type IDValidationOptions struct {
-	Enabled bool
-	Logger  Logger
+	Enabled    bool
+	Logger     Logger
+	InfoLogger InfoLogger
 }
 
 // IDValidationResult contains the corrected in-memory target configuration and
@@ -111,6 +119,7 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 	if factory == nil {
 		return IDValidationResult{}, errors.New("validacao de IDs exige uma fabrica de clientes OEM")
 	}
+	infoLogger := validationInfoLogger(opts.Logger, opts.InfoLogger)
 
 	for siteIndex, site := range corrected {
 		if err := ctx.Err(); err != nil {
@@ -122,9 +131,25 @@ func ValidateTargetIDs(ctx context.Context, sites []config.SiteConfig, factory T
 			return IDValidationResult{}, fmt.Errorf("site[%d] %q: criar cliente OEM: %w", siteIndex, site.Name, err)
 		}
 
+		if infoLogger != nil {
+			infoLogger.InfoContext(ctx, "validacao de IDs: listando targets OEM",
+				"site_index", siteIndex,
+				"site", site.Name,
+				"endpoint", site.Endpoint,
+				"configured_targets", len(site.Targets),
+			)
+		}
 		targets, err := lister.ListTargets(ctx)
 		if err != nil {
 			return IDValidationResult{}, fmt.Errorf("site[%d] %q: listar targets OEM: %w", siteIndex, site.Name, err)
+		}
+		if infoLogger != nil {
+			infoLogger.InfoContext(ctx, "validacao de IDs: targets OEM listados",
+				"site_index", siteIndex,
+				"site", site.Name,
+				"endpoint", site.Endpoint,
+				"targets", len(targets.Items),
+			)
 		}
 		index := indexTargetsByNameAndType(targets.Items)
 

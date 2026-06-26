@@ -127,6 +127,8 @@ func validateStartupTargets(ctx context.Context, env config.Env, opts Options) (
 	if err != nil {
 		return startupValidationResult{}, err
 	}
+	progress := newStartupValidationProgress(opts.Logger)
+	progress.logConfigStarted(ctx, env, sites)
 
 	factory := opts.TargetInventoryFactory
 	if factory == nil {
@@ -135,22 +137,29 @@ func validateStartupTargets(ctx context.Context, env config.Env, opts Options) (
 			return startupValidationResult{}, err
 		}
 	}
+	factory = progress.wrapInventoryFactory(factory)
 
+	progress.logIDValidationStarted(ctx, sites)
 	idResult, err := validate.ValidateTargetIDs(ctx, sites, targetListerFactory(factory), validate.IDValidationOptions{
-		Enabled: true,
-		Logger:  opts.Logger,
+		Enabled:    true,
+		Logger:     opts.Logger,
+		InfoLogger: opts.Logger,
 	})
 	if err != nil {
 		return startupValidationResult{}, err
 	}
+	progress.logIDValidationCompleted(ctx, idResult)
 
+	progress.logCorrelationValidationStarted(ctx, idResult.Sites)
 	correlationResult, err := validate.ValidateTargetCorrelations(ctx, idResult.Sites, factory, validate.CorrelationValidationOptions{
-		Enabled: true,
-		Logger:  opts.Logger,
+		Enabled:    true,
+		Logger:     opts.Logger,
+		InfoLogger: opts.Logger,
 	})
 	if err != nil {
 		return startupValidationResult{}, err
 	}
+	progress.logCorrelationValidationCompleted(ctx, correlationResult)
 
 	if err := validateOutputPath(env.TargetsPath, env.ValidatedConfigOutput); err != nil {
 		return startupValidationResult{}, err
@@ -188,6 +197,140 @@ func loadRuntimeConfig(env config.Env, validatedSites []config.SiteConfig, valid
 		return config.Config{}, err
 	}
 	return config.Config{Sites: validatedSites, Metrics: metrics}, nil
+}
+
+type startupValidationProgress struct {
+	logger             Logger
+	mu                 sync.Mutex
+	validatedEndpoints map[string]struct{}
+}
+
+func newStartupValidationProgress(logger Logger) *startupValidationProgress {
+	return &startupValidationProgress{
+		logger:             logger,
+		validatedEndpoints: make(map[string]struct{}),
+	}
+}
+
+func (p *startupValidationProgress) logConfigStarted(ctx context.Context, env config.Env, sites []config.SiteConfig) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "validacao de configuracao iniciada",
+		"source_config", env.TargetsPath,
+		"validated_config", env.ValidatedConfigOutput,
+		"report", env.ValidationReportOutput,
+		"sites", len(sites),
+		"targets", countConfiguredTargets(sites),
+	)
+}
+
+func (p *startupValidationProgress) logIDValidationStarted(ctx context.Context, sites []config.SiteConfig) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "validacao de IDs iniciada",
+		"sites", len(sites),
+		"targets", countConfiguredTargets(sites),
+	)
+}
+
+func (p *startupValidationProgress) logIDValidationCompleted(ctx context.Context, result validate.IDValidationResult) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "validacao de IDs concluida",
+		"sites", len(result.Sites),
+		"targets", countConfiguredTargets(result.Sites),
+		"id_corrections", len(result.IDCorrections),
+		"targets_removed", len(result.TargetRemovals),
+		"sites_removed", len(result.SiteRemovals),
+		"warnings", len(result.Warnings),
+	)
+}
+
+func (p *startupValidationProgress) logCorrelationValidationStarted(ctx context.Context, sites []config.SiteConfig) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "validacao de correlacoes iniciada",
+		"sites", len(sites),
+		"targets", countConfiguredTargets(sites),
+	)
+}
+
+func (p *startupValidationProgress) logCorrelationValidationCompleted(ctx context.Context, result validate.CorrelationValidationResult) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	p.logger.InfoContext(ctx, "validacao de correlacoes concluida",
+		"sites", len(result.Sites),
+		"targets", countConfiguredTargets(result.Sites),
+		"targets_added", len(result.TargetAdds),
+		"tag_corrections", len(result.TagCorrections),
+		"warnings", len(result.Warnings),
+	)
+}
+
+func (p *startupValidationProgress) wrapInventoryFactory(factory validate.TargetInventoryFactory) validate.TargetInventoryFactory {
+	if p == nil || factory == nil {
+		return factory
+	}
+	return func(site config.SiteConfig) (validate.TargetInventory, error) {
+		inventory, err := factory(site)
+		if err != nil {
+			return nil, err
+		}
+		return validationProgressInventory{
+			TargetInventory: inventory,
+			site:            site,
+			progress:        p,
+		}, nil
+	}
+}
+
+func (p *startupValidationProgress) logConnectionValidated(ctx context.Context, site config.SiteConfig) {
+	if p == nil || p.logger == nil {
+		return
+	}
+	endpoint := strings.TrimSpace(site.Endpoint)
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(site.Name)
+	}
+	p.mu.Lock()
+	if _, exists := p.validatedEndpoints[endpoint]; exists {
+		p.mu.Unlock()
+		return
+	}
+	p.validatedEndpoints[endpoint] = struct{}{}
+	p.mu.Unlock()
+
+	p.logger.InfoContext(ctx, "conexao OEM validada",
+		"endpoint", site.Endpoint,
+		"site", site.Name,
+	)
+}
+
+type validationProgressInventory struct {
+	validate.TargetInventory
+	site     config.SiteConfig
+	progress *startupValidationProgress
+}
+
+func (v validationProgressInventory) ListTargets(ctx context.Context) (oem.Page[oem.Target], error) {
+	targets, err := v.TargetInventory.ListTargets(ctx)
+	if err == nil {
+		v.progress.logConnectionValidated(ctx, v.site)
+	}
+	return targets, err
+}
+
+func countConfiguredTargets(sites []config.SiteConfig) int {
+	total := 0
+	for _, site := range sites {
+		total += len(site.Targets)
+	}
+	return total
 }
 
 type runtimeState struct {

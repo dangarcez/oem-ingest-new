@@ -41,8 +41,9 @@ type TargetInventoryFactory func(site config.SiteConfig) (TargetInventory, error
 // CorrelationValidationOptions controls the optional correlation validation
 // step.
 type CorrelationValidationOptions struct {
-	Enabled bool
-	Logger  Logger
+	Enabled    bool
+	Logger     Logger
+	InfoLogger InfoLogger
 }
 
 // CorrelationValidationResult contains the corrected in-memory target
@@ -91,6 +92,7 @@ func ValidateTargetCorrelations(ctx context.Context, sites []config.SiteConfig, 
 	if factory == nil {
 		return CorrelationValidationResult{}, errors.New("validacao de correlacao exige uma fabrica de clientes OEM")
 	}
+	infoLogger := validationInfoLogger(opts.Logger, opts.InfoLogger)
 
 	for siteIndex := range corrected {
 		if err := ctx.Err(); err != nil {
@@ -103,9 +105,25 @@ func ValidateTargetCorrelations(ctx context.Context, sites []config.SiteConfig, 
 			return CorrelationValidationResult{}, fmt.Errorf("site[%d] %q: criar cliente OEM: %w", siteIndex, site.Name, err)
 		}
 
+		if infoLogger != nil {
+			infoLogger.InfoContext(ctx, "validacao de correlacoes: listando targets OEM",
+				"site_index", siteIndex,
+				"site", site.Name,
+				"endpoint", site.Endpoint,
+				"configured_targets", len(site.Targets),
+			)
+		}
 		targets, err := client.ListTargets(ctx)
 		if err != nil {
 			return CorrelationValidationResult{}, fmt.Errorf("site[%d] %q: listar targets OEM: %w", siteIndex, site.Name, err)
+		}
+		if infoLogger != nil {
+			infoLogger.InfoContext(ctx, "validacao de correlacoes: targets OEM listados",
+				"site_index", siteIndex,
+				"site", site.Name,
+				"endpoint", site.Endpoint,
+				"targets", len(targets.Items),
+			)
 		}
 		inventory := newTargetInventory(targets.Items)
 

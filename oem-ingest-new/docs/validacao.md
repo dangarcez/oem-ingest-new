@@ -53,6 +53,17 @@ corrigir tags estruturais conforme as regras legadas.
 Sites que ficam sem targets depois das remocoes sao omitidos do YAML validado e
 registrados no relatorio.
 
+## Logs De Progresso
+
+Com `OEM_LOG_LEVEL=INFO`, a validacao registra progresso no log operacional
+antes de executar chamadas demoradas ao OEM. A sequencia esperada inclui
+`validacao de configuracao iniciada`, inicio/conclusao das fases de IDs e
+correlacoes, e mensagens por site antes e depois de listar targets no OEM.
+
+O log `conexao OEM validada` e emitido assim que a primeira chamada real a
+`/em/api/targets` de um endpoint termina com sucesso durante a validacao. A
+validacao nao faz uma chamada extra de ping apenas para produzir esse log.
+
 ## Relatorio JSONL
 
 O relatorio e append-only e contem uma linha JSON por evento. Todos os eventos

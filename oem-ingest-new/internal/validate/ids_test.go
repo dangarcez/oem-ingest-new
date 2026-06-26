@@ -72,6 +72,26 @@ func TestValidateTargetIDsCorrectsDivergentIDAndDoesNotMutateOriginal(t *testing
 	}
 }
 
+func TestValidateTargetIDsKeepsWarnOnlyLoggerCompatible(t *testing.T) {
+	sites := []config.SiteConfig{newTestSite(newTestTarget("configured-id", "missing", "host"))}
+	logger := &recordingLogger{}
+	factory := singleListerFactory(fakeTargetLister{
+		targets: []oem.Target{{ID: "other-id", Name: "other", TypeName: "host"}},
+	})
+
+	result, err := ValidateTargetIDs(context.Background(), sites, factory, IDValidationOptions{
+		Enabled: true,
+		Logger:  logger,
+	})
+	if err != nil {
+		t.Fatalf("ValidateTargetIDs returned error: %v", err)
+	}
+	assertWarning(t, result.Warnings, WarningTargetMissing)
+	if len(logger.messages) != 1 || !strings.Contains(logger.messages[0], "nao encontrado") {
+		t.Fatalf("expected warning from warn-only logger, got %#v", logger.messages)
+	}
+}
+
 func TestValidateTargetIDsNormalizesConfiguredIDWhitespace(t *testing.T) {
 	sites := []config.SiteConfig{newTestSite(newTestTarget(" current-id ", "cdbp51bc", "rac_database"))}
 	factory := singleListerFactory(fakeTargetLister{
