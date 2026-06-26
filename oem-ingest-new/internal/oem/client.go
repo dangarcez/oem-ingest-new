@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"strings"
@@ -251,8 +252,10 @@ func newHTTPClient(opts Options) *http.Client {
 	if maxIdleConnsPerHost <= 0 {
 		maxIdleConnsPerHost = defaultMaxIdleConns
 	}
+	jar, _ := cookiejar.New(nil)
 
 	return &http.Client{
+		Jar:     jar,
 		Timeout: timeout,
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{

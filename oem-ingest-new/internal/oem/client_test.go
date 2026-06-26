@@ -407,6 +407,46 @@ func TestRetryGetOnTransientStatus(t *testing.T) {
 	}
 }
 
+func TestDefaultHTTPClientPersistsCookies(t *testing.T) {
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		checkBasicAuth(t, r)
+		switch calls.Add(1) {
+		case 1:
+			http.SetCookie(w, &http.Cookie{Name: "oem-session", Value: "session-1", Path: "/"})
+		case 2:
+			cookie, err := r.Cookie("oem-session")
+			if err != nil {
+				t.Fatalf("second request missing session cookie: %v", err)
+			}
+			if cookie.Value != "session-1" {
+				t.Fatalf("session cookie = %q, want session-1", cookie.Value)
+			}
+		default:
+			t.Fatalf("unexpected extra request %s", r.URL.String())
+		}
+		writeJSON(t, w, map[string]any{"ok": true})
+	}))
+	defer server.Close()
+
+	client, err := New(Options{
+		Endpoint:    server.URL,
+		Credentials: testCredentials(),
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	if _, err := client.API(context.Background()); err != nil {
+		t.Fatalf("first API returned error: %v", err)
+	}
+	if _, err := client.API(context.Background()); err != nil {
+		t.Fatalf("second API returned error: %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("calls = %d, want 2", calls.Load())
+	}
+}
+
 func TestInsecureTLSCanBeConfigured(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		checkBasicAuth(t, r)
