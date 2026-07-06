@@ -172,9 +172,13 @@ func TestFromMonitorStatusOraclePDB(t *testing.T) {
 		want          float64
 	}{
 		{
-			name:          "empty response always marks no collection",
+			name:          "empty response uses active response monitor",
 			monitorActive: true,
-			want:          1,
+			want:          2,
+		},
+		{
+			name: "empty response without recent collection marks no collection",
+			want: 1,
 		},
 		{
 			name:  "status zero marks inactive",

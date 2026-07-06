@@ -175,7 +175,7 @@ func monitorStatusValue(result collect.Result, monitor *collect.ResponseMonitor,
 			return monitorStatusCollector, true
 		}
 		if len(items) == 0 {
-			return noCollectionStatus(opts), true
+			return monitorActiveStatus(result, monitor, opts), true
 		}
 		return oraclePDBStatus(items[0])
 	case "host":

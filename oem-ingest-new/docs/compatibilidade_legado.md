@@ -89,9 +89,9 @@ As regras por tipo de target seguem a logica do Python:
   usa `oem_monitor_response` para decidir `2` ou `1`.
 - `oracle_database`: usa `Response`; se vier vazio, usa
   `oem_monitor_response`; se houver item, usa `Status` ou `DatabaseStatus`.
-- `oracle_pdb`: usa `Response`; se vier vazio, status `1`; se houver `Status`,
-  `0` gera status `0` e outros valores geram `2`; sem `Status`, `State != OPEN`
-  gera status `0`, caso contrario `2`.
+- `oracle_pdb`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se
+  houver `Status`, `0` gera status `0` e outros valores geram `2`; sem
+  `Status`, `State != OPEN` gera status `0`, caso contrario `2`.
 - `host`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se houver
   item, `Status == 0` gera `0`, caso contrario `2`.
 

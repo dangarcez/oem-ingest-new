@@ -63,7 +63,7 @@ Variaveis de ambiente suportadas nesta fase:
 - `OEM_EXPORT_INTERVAL_SECONDS`.
 - `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
 - `OEM_MONITOR_STATUS_WARMUP_MINUTES`: tempo extra apos a coleta inicial em que
-  `oem_monitor_stus` trata estados sem coleta como `2`; padrao `0`.
+  `oem_monitor_stus` trata estados sem coleta como `3`; padrao `0`.
 - `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS`: intervalo minimo entre
   revalidacoes runtime de ID por target apos `404`; padrao `86400`.
 - `OEM_HTTP_TIMEOUT_SECONDS`.
