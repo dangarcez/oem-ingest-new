@@ -54,6 +54,16 @@ func TestFromResponseMonitorPreservesLegacyStrictToleranceBoundary(t *testing.T)
 	assertMonitorResponsePoint(t, points[0], "target-1", 0, observedAt, Attributes{"target_name": "host01", "target_type": "host", "sistema": "pix"})
 }
 
+func TestFromResponseMonitorUsesFrequencyAwareActiveUntil(t *testing.T) {
+	observedAt := time.Unix(1700000000, 0)
+	monitor := collect.NewResponseMonitor()
+	monitor.MarkUntil("target-1", observedAt.Add(-6*time.Hour), observedAt.Add(time.Minute))
+
+	points := FromResponseMonitor(monitorResponseSites(), monitor, 21*time.Minute, observedAt)
+
+	assertMonitorResponsePoint(t, points[0], "target-1", 1, observedAt, Attributes{"target_name": "host01", "target_type": "host", "sistema": "pix"})
+}
+
 func TestFromResponseMonitorCreatesPointForEachConfiguredTarget(t *testing.T) {
 	observedAt := time.Unix(1700000000, 0)
 	monitor := collect.NewResponseMonitor()
@@ -75,6 +85,18 @@ func TestFromResponseMonitorCreatesPointForEachConfiguredTarget(t *testing.T) {
 	}
 	assertMonitorResponsePoint(t, points[0], "target-1", 0, observedAt, Attributes{"target_name": "host01", "target_type": "host"})
 	assertMonitorResponsePoint(t, points[1], "target-2", 1, observedAt, Attributes{"target_name": "db01", "target_type": "oracle_database"})
+}
+
+func TestFromMonitorStatusUsesFrequencyAwareActiveUntil(t *testing.T) {
+	result := monitorStatusResult("host", "Response", nil)
+	monitor := collect.NewResponseMonitor()
+	monitor.MarkUntil(result.Job.Target.ID, result.CollectedAt.Add(-6*time.Hour), result.CollectedAt.Add(time.Minute))
+
+	point, ok := FromMonitorStatus(result, monitor, 21*time.Minute)
+	if !ok {
+		t.Fatal("FromMonitorStatus returned ok=false, want true")
+	}
+	assertMonitorStatusPoint(t, point, result.Job.Target.ID, 2, result.CollectedAt)
 }
 
 func TestFromMonitorStatusRACDatabase(t *testing.T) {

@@ -54,22 +54,24 @@ const (
 
 // Collector fetches metadata and latestData for scheduler jobs.
 type Collector struct {
-	latestClient LatestDataClient
-	metadata     *MetadataCache
-	logger       Logger
-	clock        func() time.Time
-	responses    *ResponseMonitor
-	idRepairer   TargetIDRepairer
-	stats        collectorStats
+	latestClient      LatestDataClient
+	metadata          *MetadataCache
+	logger            Logger
+	clock             func() time.Time
+	responses         *ResponseMonitor
+	responseTolerance time.Duration
+	idRepairer        TargetIDRepairer
+	stats             collectorStats
 }
 
 // CollectorOptions configures Collector.
 type CollectorOptions struct {
-	MetadataCache   *MetadataCache
-	Logger          Logger
-	Clock           func() time.Time
-	ResponseMonitor *ResponseMonitor
-	IDRepairer      TargetIDRepairer
+	MetadataCache     *MetadataCache
+	Logger            Logger
+	Clock             func() time.Time
+	ResponseMonitor   *ResponseMonitor
+	ResponseTolerance time.Duration
+	IDRepairer        TargetIDRepairer
 }
 
 type collectorStats struct {
@@ -163,18 +165,19 @@ func NewCollector(client Client, opts CollectorOptions) *Collector {
 		responses = NewResponseMonitor()
 	}
 	return &Collector{
-		latestClient: client,
-		metadata:     metadata,
-		logger:       opts.Logger,
-		clock:        clock,
-		responses:    responses,
-		idRepairer:   opts.IDRepairer,
+		latestClient:      client,
+		metadata:          metadata,
+		logger:            opts.Logger,
+		clock:             clock,
+		responses:         responses,
+		responseTolerance: opts.ResponseTolerance,
+		idRepairer:        opts.IDRepairer,
 	}
 }
 
 // Collect fetches latestData for one scheduler job. A useful collection is a
-// successful response with at least one item; only those update target response
-// monitoring.
+// successful response with at least one non-key datapoint; only those update
+// target response monitoring.
 func (c *Collector) Collect(ctx context.Context, job scheduler.Job) (Result, error) {
 	return c.collect(ctx, job, true)
 }
@@ -246,10 +249,19 @@ func (c *Collector) collect(ctx context.Context, job scheduler.Job, allowRepair 
 		CollectedAt:          collectedAt,
 	}
 	if result.Datapoints() > 0 {
-		c.responses.Mark(job.Target.ID, collectedAt)
+		c.markUsefulCollection(job.Target.ID, job.Frequency, collectedAt)
 		atomic.AddUint64(&c.stats.datapointsCollected, uint64(result.Datapoints()))
 	}
 	return result, nil
+}
+
+func (c *Collector) markUsefulCollection(targetID string, frequency time.Duration, collectedAt time.Time) {
+	window := frequency + c.responseTolerance
+	if window <= 0 {
+		c.responses.Mark(targetID, collectedAt)
+		return
+	}
+	c.responses.MarkUntil(targetID, collectedAt, collectedAt.Add(window))
 }
 
 func (c *Collector) repairJobAfterNotFound(ctx context.Context, job scheduler.Job, stage string, cause error) (scheduler.Job, bool) {
@@ -304,18 +316,24 @@ func (c *Collector) SnapshotStats() Stats {
 	}
 }
 
-// ResponseMonitor tracks the last useful collection time per target.
+// ResponseMonitor tracks useful collection freshness per target.
 type ResponseMonitor struct {
 	mu   sync.RWMutex
-	last map[string]time.Time
+	last map[string]responseState
+}
+
+type responseState struct {
+	lastUsefulAt time.Time
+	activeUntil  time.Time
 }
 
 // NewResponseMonitor creates an empty response monitor.
 func NewResponseMonitor() *ResponseMonitor {
-	return &ResponseMonitor{last: make(map[string]time.Time)}
+	return &ResponseMonitor{last: make(map[string]responseState)}
 }
 
-// Mark records a useful collection for targetID.
+// Mark records a useful collection for targetID using the legacy tolerance
+// based freshness calculation in Active.
 func (m *ResponseMonitor) Mark(targetID string, at time.Time) {
 	if m == nil || targetID == "" {
 		return
@@ -323,9 +341,31 @@ func (m *ResponseMonitor) Mark(targetID string, at time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.last == nil {
-		m.last = make(map[string]time.Time)
+		m.last = make(map[string]responseState)
 	}
-	m.last[targetID] = at
+	m.last[targetID] = responseState{lastUsefulAt: at}
+}
+
+// MarkUntil records a useful collection and the precomputed freshness deadline
+// for targetID. The longest activeUntil is kept so a faster metric group cannot
+// shorten freshness established by a slower group.
+func (m *ResponseMonitor) MarkUntil(targetID string, at, activeUntil time.Time) {
+	if m == nil || targetID == "" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.last == nil {
+		m.last = make(map[string]responseState)
+	}
+	state := m.last[targetID]
+	if state.lastUsefulAt.IsZero() || at.After(state.lastUsefulAt) {
+		state.lastUsefulAt = at
+	}
+	if !activeUntil.IsZero() && activeUntil.After(state.activeUntil) {
+		state.activeUntil = activeUntil
+	}
+	m.last[targetID] = state
 }
 
 // Last returns the last useful collection time for targetID.
@@ -335,22 +375,44 @@ func (m *ResponseMonitor) Last(targetID string) (time.Time, bool) {
 	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	at, ok := m.last[targetID]
-	return at, ok
+	state, ok := m.last[targetID]
+	return state.lastUsefulAt, ok
 }
 
-// Active reports whether targetID had a useful collection strictly inside the
-// configured tolerance window. The strict comparison preserves the legacy
-// Python collector behavior for oem_monitor_response.
+// ActiveUntil returns the precomputed freshness deadline for targetID.
+func (m *ResponseMonitor) ActiveUntil(targetID string) (time.Time, bool) {
+	if m == nil || targetID == "" {
+		return time.Time{}, false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	state, ok := m.last[targetID]
+	if !ok || state.activeUntil.IsZero() {
+		return time.Time{}, false
+	}
+	return state.activeUntil, true
+}
+
+// Active reports whether targetID has useful collection freshness. For
+// frequency-aware entries, activeUntil is compared strictly. Legacy Mark entries
+// fall back to the configured tolerance window.
 func (m *ResponseMonitor) Active(targetID string, now time.Time, tolerance time.Duration) bool {
-	if m == nil || targetID == "" || tolerance <= 0 {
+	if m == nil || targetID == "" {
 		return false
 	}
-	at, ok := m.Last(targetID)
+	m.mu.RLock()
+	state, ok := m.last[targetID]
+	m.mu.RUnlock()
 	if !ok {
 		return false
 	}
-	return now.Sub(at) < tolerance
+	if !state.activeUntil.IsZero() {
+		return now.Before(state.activeUntil)
+	}
+	if tolerance <= 0 {
+		return false
+	}
+	return now.Sub(state.lastUsefulAt) < tolerance
 }
 
 // Snapshot returns a copy of all target response timestamps.
@@ -361,8 +423,8 @@ func (m *ResponseMonitor) Snapshot() map[string]time.Time {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make(map[string]time.Time, len(m.last))
-	for targetID, at := range m.last {
-		out[targetID] = at
+	for targetID, state := range m.last {
+		out[targetID] = state.lastUsefulAt
 	}
 	return out
 }

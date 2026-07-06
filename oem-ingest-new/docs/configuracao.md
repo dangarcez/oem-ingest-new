@@ -155,7 +155,7 @@ logado sem derrubar a aplicacao inteira.
 | `OTEL_EXPORT_URL` | vazio | URL base do endpoint OTLP HTTP. A aplicacao usa `/v1/metrics` e `/v1/logs`. |
 | `OTEL_EXPORT_TIMEOUT_SECONDS` | `30` | Timeout total dos POSTs OTLP HTTP para metricas e logs, em segundos. |
 | `OEM_EXPORT_INTERVAL_SECONDS` | `60` | Intervalo de exportacao dos buffers OTLP, em segundos. |
-| `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Janela usada por `oem_monitor_response`, em minutos. |
+| `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES` | `21` | Margem, em minutos, somada a frequencia do job que teve coleta util para calcular a validade de `oem_monitor_response`. Ver `docs/metricas_customizadas.md`. |
 | `OEM_MONITOR_STATUS_WARMUP_MINUTES` | `0` | Tempo extra, apos a coleta inicial, em que `oem_monitor_stus` trata estados sem coleta como `3` para indicar estado do coletor/script. |
 | `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS` | `86400` | Intervalo minimo entre revalidacoes runtime de ID por target apos `404`. |
 | `OEM_HTTP_TIMEOUT_SECONDS` | `30` | Timeout total das chamadas HTTP ao OEM, em segundos. |
@@ -244,8 +244,8 @@ novamente ou aponte `OEM_CONFIG_TARGETS` para o YAML validado, conforme o
 processo operacional escolhido.
 
 Com a validacao ativa, o runtime tambem reage a `404` em metadata ou
-`latestData`: se `oem_monitor_response` indicar coleta util recente para o
-target, a checagem de ID e pulada; caso contrario, o runtime lista targets,
+`latestData`: se `oem_monitor_response` indicar que o target ainda tem coleta
+util valida, a checagem de ID e pulada; caso contrario, o runtime lista targets,
 corrige o ID quando houver match unico por `name` + `typeName`, reescreve o YAML
 validado e anexa um evento `id_correction` ao JSONL. Quando a checagem nao muda
 o ID, novas tentativas para o mesmo target respeitam

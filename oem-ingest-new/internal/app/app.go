@@ -551,9 +551,10 @@ func newRuntimeState(ctx context.Context, env config.Env, cfg config.Config, log
 		}
 		state.clientsByEndpoint[site.Endpoint] = client
 		state.collectorsByEndpoint[site.Endpoint] = collect.NewCollector(client, collect.CollectorOptions{
-			Logger:          logger,
-			ResponseMonitor: state.responseMonitor,
-			IDRepairer:      state.runtimeTargets,
+			Logger:            logger,
+			ResponseMonitor:   state.responseMonitor,
+			ResponseTolerance: env.MonitorResponseTolerance,
+			IDRepairer:        state.runtimeTargets,
 		})
 		poller, err := incidents.New(incidents.Options{
 			Client: client,

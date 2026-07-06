@@ -140,21 +140,10 @@ name`, `name -> name_` e a derivacao de `user`/`pod` a partir de
 
 ## Metricas Customizadas
 
-Algumas series nao existem diretamente na API OEM e sao geradas no coletor:
-
-- `oem_monitor_response`: gauge que indica se o target teve coleta util dentro
-  da tolerancia configurada por `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`
-  (default de 21 minutos).
-- `oem_monitor_stus`: nome legado mantido exatamente, incluindo o erro de
-  grafia. Usa regras especificas por `rac_database`, `oracle_database`,
-  `oracle_pdb` e `host`. Durante a coleta inicial, estados sem coleta sao
-  tratados como `3`; depois dela, `OEM_MONITOR_STATUS_WARMUP_MINUTES` define o
-  tempo extra dessa janela de warm-up. Falhas `401` ou `403` nos jobs custom de
-  status tambem geram `3`, indicando estado do coletor/script.
-- `oem_service_status`: status numerico de servicos a partir de
-  `service_performance` ou `DBService`.
-- `oem_str_service_status`: status textual equivalente, marcado como continuo
-  quando a regra legada exige reenvio mesmo sem mudanca de valor.
+Algumas series nao existem diretamente na API OEM e sao geradas no coletor,
+incluindo `oem_monitor_response`, `oem_monitor_stus`,
+`oem_service_status` e `oem_str_service_status`. O mecanismo completo esta em
+[`metricas_customizadas.md`](metricas_customizadas.md).
 
 As metricas internas usam o prefixo `oem_collector_*` e sao geradas a partir de
 snapshots de configuracao, monitor de resposta, cliente OEM, coletor e

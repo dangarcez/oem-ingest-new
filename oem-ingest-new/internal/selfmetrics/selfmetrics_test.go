@@ -47,6 +47,31 @@ func TestFromSnapshotBuildsConfiguredActiveInactiveTargetMetrics(t *testing.T) {
 	assertNoTargetIdentityAttrs(t, points)
 }
 
+func TestFromSnapshotUsesFrequencyAwareActiveUntilForTargetActivity(t *testing.T) {
+	observedAt := time.Unix(1700000000, 0)
+	monitor := collect.NewResponseMonitor()
+	monitor.MarkUntil("db-1", observedAt.Add(-6*time.Hour), observedAt.Add(time.Minute))
+
+	points := FromSnapshot(SnapshotInput{
+		Sites: []config.SiteConfig{
+			{
+				Name:     "oraemc",
+				Endpoint: "http://oem.example",
+				Targets: []config.TargetConfig{
+					target("db-1", "db01", "oracle_database"),
+				},
+			},
+		},
+		ResponseMonitor:   monitor,
+		ResponseTolerance: 21 * time.Minute,
+		ObservedAt:        observedAt,
+	})
+
+	attrs := transform.Attributes{"scope": "targets", "site": "oraemc", "endpoint": "http://oem.example", "target_type": "oracle_database"}
+	assertPoint(t, points, TargetsActiveMetricName, attrs, 1)
+	assertPoint(t, points, TargetsInactiveMetricName, attrs, 0)
+}
+
 func TestFromSnapshotBuildsRequestCollectionAndExportMetrics(t *testing.T) {
 	observedAt := time.Unix(1700000100, 0)
 	points := FromSnapshot(SnapshotInput{

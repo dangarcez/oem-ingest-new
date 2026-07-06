@@ -61,7 +61,8 @@ Variaveis de ambiente suportadas nesta fase:
 - `OTEL_EXPORT_URL`.
 - `OTEL_EXPORT_TIMEOUT_SECONDS`.
 - `OEM_EXPORT_INTERVAL_SECONDS`.
-- `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
+- `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`: margem somada a frequencia do job
+  para calcular a validade de `oem_monitor_response`; padrao `21`.
 - `OEM_MONITOR_STATUS_WARMUP_MINUTES`: tempo extra apos a coleta inicial em que
   `oem_monitor_stus` trata estados sem coleta como `3`; padrao `0`.
 - `OEM_RUNTIME_ID_RECHECK_INTERVAL_SECONDS`: intervalo minimo entre
@@ -127,6 +128,8 @@ checks, alem de `docker build` e um smoke test da imagem com `--help`.
   mudancas e efeito na run.
 - `docs/operacao.md`: execucao local, Docker, Docker Compose, logs,
   troubleshooting e metricas internas.
+- `docs/metricas_customizadas.md`: metricas geradas pelo codigo, incluindo
+  `oem_monitor_response`, `oem_monitor_stus`, warm-up e status de servicos.
 - `docs/compatibilidade_legado.md`: contrato de compatibilidade com o coletor
   Python antigo e mudancas intencionais.
 

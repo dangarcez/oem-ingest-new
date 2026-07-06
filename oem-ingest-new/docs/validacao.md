@@ -89,10 +89,10 @@ chamadas `latestData`.
 Com `OEM_VALIDATE_CONFIG=true`, a coleta tambem pode revalidar um target em
 runtime quando uma busca de metadata ou `latestData` retornar `404`. Antes de
 listar targets no OEM, o runtime verifica `oem_monitor_response`: se o target
-teve coleta util dentro de `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`, a
-revalidacao e pulada. Caso contrario, a API de targets e consultada e, havendo
-match unico por `name` + `typeName` com ID diferente, o ID e atualizado em
-memoria, o YAML validado e reescrito e um evento JSONL e anexado ao relatorio.
+ainda tem coleta util valida, a revalidacao e pulada. Caso contrario, a API de
+targets e consultada e, havendo match unico por `name` + `typeName` com ID
+diferente, o ID e atualizado em memoria, o YAML validado e reescrito e um evento
+JSONL e anexado ao relatorio.
 
 Quando a verificacao confirma que o ID nao mudou, ou nao encontra uma correcao
 segura, novas verificacoes para o mesmo target ficam bloqueadas por

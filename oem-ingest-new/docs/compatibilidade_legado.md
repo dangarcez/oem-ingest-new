@@ -67,57 +67,15 @@ distintas do mesmo grupo.
 
 ## Metricas Customizadas
 
-`oem_monitor_response` continua indicando a saude da propria coleta por target:
-
-- `1`: houve coleta util dentro da tolerancia;
-- `0`: o target nunca coletou ou a ultima coleta util esta fora da tolerancia.
-
-A tolerancia padrao permanece 21 minutos, agora configuravel por
+As metricas customizadas mantem os nomes e codigos legados, incluindo
+`oem_monitor_stus` com o erro de grafia. `oem_monitor_response` continua
+indicando se o target tem alguma coleta util valida, mas a validade agora e
+calculada por frequencia do job mais a margem
 `OEM_MONITOR_RESPONSE_TOLERANCE_MINUTES`.
 
-`oem_monitor_stus` mantem exatamente o nome legado com erro de grafia. Os codigos
-exportados sao:
-
-- `0`: down ou inativo;
-- `1`: sem coleta;
-- `2`: up ou coletando.
-- `3`: estado do coletor/script, sem confirmacao do target.
-
-As regras por tipo de target seguem a logica do Python:
-
-- `rac_database`: usa `Availability`; se houver item, status `0`; se vier vazio,
-  usa `oem_monitor_response` para decidir `2` ou `1`.
-- `oracle_database`: usa `Response`; se vier vazio, usa
-  `oem_monitor_response`; se houver item, usa `Status` ou `DatabaseStatus`.
-- `oracle_pdb`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se
-  houver `Status`, `0` gera status `0` e outros valores geram `2`; sem
-  `Status`, `State != OPEN` gera status `0`, caso contrario `2`.
-- `host`: usa `Response`; se vier vazio, usa `oem_monitor_response`; se houver
-  item, `Status == 0` gera `0`, caso contrario `2`.
-
-Durante a coleta inicial, `oem_monitor_stus` trata estados sem coleta como `3`
-para indicar estado do coletor/script. Depois que a coleta
-inicial termina, `OEM_MONITOR_STATUS_WARMUP_MINUTES` define por quantos minutos
-esse warm-up continua ativo. Com o valor padrao `0`, ele termina junto com a
-coleta inicial. O fim da etapa gera log `INFO` com a mensagem
-`warm-up de oem_monitor_stus concluido`. Status explicitos de down vindos do OEM
-continuam gerando `0`.
-
-Para manter a compatibilidade com o Python, os grupos que alimentam essas
-metricas customizadas sao adicionados aos jobs de coleta quando faltam no
-`configMetrics.yaml`: `rac_database/Availability`,
-`oracle_database/Response`, `oracle_pdb/Response` e `host/Response`. Esses jobs
-custom usam metadata vazia e tratam respostas HTTP sem datapoints como coleta
-vazia, preservando a emissao de `oem_monitor_stus`. Respostas `401` ou `403`
-nesses jobs geram status `3`.
-
-`oem_service_status` e `oem_str_service_status` continuam unificando status de
-servicos de `rac_database/service_performance` e `oracle_pdb/DBService`:
-
-- `DBTime_delta > 0` indica ativo;
-- `status == "Up"` indica ativo e tem prioridade quando presente;
-- a metrica numerica usa `1` para ativo e `0` para inativo;
-- a versao textual usa `ativo` e `inativo` e e marcada como continua.
+As regras detalhadas de `oem_monitor_response`, `oem_monitor_stus`, warm-up,
+auth `401/403`, grupos custom adicionados ao scheduler e status de servicos
+estao em [`metricas_customizadas.md`](metricas_customizadas.md).
 
 ## Incidentes
 

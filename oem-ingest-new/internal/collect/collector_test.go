@@ -61,6 +61,93 @@ func TestCollectorCollectsPayloadWithItemsAndUpdatesResponseMonitor(t *testing.T
 	}
 }
 
+func TestCollectorMarksResponseActiveUntilFrequencyPlusTolerance(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	client := &fakeCollectClient{
+		groups: map[string]oem.MetricGroup{
+			"target-1\x00Load": {
+				Metrics: []oem.MetricDefinition{{Name: "value", DataType: "NUMBER"}},
+			},
+		},
+		latest: map[string]oem.LatestData{
+			"target-1\x00Load": {
+				MetricGroupName: "Load",
+				Items:           []map[string]any{{"value": 42}},
+			},
+		},
+	}
+	monitor := NewResponseMonitor()
+	collector := NewCollector(client, CollectorOptions{
+		Clock:             func() time.Time { return now },
+		ResponseMonitor:   monitor,
+		ResponseTolerance: 21 * time.Minute,
+	})
+	job := collectJob()
+	job.Frequency = 6 * time.Hour
+	job.MetricGroup.Freq = 360
+
+	if _, err := collector.Collect(context.Background(), job); err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+
+	wantUntil := now.Add(6*time.Hour + 21*time.Minute)
+	if got, ok := monitor.ActiveUntil("target-1"); !ok || !got.Equal(wantUntil) {
+		t.Fatalf("active until = %s, %v; want %s, true", got, ok, wantUntil)
+	}
+	if !monitor.Active("target-1", wantUntil.Add(-time.Nanosecond), 21*time.Minute) {
+		t.Fatal("target should be active before active_until")
+	}
+	if monitor.Active("target-1", wantUntil, 21*time.Minute) {
+		t.Fatal("target should be inactive at the strict active_until boundary")
+	}
+	if got, ok := monitor.Last("target-1"); !ok || !got.Equal(now) {
+		t.Fatalf("last useful collection = %s, %v; want %s, true", got, ok, now)
+	}
+}
+
+func TestResponseMonitorKeepsLongestActiveUntilAndLatestUsefulCollection(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	monitor := NewResponseMonitor()
+	slowUntil := now.Add(6*time.Hour + 21*time.Minute)
+	fastAt := now.Add(10 * time.Minute)
+	fastUntil := fastAt.Add(31 * time.Minute)
+
+	monitor.MarkUntil("target-1", now, slowUntil)
+	monitor.MarkUntil("target-1", fastAt, fastUntil)
+
+	if got, ok := monitor.ActiveUntil("target-1"); !ok || !got.Equal(slowUntil) {
+		t.Fatalf("active until = %s, %v; want %s, true", got, ok, slowUntil)
+	}
+	if got, ok := monitor.Last("target-1"); !ok || !got.Equal(fastAt) {
+		t.Fatalf("last useful collection = %s, %v; want %s, true", got, ok, fastAt)
+	}
+	if !monitor.Active("target-1", slowUntil.Add(-time.Nanosecond), 21*time.Minute) {
+		t.Fatal("target should remain active until the slow metric deadline")
+	}
+	if monitor.Active("target-1", slowUntil, 21*time.Minute) {
+		t.Fatal("target should be inactive at the slow metric deadline")
+	}
+}
+
+func TestResponseMonitorMarkPreservesLegacyToleranceBehavior(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	monitor := NewResponseMonitor()
+	monitor.MarkUntil("target-1", now, now.Add(6*time.Hour))
+
+	legacyAt := now.Add(10 * time.Minute)
+	monitor.Mark("target-1", legacyAt)
+
+	if got, ok := monitor.ActiveUntil("target-1"); ok {
+		t.Fatalf("legacy Mark should clear active_until, got %s", got)
+	}
+	if !monitor.Active("target-1", legacyAt.Add(20*time.Minute), 21*time.Minute) {
+		t.Fatal("legacy Mark should use tolerance window")
+	}
+	if monitor.Active("target-1", legacyAt.Add(21*time.Minute), 21*time.Minute) {
+		t.Fatal("legacy Mark should preserve strict tolerance boundary")
+	}
+}
+
 func TestCollectorAllowsEmptyLatestDataWithoutUpdatingResponseMonitor(t *testing.T) {
 	now := time.Unix(1700000100, 0)
 	client := &fakeCollectClient{
